@@ -1,0 +1,7 @@
+# Kotlin/Node common ignores
+.gradle/
+build/
+**/build/
+node_modules/
+*.log
+out/

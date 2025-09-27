@@ -1,0 +1,21 @@
+# General
+.DS_Store
+.idea/
+*.iml
+*.log
+
+# Gradle
+.gradle/
+build/
+**/build/
+local.properties
+
+# Android Studio
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Kotlin/Node common ignores
+node_modules/
+*.class
+out/
