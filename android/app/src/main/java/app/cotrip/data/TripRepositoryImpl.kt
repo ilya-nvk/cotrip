@@ -24,10 +24,10 @@ class TripRepositoryImpl @Inject constructor(
         val remoteTrips = try {
             tripApi.getTrips()
         } catch (e: Exception) {
-            emptyList()
+            return
         }
+        tripDao.clearTrips()
         if (remoteTrips.isNotEmpty()) {
-            tripDao.clearTrips()
             tripDao.insertTrips(remoteTrips.map { it.toEntity() })
         }
     }

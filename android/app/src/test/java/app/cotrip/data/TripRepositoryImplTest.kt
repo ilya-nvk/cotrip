@@ -27,7 +27,9 @@ private class FakeTripDao : TripDao {
     }
 }
 
-private class FakeTripApi(private val trips: List<Trip>) : TripApi {
+private class FakeTripApi(initialTrips: List<Trip>) : TripApi {
+    var trips: List<Trip> = initialTrips
+
     override suspend fun getTrips(): List<Trip> = trips
 }
 
@@ -35,7 +37,7 @@ private class FakeTripApi(private val trips: List<Trip>) : TripApi {
 class TripRepositoryImplTest {
 
     private lateinit var tripDao: FakeTripDao
-    private lateinit var tripApi: TripApi
+    private lateinit var tripApi: FakeTripApi
     private lateinit var repository: TripRepositoryImpl
 
     @Before
@@ -53,5 +55,26 @@ class TripRepositoryImplTest {
         val trips = repository.observeTrips().first()
         assertEquals(1, trips.size)
         assertEquals("Paris", trips.first().destination)
+    }
+
+    @Test
+    fun `refreshTrips clears local data when remote empty`() = runBlocking {
+        tripDao.insertTrips(
+            listOf(
+                TripEntity(
+                    id = "cached",
+                    destination = "Berlin",
+                    startDate = "2024-04-01",
+                    endDate = "2024-04-05"
+                )
+            )
+        )
+
+        tripApi.trips = emptyList()
+
+        repository.refreshTrips()
+
+        val trips = repository.observeTrips().first()
+        assertEquals(0, trips.size)
     }
 }
