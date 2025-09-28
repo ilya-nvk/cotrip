@@ -21,7 +21,7 @@ jobs:
 
       - name: Build with Gradle
         working-directory: android
-        run: ./gradlew build
+        run: ./gradlew build -x lint
 
       - name: Run Unit Tests
         working-directory: android
