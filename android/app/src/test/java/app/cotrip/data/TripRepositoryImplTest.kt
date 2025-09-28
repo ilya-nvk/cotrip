@@ -44,7 +44,9 @@ class TripRepositoryImplTest {
     fun setup() {
         tripDao = FakeTripDao()
         tripApi = FakeTripApi(
-            trips = listOf(Trip(id = "1", destination = "Paris", startDate = "2024-05-01", endDate = "2024-05-07"))
+            initialTrips = listOf(
+                Trip(id = "1", destination = "Paris", startDate = "2024-05-01", endDate = "2024-05-07")
+            )
         )
         repository = TripRepositoryImpl(tripDao, tripApi)
     }
