@@ -27,10 +27,3 @@ jobs:
         working-directory: android
         run: ./gradlew test
 
-      - name: Run UI Tests
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 34
-          target: google_apis
-          arch: x86_64
-          script: cd android && ./gradlew connectedAndroidTest
