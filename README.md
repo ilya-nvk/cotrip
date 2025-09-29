@@ -1,22 +1,10 @@
 # CoTrip
 
-**Mobile app for collaborative trip planning.**  
-Create trips, add ideas, discuss with comments, build daily routes, track expenses, and get weather & AI-based suggestions.
+CoTrip is a multi-platform project consisting of an Android application and a backend service. This repository currently contains the Android client implementation and a placeholder for the backend service.
 
----
+- `android/`: Android application written in Kotlin using Jetpack Compose, Hilt, and Clean Architecture principles.
+- `backend/`: Placeholder for the future Kotlin Ktor backend with PostgreSQL.
 
-## Features
-- Google login  
-- Create and join trips with friends  
-- Add and vote for ideas (places, activities)  
-- Comment on ideas in real time  
-- Build daily routes from selected ideas  
-- Track group expenses with automatic balance calculation  
-- Weather forecast for trip days  
-- (Optional) AI-generated trip suggestions via ChatGPT API  
+## Development
 
----
-
-## Build
-```bash
-./gradlew build
+See the respective directories for more information.
