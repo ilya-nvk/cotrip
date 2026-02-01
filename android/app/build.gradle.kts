@@ -7,11 +7,11 @@ plugins {
 }
 
 android {
-    namespace = "app.cotrip"
+    namespace = "nvk.cotrip"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "app.cotrip"
+        applicationId = "nvk.cotrip"
         minSdk = 26
         targetSdk = 34
         versionCode = 1
