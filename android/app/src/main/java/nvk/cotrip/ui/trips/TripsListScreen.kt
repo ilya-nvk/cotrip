@@ -370,7 +370,7 @@ private fun UpcomingEmptyCard(
     modifier: Modifier = Modifier,
 ) {
     Surface(
-        shape = RoundedCornerShape(CoTripTokens.radius.large),
+        shape = RoundedCornerShape(CoTripTokens.radius.xLarge),
         color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, Border),
         modifier = modifier.fillMaxWidth()

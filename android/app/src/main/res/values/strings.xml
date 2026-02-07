@@ -46,6 +46,27 @@
     <string name="trip_form_date_not_implemented">Date picker is not implemented yet</string>
     <string name="trip_form_cover_not_implemented">Cover image picker is not implemented yet</string>
 
+    <!--Trip Details-->
+    <string name="trip_details_back">Back</string>
+    <string name="trip_details_edit">Edit</string>
+    <string name="trip_details_travelers">TRAVELERS</string>
+    <string name="trip_details_invite">Invite</string>
+    <string name="trip_details_invite_travelers">Invite travelers</string>
+    <string name="trip_details_weather">WEATHER</string>
+    <string name="trip_details_view_full_forecast">View full forecast →</string>
+    <string name="trip_details_next_in_trip">NEXT IN YOUR TRIP</string>
+    <string name="trip_details_view_full_itinerary">View full itinerary →</string>
+    <string name="trip_details_start_planning">START PLANNING</string>
+    <string name="trip_details_start_planning_text">Your trip is coming together. Start adding ideas and building your route to make the most of your time.</string>
+    <string name="trip_details_browse_ideas">Browse ideas →</string>
+    <string name="trip_details_overview">OVERVIEW</string>
+    <string name="trip_details_ideas">Ideas</string>
+    <string name="trip_details_total_expenses">Total expenses</string>
+    <string name="trip_details_get_route_suggestions">Get route suggestions</string>
+    <string name="trip_details_build_route">Build your route</string>
+    <string name="trip_details_city_picker_stub">City selection is not implemented yet</string>
+
+
     <!--Currencies-->
     <string name="currency_eur">Euro (€)</string>
     <string name="currency_usd">US Dollar ($)</string>

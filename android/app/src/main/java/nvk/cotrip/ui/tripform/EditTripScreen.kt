@@ -8,7 +8,6 @@ import nvk.cotrip.R
 
 @Composable
 fun EditTripScreen(
-    onClose: () -> Unit,
     viewModel: EditTripViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()

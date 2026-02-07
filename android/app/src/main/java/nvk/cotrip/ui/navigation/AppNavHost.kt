@@ -2,11 +2,17 @@ package nvk.cotrip.ui.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.navArgument
 import nvk.cotrip.ui.auth.SignInScreen
+import nvk.cotrip.ui.tripdetails.TripDetailsScreen
 import nvk.cotrip.ui.tripform.CreateTripScreen
+import nvk.cotrip.ui.tripform.EditTripScreen
 import nvk.cotrip.ui.trips.TripsListScreen
+
+private const val ARG_TRIP_ID = "tripId"
 
 @Composable
 fun AppNavHost(
@@ -31,40 +37,88 @@ fun AppNavHost(
         }
 
         composable(Destination.Settings.route) {
+            //SettingsScreen()
         }
 
-        composable(Destination.TripDetails.ROUTE_PATTERN) { backStackEntry ->
-//            val tripId = backStackEntry.arguments
-//                ?.requireStringArg(Destination.TripDetails.ARG_TRIP_ID)
-
-//            if (tripId == null) {
-//                // null-safe: если аргумента нет — уходим назад, не падаем
-//                LaunchedEffect(Unit) { navController.popBackStack() }
-//                return@composable
-//            }
-//
-//            TripDetailsScreen(
-//                tripId = tripId,
-//                onOpenExpenses = {
-//                    navController.navigate(Destination.Expenses(tripId).route)
-//                },
-//                onBack = { navController.popBackStack() }
-//            )
+        composable(
+            route = Destination.TripDetails.ROUTE_PATTERN,
+            arguments = listOf(
+                navArgument(ARG_TRIP_ID) { type = NavType.StringType }
+            )
+        ) {
+            TripDetailsScreen()
         }
 
-        composable(Destination.Expenses.ROUTE_PATTERN) { backStackEntry ->
-//            val tripId = backStackEntry.arguments
-//                ?.requireStringArg(Destination.Expenses.ARG_TRIP_ID)
-//
-//            if (tripId == null) {
-//                LaunchedEffect(Unit) { navController.popBackStack() }
-//                return@composable
-//            }
-//
-//            ExpensesScreen(
-//                tripId = tripId,
-//                onBack = { navController.popBackStack() }
-//            )
+        composable(
+            route = Destination.EditTrip.ROUTE_PATTERN,
+            arguments = listOf(
+                navArgument(ARG_TRIP_ID) { type = NavType.StringType }
+            )
+        ) {
+            EditTripScreen()
+        }
+
+        composable(
+            route = Destination.InviteTravelers.ROUTE_PATTERN,
+            arguments = listOf(
+                navArgument(ARG_TRIP_ID) { type = NavType.StringType }
+            )
+        ) {
+            //InviteTravelersScreen()
+        }
+
+        composable(
+            route = Destination.TripIdeas.ROUTE_PATTERN,
+            arguments = listOf(
+                navArgument(ARG_TRIP_ID) { type = NavType.StringType }
+            )
+        ) {
+            //TripIdeasScreen()
+        }
+
+        composable(
+            route = Destination.TripItinerary.ROUTE_PATTERN,
+            arguments = listOf(
+                navArgument(ARG_TRIP_ID) { type = NavType.StringType }
+            )
+        ) {
+            //TripItineraryScreen()
+        }
+
+        composable(
+            route = Destination.TripForecast.ROUTE_PATTERN,
+            arguments = listOf(
+                navArgument(ARG_TRIP_ID) { type = NavType.StringType }
+            )
+        ) {
+            //TripForecastScreen()
+        }
+
+        composable(
+            route = Destination.BuildRoute.ROUTE_PATTERN,
+            arguments = listOf(
+                navArgument(ARG_TRIP_ID) { type = NavType.StringType }
+            )
+        ) {
+            //BuildRouteScreen()
+        }
+
+        composable(
+            route = Destination.RouteSuggestions.ROUTE_PATTERN,
+            arguments = listOf(
+                navArgument(ARG_TRIP_ID) { type = NavType.StringType }
+            )
+        ) {
+            //RouteSuggestionsScreen()
+        }
+
+        composable(
+            route = Destination.Expenses.ROUTE_PATTERN,
+            arguments = listOf(
+                navArgument(ARG_TRIP_ID) { type = NavType.StringType }
+            )
+        ) {
+            //ExpensesScreen()
         }
     }
 }
