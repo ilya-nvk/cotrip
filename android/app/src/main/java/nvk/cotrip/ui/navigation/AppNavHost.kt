@@ -7,12 +7,14 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import nvk.cotrip.ui.auth.SignInScreen
+import nvk.cotrip.ui.forecast.TripForecastScreen
+import nvk.cotrip.ui.invitation.InvitePeopleScreen
 import nvk.cotrip.ui.tripdetails.TripDetailsScreen
 import nvk.cotrip.ui.tripform.CreateTripScreen
 import nvk.cotrip.ui.tripform.EditTripScreen
 import nvk.cotrip.ui.trips.TripsListScreen
 
-private const val ARG_TRIP_ID = "tripId"
+const val ARG_TRIP_ID = "tripId"
 
 @Composable
 fun AppNavHost(
@@ -64,7 +66,7 @@ fun AppNavHost(
                 navArgument(ARG_TRIP_ID) { type = NavType.StringType }
             )
         ) {
-            //InviteTravelersScreen()
+            InvitePeopleScreen()
         }
 
         composable(
@@ -91,7 +93,7 @@ fun AppNavHost(
                 navArgument(ARG_TRIP_ID) { type = NavType.StringType }
             )
         ) {
-            //TripForecastScreen()
+            TripForecastScreen()
         }
 
         composable(

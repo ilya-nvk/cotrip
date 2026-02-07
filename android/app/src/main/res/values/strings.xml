@@ -66,6 +66,22 @@
     <string name="trip_details_build_route">Build your route</string>
     <string name="trip_details_city_picker_stub">City selection is not implemented yet</string>
 
+    <!--Invitation-->
+    <string name="invite_people_title">Invite people</string>
+    <string name="invite_people_description">Share this link to invite others to join your trip. The link is valid for 12 hours.</string>
+    <string name="invite_people_link_label">INVITATION LINK</string>
+    <string name="invite_people_expires_hint">Link expires in %1$d hours</string>
+    <string name="invite_people_copy_link">Copy link</string>
+    <string name="invite_people_share_link">Share link</string>
+    <string name="invite_people_copied_toast">Link copied</string>
+    <string name="invite_people_share_not_implemented">Sharing is not implemented yet</string>
+
+    <!--Weather-->
+    <string name="weather_forecast_title">Weather forecast</string>
+    <string name="weather_forecast_disclaimer">Weather data is approximate and subject to change.</string>
+    <string name="weather_forecast_source">Source: %1$s</string>
+    <string name="weather_forecast_updated">Last updated: %1$s</string>
+    <string name="weather_forecast_city_not_implemented">City selection is not implemented yet</string>
 
     <!--Currencies-->
     <string name="currency_eur">Euro (€)</string>

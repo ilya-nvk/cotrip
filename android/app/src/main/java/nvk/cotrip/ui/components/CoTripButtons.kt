@@ -2,7 +2,9 @@ package nvk.cotrip.ui.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Button
@@ -52,6 +54,38 @@ fun PrimaryButton(
     ) {
         if (leadingIcon != null) {
             leadingIcon()
+            Spacer(Modifier.width(10.dp))
+        }
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelLarge
+        )
+    }
+}
+
+@Composable
+fun SecondaryButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    leadingIcon: (@Composable () -> Unit)? = null,
+) {
+    OutlinedButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = modifier,
+        shape = MaterialTheme.shapes.medium,
+        border = BorderStroke(1.dp, if (enabled) BorderStrong else Border),
+        colors = ButtonDefaults.outlinedButtonColors(
+            contentColor = MaterialTheme.colorScheme.onBackground,
+            disabledContentColor = TextDisabled
+        ),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp)
+    ) {
+        if (leadingIcon != null) {
+            leadingIcon()
+            Spacer(Modifier.width(10.dp))
         }
         Text(
             text = text,
@@ -80,7 +114,10 @@ fun SecondaryOutlinedButton(
         ),
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp)
     ) {
-        if (leadingIcon != null) leadingIcon()
+        if (leadingIcon != null) {
+            leadingIcon()
+            Spacer(Modifier.width(10.dp))
+        }
         Text(
             text = text,
             style = MaterialTheme.typography.labelLarge
@@ -106,7 +143,10 @@ fun TertiaryTextButton(
         ),
         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)
     ) {
-        if (leadingIcon != null) leadingIcon()
+        if (leadingIcon != null) {
+            leadingIcon()
+            Spacer(Modifier.width(8.dp))
+        }
         Text(
             text = text,
             style = MaterialTheme.typography.labelLarge
@@ -134,7 +174,10 @@ fun DestructiveOutlinedButton(
         ),
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp)
     ) {
-        if (leadingIcon != null) leadingIcon()
+        if (leadingIcon != null) {
+            leadingIcon()
+            Spacer(Modifier.width(10.dp))
+        }
         Text(
             text = text,
             style = MaterialTheme.typography.labelLarge

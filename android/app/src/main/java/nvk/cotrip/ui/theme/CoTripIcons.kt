@@ -3,7 +3,18 @@ package nvk.cotrip.ui.theme
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.ui.graphics.vector.ImageVector
 
 object CoTripIcons {
@@ -18,6 +29,7 @@ object CoTripIcons {
     val Delete: ImageVector = Icons.Filled.Delete
     val Share: ImageVector = Icons.Filled.Share
     val PhotoCamera: ImageVector = Icons.Filled.CheckCircle // todo
+    val Copy: ImageVector = Icons.Outlined.CheckCircle // todo
 
     val CheckCircle: ImageVector = Icons.Filled.CheckCircle
     val Schedule: ImageVector = Icons.Filled.CheckCircle // todo
