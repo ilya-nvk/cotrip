@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="accent">#262626</color>
+    <color name="accent_foreground">#FAFAFA</color>
+    <color name="background">#0A0A0A</color>
+    <color name="border">#262626</color>
+    <color name="card">#0A0A0A</color>
+    <color name="card_foreground">#FAFAFA</color>
+    <color name="chart_1">#1447E6</color>
+    <color name="chart_2">#00BC7D</color>
+    <color name="chart_3">#FE9A00</color>
+    <color name="chart_4">#AD46FF</color>
+    <color name="chart_5">#E10A0A</color>
+    <color name="destructive">#82181A</color>
+    <color name="destructive_foreground">#FB2C36</color>
+    <color name="foreground">#FAFAFA</color>
+    <color name="input">#262626</color>
+    <color name="muted">#262626</color>
+    <color name="muted_foreground">#A1A1A1</color>
+    <color name="popover">#0A0A0A</color>
+    <color name="popover_foreground">#FAFAFA</color>
+    <color name="primary">#FAFAFA</color>
+    <color name="primary_foreground">#171717</color>
+    <color name="ring">#626262</color>
+    <color name="secondary">#262626</color>
+    <color name="secondary_foreground">#FAFAFA</color>
+    <color name="sidebar">#171717</color>
+    <color name="sidebar_accent">#262626</color>
+    <color name="sidebar_accent_foreground">#FAFAFA</color>
+    <color name="sidebar_border">#262626</color>
+    <color name="sidebar_foreground">#FAFAFA</color>
+    <color name="sidebar_primary">#1447E6</color>
+    <color name="sidebar_primary_foreground">#FAFAFA</color>
+    <color name="sidebar_ring">#626262</color>
+</resources>

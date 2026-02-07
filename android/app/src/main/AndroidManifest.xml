@@ -3,7 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <application
-        android:name="app.cotrip.CoTripApp"
+        android:name=".CoTripApp"
         android:allowBackup="true"
         android:icon="@android:drawable/sym_def_app_icon"
         android:label="@string/app_name"
@@ -15,9 +15,8 @@
             android:exported="false"
             tools:node="remove" />
         <activity
-            android:name="app.cotrip.ui.home.MainActivity"
-            android:exported="true"
-            android:label="@string/app_name">
+            android:name=".MainActivity"
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

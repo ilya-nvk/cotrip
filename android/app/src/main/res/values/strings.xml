@@ -1,3 +1,87 @@
 <resources>
     <string name="app_name">CoTrip</string>
+
+    <!--Sign In-->
+    <string name="sign_in_subtitle">Plan trips together. Easily.</string>
+    <string name="continue_with_google">Continue with Google</string>
+    <string name="signing_in">Signing in...</string>
+    <string name="sign_in_privacy_note">CoTrip uses your Google account only to identify you and sync your trips.</string>
+
+    <!--Trips List-->
+    <string name="trips_title">My Trips</string>
+    <string name="section_active">ACTIVE</string>
+    <string name="section_upcoming">UPCOMING</string>
+    <string name="section_past_with_count">PAST TRIPS (%1$d)</string>
+    <string name="in_progress">In progress</string>
+    <string name="no_upcoming_trips">No upcoming trips</string>
+    <string name="no_upcoming_trips_desc">Create a new trip to start planning.</string>
+    <string name="no_trips_yet">No trips yet</string>
+    <string name="no_trips_yet_desc">Create your first trip and start planning together.</string>
+    <string name="create_trip">Create trip</string>
+    <string name="settings">Settings</string>
+    <string name="toggle_past">Toggle past</string>
+
+    <!--Trip Form-->
+    <string name="common_cancel">Cancel</string>
+    <string name="create_trip_title">Create trip</string>
+    <string name="create_trip_primary_button">Create trip</string>
+    <string name="create_trip_created_toast">Trip created</string>
+    <string name="edit_trip_title">Edit trip</string>
+    <string name="edit_trip_primary_button">Save changes</string>
+    <string name="edit_trip_saved_toast">Changes saved</string>
+    <string name="edit_trip_archived_toast">Trip archived</string>
+    <string name="edit_trip_deleted_toast">Trip deleted</string>
+    <string name="trip_form_cover_section">COVER IMAGE</string>
+    <string name="trip_form_add_cover">Add cover image</string>
+    <string name="trip_form_name_label">Trip name</string>
+    <string name="trip_form_dates_section">DATES</string>
+    <string name="trip_form_start_date_label">Start date</string>
+    <string name="trip_form_end_date_label">End date</string>
+    <string name="trip_form_date_placeholder">dd.mm.yyyy</string>
+    <string name="trip_form_description_label">Description</string>
+    <string name="trip_form_currency_label">Currency</string>
+    <string name="trip_form_advanced_section">ADVANCED</string>
+    <string name="trip_form_archive">Archive trip</string>
+    <string name="trip_form_delete">Delete trip</string>
+    <string name="trip_form_date_not_implemented">Date picker is not implemented yet</string>
+    <string name="trip_form_cover_not_implemented">Cover image picker is not implemented yet</string>
+
+    <!--Currencies-->
+    <string name="currency_eur">Euro (€)</string>
+    <string name="currency_usd">US Dollar ($)</string>
+    <string name="currency_gbp">British Pound (£)</string>
+    <string name="currency_jpy">Japanese Yen (¥)</string>
+    <string name="currency_cny">Chinese Yuan (¥)</string>
+    <string name="currency_krw">South Korean Won (₩)</string>
+    <string name="currency_aud">Australian Dollar ($)</string>
+    <string name="currency_cad">Canadian Dollar ($)</string>
+    <string name="currency_chf">Swiss Franc (CHF)</string>
+    <string name="currency_sek">Swedish Krona (kr)</string>
+    <string name="currency_nok">Norwegian Krone (kr)</string>
+    <string name="currency_dkk">Danish Krone (kr)</string>
+    <string name="currency_pln">Polish Złoty (zł)</string>
+    <string name="currency_czk">Czech Koruna (Kč)</string>
+    <string name="currency_huf">Hungarian Forint (Ft)</string>
+    <string name="currency_try">Turkish Lira (₺)</string>
+    <string name="currency_ils">Israeli Shekel (₪)</string>
+    <string name="currency_aed">UAE Dirham (د.إ)</string>
+    <string name="currency_sar">Saudi Riyal (﷼)</string>
+    <string name="currency_inr">Indian Rupee (₹)</string>
+    <string name="currency_thb">Thai Baht (฿)</string>
+    <string name="currency_sgd">Singapore Dollar ($)</string>
+    <string name="currency_hkd">Hong Kong Dollar ($)</string>
+    <string name="currency_idr">Indonesian Rupiah (Rp)</string>
+    <string name="currency_myr">Malaysian Ringgit (RM)</string>
+    <string name="currency_php">Philippine Peso (₱)</string>
+    <string name="currency_mxn">Mexican Peso ($)</string>
+    <string name="currency_brl">Brazilian Real (R$)</string>
+    <string name="currency_ars">Argentine Peso ($)</string>
+    <string name="currency_clp">Chilean Peso ($)</string>
+    <string name="currency_cop">Colombian Peso ($)</string>
+    <string name="currency_zar">South African Rand (R)</string>
+    <string name="currency_egp">Egyptian Pound (£)</string>
+    <string name="currency_rub">Russian Ruble (₽)</string>
+    <string name="currency_uah">Ukrainian Hryvnia (₴)</string>
+    <string name="currency_kzt">Kazakhstani Tenge (₸)</string>
+    <string name="currency_byn">Belarusian Ruble (Br)</string>
 </resources>
