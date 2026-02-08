@@ -5,6 +5,7 @@ import com.auth0.jwt.algorithms.Algorithm
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
 import io.ktor.server.auth.Authentication
+import io.ktor.server.auth.jwt.JWTPrincipal
 import io.ktor.server.auth.jwt.jwt
 import nvk.cotrip.backend.config.JwtConfig
 
@@ -21,7 +22,11 @@ fun Application.configureAuth(config: JwtConfig) {
                     .build()
             )
             validate { credential ->
-                if (credential.payload.getClaim("userId").asString().isNullOrBlank()) null else credential
+                if (credential.payload.getClaim("userId").asString().isNullOrBlank()) {
+                    null
+                } else {
+                    JWTPrincipal(credential.payload)
+                }
             }
         }
     }
