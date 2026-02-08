@@ -20,7 +20,6 @@ fun Route.notImplementedRoutes() {
 
         get("/trips/{tripId}/members") { respondNotImplemented(call) }
         delete("/trips/{tripId}/members/{userId}") { respondNotImplemented(call) }
-
         get("/trips/{tripId}/ideas") { respondNotImplemented(call) }
         post("/trips/{tripId}/ideas") { respondNotImplemented(call) }
         get("/ideas/{ideaId}") { respondNotImplemented(call) }

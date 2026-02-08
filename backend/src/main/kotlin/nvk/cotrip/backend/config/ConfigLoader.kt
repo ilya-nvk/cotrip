@@ -22,5 +22,10 @@ fun loadConfig(config: ApplicationConfig): AppConfig {
             ?: "http://localhost:8080/invite",
     )
 
-    return AppConfig(jwt = jwt, db = db, invite = invite)
+    val devAuthEnabled = config.propertyOrNull("ktor.devAuthEnabled")
+        ?.getString()
+        ?.toBooleanStrictOrNull()
+        ?: false
+
+    return AppConfig(jwt = jwt, db = db, invite = invite, devAuthEnabled = devAuthEnabled)
 }

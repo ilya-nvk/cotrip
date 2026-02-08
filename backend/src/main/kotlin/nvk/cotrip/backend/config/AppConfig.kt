@@ -22,4 +22,5 @@ data class AppConfig(
     val jwt: JwtConfig,
     val db: DbConfig,
     val invite: InviteConfig,
+    val devAuthEnabled: Boolean,
 )

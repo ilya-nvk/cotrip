@@ -17,7 +17,7 @@ fun Application.configureRouting(appConfig: AppConfig) {
     install(Routing)
     routing {
         healthRoutes()
-        authRoutes()
+        authRoutes(appConfig)
         userRoutes()
         tripRoutes()
         inviteRoutes(appConfig)
