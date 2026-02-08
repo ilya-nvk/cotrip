@@ -3,19 +3,25 @@ package nvk.cotrip.ui.trip.form
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import nvk.cotrip.R
+import nvk.cotrip.data.network.CoTripApi
+import nvk.cotrip.data.network.dto.CreateTripRequest
 import nvk.cotrip.ui.navigation.AppNavigator
+import nvk.cotrip.ui.navigation.Destination
 import javax.inject.Inject
 
 @HiltViewModel
 class CreateTripViewModel @Inject constructor(
     private val appNavigator: AppNavigator,
+    private val api: CoTripApi,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(TripFormState())
@@ -36,8 +42,15 @@ class CreateTripViewModel @Inject constructor(
                 recomputeCanSubmit()
             }
 
-            TripFormEvent.OnStartDateClick -> emitToastRes(R.string.trip_form_date_not_implemented)
-            TripFormEvent.OnEndDateClick -> emitToastRes(R.string.trip_form_date_not_implemented)
+            is TripFormEvent.OnStartDateSelected -> {
+                _state.update { it.copy(startDate = event.date) }
+                recomputeCanSubmit()
+            }
+
+            is TripFormEvent.OnEndDateSelected -> {
+                _state.update { it.copy(endDate = event.date) }
+                recomputeCanSubmit()
+            }
 
             is TripFormEvent.OnDescriptionChange ->
                 _state.update { it.copy(description = event.value) }
@@ -48,8 +61,7 @@ class CreateTripViewModel @Inject constructor(
             TripFormEvent.OnPrimaryActionClick -> {
                 val s = state.value
                 if (!s.canSubmit || s.isLoading) return
-                emitToastRes(R.string.create_trip_created_toast)
-                closeScreen()
+                createTrip()
             }
 
             TripFormEvent.OnArchiveClick,
@@ -72,5 +84,39 @@ class CreateTripViewModel @Inject constructor(
 
     private fun closeScreen() {
         appNavigator.popBackStack()
+    }
+
+    private fun createTrip() {
+        viewModelScope.launch {
+            val s = state.value
+            val startDate = s.startDate ?: return@launch
+            val endDate = s.endDate ?: return@launch
+            _state.update { it.copy(isLoading = true) }
+
+            val result = runCatching {
+                withContext(Dispatchers.IO) {
+                    api.createTrip(
+                        CreateTripRequest(
+                            title = s.name,
+                            description = s.description.takeIf { it.isNotBlank() },
+                            startDate = startDate.toString(),
+                            endDate = endDate.toString(),
+                            locationLine = null,
+                            coverUrl = null,
+                            currencyCode = s.currency.code,
+                        )
+                    )
+                }
+            }
+
+            result.onSuccess { trip ->
+                emitToastRes(R.string.create_trip_created_toast)
+                appNavigator.navigate(Destination.TripDetails(trip.id))
+            }.onFailure {
+                emitToastRes(R.string.common_error_message)
+            }
+
+            _state.update { it.copy(isLoading = false) }
+        }
     }
 }

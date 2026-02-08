@@ -24,6 +24,7 @@
 
     <!--Trip Form-->
     <string name="common_cancel">Cancel</string>
+    <string name="common_error_message">Something went wrong. Try again.</string>
     <string name="create_trip_title">Create trip</string>
     <string name="create_trip_primary_button">Create trip</string>
     <string name="create_trip_created_toast">Trip created</string>

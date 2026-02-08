@@ -4,11 +4,15 @@ import nvk.cotrip.data.network.dto.AuthDevRequest
 import nvk.cotrip.data.network.dto.AuthGoogleRequest
 import nvk.cotrip.data.network.dto.AuthResponse
 import nvk.cotrip.data.network.dto.CreateTripRequest
+import nvk.cotrip.data.network.dto.ExpenseDto
+import nvk.cotrip.data.network.dto.IdeaDto
+import nvk.cotrip.data.network.dto.ItineraryDayDto
 import nvk.cotrip.data.network.dto.InviteInfoDto
 import nvk.cotrip.data.network.dto.InviteLinkDto
 import nvk.cotrip.data.network.dto.MemberDto
 import nvk.cotrip.data.network.dto.TripDto
 import nvk.cotrip.data.network.dto.TransferOwnerRequest
+import nvk.cotrip.data.network.dto.TrimOutOfRangeRequest
 import nvk.cotrip.data.network.dto.UpdateTripRequest
 import nvk.cotrip.data.network.dto.UpdateUserRequest
 import nvk.cotrip.data.network.dto.UserDto
@@ -79,5 +83,30 @@ interface CoTripApi {
     suspend fun removeMember(
         @Path("tripId") tripId: String,
         @Path("memberId") memberId: String,
+    ): Unit
+
+    @GET("v1/trips/{tripId}/ideas")
+    suspend fun listIdeas(
+        @Path("tripId") tripId: String,
+        @Query("search") search: String? = null,
+        @Query("status") status: String? = null,
+        @Query("authorId") authorId: String? = null,
+        @Query("city") city: String? = null,
+    ): ApiListResponse<IdeaDto>
+
+    @GET("v1/trips/{tripId}/expenses")
+    suspend fun listExpenses(
+        @Path("tripId") tripId: String,
+    ): ApiListResponse<ExpenseDto>
+
+    @GET("v1/trips/{tripId}/itinerary")
+    suspend fun getItinerary(
+        @Path("tripId") tripId: String,
+    ): ApiListResponse<ItineraryDayDto>
+
+    @POST("v1/trips/{tripId}/itinerary/trim-out-of-range")
+    suspend fun trimOutOfRangeDays(
+        @Path("tripId") tripId: String,
+        @Body request: TrimOutOfRangeRequest,
     ): Unit
 }

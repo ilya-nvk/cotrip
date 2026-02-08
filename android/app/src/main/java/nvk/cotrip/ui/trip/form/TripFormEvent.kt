@@ -7,8 +7,8 @@ sealed interface TripFormEvent {
     data object OnPickCoverClick : TripFormEvent
 
     data class OnNameChange(val value: String) : TripFormEvent
-    data object OnStartDateClick : TripFormEvent
-    data object OnEndDateClick : TripFormEvent
+    data class OnStartDateSelected(val date: java.time.LocalDate) : TripFormEvent
+    data class OnEndDateSelected(val date: java.time.LocalDate) : TripFormEvent
     data class OnDescriptionChange(val value: String) : TripFormEvent
     data class OnCurrencySelect(val currency: TripCurrency) : TripFormEvent
 

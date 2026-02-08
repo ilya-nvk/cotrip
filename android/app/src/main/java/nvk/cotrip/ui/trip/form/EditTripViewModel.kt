@@ -4,13 +4,17 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import nvk.cotrip.R
+import nvk.cotrip.data.network.CoTripApi
+import nvk.cotrip.data.network.dto.UpdateTripRequest
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import java.time.LocalDate
@@ -20,6 +24,7 @@ import javax.inject.Inject
 class EditTripViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val appNavigator: AppNavigator,
+    private val api: CoTripApi,
 ) : ViewModel() {
 
     private val tripId: String = checkNotNull(savedStateHandle["tripId"])
@@ -46,8 +51,15 @@ class EditTripViewModel @Inject constructor(
                 recomputeCanSubmit()
             }
 
-            TripFormEvent.OnStartDateClick -> emitToastRes(R.string.trip_form_date_not_implemented)
-            TripFormEvent.OnEndDateClick -> emitToastRes(R.string.trip_form_date_not_implemented)
+            is TripFormEvent.OnStartDateSelected -> {
+                _state.update { it.copy(startDate = event.date) }
+                recomputeCanSubmit()
+            }
+
+            is TripFormEvent.OnEndDateSelected -> {
+                _state.update { it.copy(endDate = event.date) }
+                recomputeCanSubmit()
+            }
 
             is TripFormEvent.OnDescriptionChange ->
                 _state.update { it.copy(description = event.value) }
@@ -58,38 +70,45 @@ class EditTripViewModel @Inject constructor(
             TripFormEvent.OnPrimaryActionClick -> {
                 val s = state.value
                 if (!s.canSubmit || s.isLoading) return
-                emitToastRes(R.string.edit_trip_saved_toast)
-                appNavigator.navigate(Destination.OutOfRangeDays(tripId))
+                saveTrip()
             }
 
             TripFormEvent.OnArchiveClick -> {
                 if (state.value.isLoading) return
-                emitToastRes(R.string.edit_trip_archived_toast)
-                closeScreen()
+                archiveTrip()
             }
 
             TripFormEvent.OnDeleteClick -> {
                 if (state.value.isLoading) return
-                emitToastRes(R.string.edit_trip_deleted_toast)
-                closeScreen()
+                deleteTrip()
             }
         }
     }
 
     private fun loadTrip(id: String) {
         viewModelScope.launch {
-            _state.update {
-                it.copy(
-                    isLoading = false,
-                    coverUri = null,
-                    name = "Summer Europe Trip",
-                    startDate = LocalDate.of(2026, 7, 15),
-                    endDate = LocalDate.of(2026, 7, 29),
-                    description = "Exploring the beautiful cities of Europe with friends",
-                    currency = TripCurrency.EUR,
-                )
+            _state.update { it.copy(isLoading = true) }
+            val result = runCatching {
+                withContext(Dispatchers.IO) { api.getTrip(id) }
             }
-            recomputeCanSubmit()
+            result.onSuccess { trip ->
+                _state.update {
+                    it.copy(
+                        isLoading = false,
+                        coverUri = trip.coverUrl,
+                        name = trip.title,
+                        startDate = LocalDate.parse(trip.startDate),
+                        endDate = LocalDate.parse(trip.endDate),
+                        description = trip.description.orEmpty(),
+                        currency = trip.currencyCode.toCurrency(),
+                    )
+                }
+                recomputeCanSubmit()
+            }.onFailure {
+                _state.update { it.copy(isLoading = false) }
+                emitToastRes(R.string.common_error_message)
+                closeScreen()
+            }
         }
     }
 
@@ -109,4 +128,75 @@ class EditTripViewModel @Inject constructor(
     private fun closeScreen() {
         appNavigator.popBackStack()
     }
+
+    private fun saveTrip() {
+        viewModelScope.launch {
+            val s = state.value
+            val startDate = s.startDate ?: return@launch
+            val endDate = s.endDate ?: return@launch
+            _state.update { it.copy(isLoading = true) }
+
+            val result = runCatching {
+                withContext(Dispatchers.IO) {
+                    api.updateTrip(
+                        tripId = tripId,
+                        request = UpdateTripRequest(
+                            title = s.name,
+                            description = s.description.takeIf { it.isNotBlank() },
+                            startDate = startDate.toString(),
+                            endDate = endDate.toString(),
+                            locationLine = null,
+                            coverUrl = s.coverUri,
+                            currencyCode = s.currency.code,
+                        )
+                    )
+                }
+            }
+
+            result.onSuccess {
+                emitToastRes(R.string.edit_trip_saved_toast)
+                appNavigator.navigate(Destination.OutOfRangeDays(tripId))
+            }.onFailure {
+                emitToastRes(R.string.common_error_message)
+            }
+
+            _state.update { it.copy(isLoading = false) }
+        }
+    }
+
+    private fun archiveTrip() {
+        viewModelScope.launch {
+            _state.update { it.copy(isLoading = true) }
+            val result = runCatching {
+                withContext(Dispatchers.IO) { api.archiveTrip(tripId) }
+            }
+            result.onSuccess {
+                emitToastRes(R.string.edit_trip_archived_toast)
+                closeScreen()
+            }.onFailure {
+                emitToastRes(R.string.common_error_message)
+            }
+            _state.update { it.copy(isLoading = false) }
+        }
+    }
+
+    private fun deleteTrip() {
+        viewModelScope.launch {
+            _state.update { it.copy(isLoading = true) }
+            val result = runCatching {
+                withContext(Dispatchers.IO) { api.deleteTrip(tripId) }
+            }
+            result.onSuccess {
+                emitToastRes(R.string.edit_trip_deleted_toast)
+                closeScreen()
+            }.onFailure {
+                emitToastRes(R.string.common_error_message)
+            }
+            _state.update { it.copy(isLoading = false) }
+        }
+    }
+}
+
+private fun String.toCurrency(): TripCurrency {
+    return TripCurrency.entries.firstOrNull { it.code == this } ?: TripCurrency.EUR
 }
