@@ -9,6 +9,8 @@ import androidx.navigation.navArgument
 import nvk.cotrip.ui.activitydetails.ActivityDetailsScreen
 import nvk.cotrip.ui.activityform.CreateActivityScreen
 import nvk.cotrip.ui.activityform.EditActivityScreen
+import nvk.cotrip.ui.aisuggestions.BuildRouteScreen
+import nvk.cotrip.ui.aisuggestions.RouteSuggestionsScreen
 import nvk.cotrip.ui.auth.SignInScreen
 import nvk.cotrip.ui.expensedetails.ExpenseDetailsScreen
 import nvk.cotrip.ui.expenseform.CreateExpenseScreen
@@ -151,7 +153,7 @@ fun AppNavHost(
                 navArgument(Destination.BuildRoute.ARG_TRIP_ID) { type = NavType.StringType }
             )
         ) {
-            //BuildRouteScreen()
+            BuildRouteScreen()
         }
 
         composable(
@@ -160,7 +162,7 @@ fun AppNavHost(
                 navArgument(Destination.RouteSuggestions.ARG_TRIP_ID) { type = NavType.StringType }
             )
         ) {
-            //RouteSuggestionsScreen()
+            RouteSuggestionsScreen()
         }
 
         composable(

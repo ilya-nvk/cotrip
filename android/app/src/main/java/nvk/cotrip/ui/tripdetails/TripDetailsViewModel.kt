@@ -67,7 +67,7 @@ class TripDetailsViewModel @Inject constructor(
             TripDetailsEvent.OnExpensesClick -> appNavigator.navigate(Destination.Expenses(tripId))
             TripDetailsEvent.OnPrimaryCtaClick -> {
                 if (_state.value.isEmpty) appNavigator.navigate(Destination.BuildRoute(tripId))
-                else appNavigator.navigate(Destination.RouteSuggestions(tripId))
+                else appNavigator.navigate(Destination.BuildRoute(tripId))
             }
         }
     }

@@ -148,6 +148,27 @@
     <string name="idea_form_deleted_toast">Idea deleted</string>
     <string name="idea_form_delete_not_available">Delete is available only in edit mode</string>
 
+    <!--AI Suggestions-->
+    <string name="ai_suggestions_title">AI suggestions</string>
+    <string name="ai_suggestions_hint">Describe what you are looking for and the AI will suggest activities tailored to your trip.</string>
+    <string name="ai_suggestions_city_label">City *</string>
+    <string name="ai_suggestions_city_hint">Cities from your itinerary</string>
+    <string name="ai_suggestions_select_city">Select a city</string>
+    <string name="ai_suggestions_select_city_title">Select a city</string>
+    <string name="ai_suggestions_description_label">Describe what you are looking for (optional)</string>
+    <string name="ai_suggestions_description_placeholder">Examples: Something relaxed for the evening • Museum</string>
+    <string name="ai_suggestions_description_hint">Tell the AI what you want in your own words - it will understand</string>
+    <string name="ai_suggestions_quick_preferences">Quick preferences (optional)</string>
+    <string name="ai_suggestions_type_label">Type</string>
+    <string name="ai_suggestions_time_of_day_label">Time of day</string>
+    <string name="ai_suggestions_budget_label">Budget</string>
+    <string name="ai_suggestions_generate">Generate suggestions</string>
+    <string name="ai_suggestions_change">Change</string>
+    <string name="ai_suggestions_loading">Generating suggestions...</string>
+    <string name="ai_suggestions_estimated_cost">Estimated cost: %1$s</string>
+    <string name="ai_suggestions_save_to_ideas">Save to Ideas</string>
+    <string name="ai_suggestions_saved">Saved</string>
+
     <!--Expenses-->
     <string name="expenses_title">Expenses</string>
     <string name="expenses_total_spent">Total spent</string>
