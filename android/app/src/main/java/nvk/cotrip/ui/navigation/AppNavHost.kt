@@ -6,28 +6,29 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
-import nvk.cotrip.ui.activitydetails.ActivityDetailsScreen
-import nvk.cotrip.ui.activityform.CreateActivityScreen
-import nvk.cotrip.ui.activityform.EditActivityScreen
+import nvk.cotrip.ui.activity.details.ActivityDetailsScreen
+import nvk.cotrip.ui.activity.form.CreateActivityScreen
+import nvk.cotrip.ui.activity.form.EditActivityScreen
 import nvk.cotrip.ui.aisuggestions.BuildRouteScreen
 import nvk.cotrip.ui.aisuggestions.RouteSuggestionsScreen
 import nvk.cotrip.ui.auth.SignInScreen
-import nvk.cotrip.ui.expensedetails.ExpenseDetailsScreen
-import nvk.cotrip.ui.expenseform.CreateExpenseScreen
-import nvk.cotrip.ui.expenseform.EditExpenseScreen
-import nvk.cotrip.ui.expenses.TripExpensesScreen
+import nvk.cotrip.ui.expense.details.ExpenseDetailsScreen
+import nvk.cotrip.ui.expense.form.CreateExpenseScreen
+import nvk.cotrip.ui.expense.form.EditExpenseScreen
+import nvk.cotrip.ui.expense.list.TripExpensesScreen
 import nvk.cotrip.ui.forecast.TripForecastScreen
-import nvk.cotrip.ui.ideadetails.IdeaDetailsScreen
-import nvk.cotrip.ui.ideaform.CreateIdeaScreen
-import nvk.cotrip.ui.ideaform.EditIdeaScreen
-import nvk.cotrip.ui.ideas.TripIdeasScreen
+import nvk.cotrip.ui.idea.details.IdeaDetailsScreen
+import nvk.cotrip.ui.idea.form.CreateIdeaScreen
+import nvk.cotrip.ui.idea.form.EditIdeaScreen
+import nvk.cotrip.ui.idea.list.TripIdeasScreen
 import nvk.cotrip.ui.invitation.InvitePeopleScreen
 import nvk.cotrip.ui.itinerary.TripItineraryScreen
 import nvk.cotrip.ui.outofrangedays.OutOfRangeDaysScreen
-import nvk.cotrip.ui.tripdetails.TripDetailsScreen
-import nvk.cotrip.ui.tripform.CreateTripScreen
-import nvk.cotrip.ui.tripform.EditTripScreen
-import nvk.cotrip.ui.trips.TripsListScreen
+import nvk.cotrip.ui.settings.SettingsScreen
+import nvk.cotrip.ui.trip.details.TripDetailsScreen
+import nvk.cotrip.ui.trip.form.CreateTripScreen
+import nvk.cotrip.ui.trip.form.EditTripScreen
+import nvk.cotrip.ui.trip.list.TripsListScreen
 
 @Composable
 fun AppNavHost(
@@ -52,7 +53,7 @@ fun AppNavHost(
         }
 
         composable(Destination.Settings.route) {
-            //SettingsScreen()
+            SettingsScreen()
         }
 
         composable(
