@@ -64,6 +64,35 @@ sealed interface Destination {
         }
     }
 
+    data class IdeaDetails(val tripId: String, val ideaId: String) : Destination {
+        override val route: String = "trips/$tripId/ideas/$ideaId"
+
+        companion object {
+            const val ROUTE_PATTERN = "trips/{tripId}/ideas/{ideaId}"
+            const val ARG_TRIP_ID = "tripId"
+            const val ARG_IDEA_ID = "ideaId"
+        }
+    }
+
+    data class CreateIdea(val tripId: String) : Destination {
+        override val route: String = "trips/$tripId/ideas/create"
+
+        companion object {
+            const val ROUTE_PATTERN = "trips/{tripId}/ideas/create"
+            const val ARG_TRIP_ID = "tripId"
+        }
+    }
+
+    data class EditIdea(val tripId: String, val ideaId: String) : Destination {
+        override val route: String = "trips/$tripId/ideas/$ideaId/edit"
+
+        companion object {
+            const val ROUTE_PATTERN = "trips/{tripId}/ideas/{ideaId}/edit"
+            const val ARG_TRIP_ID = "tripId"
+            const val ARG_IDEA_ID = "ideaId"
+        }
+    }
+
     data class TripItinerary(val tripId: String) : Destination {
         override val route: String = "trips/$tripId/itinerary"
 

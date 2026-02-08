@@ -101,6 +101,53 @@
     <string name="itinerary_choose_city_placeholder">Search or enter city name</string>
     <string name="itinerary_add_activity_not_implemented">Adding activities is not implemented yet</string>
 
+    <!--Ideas-->
+    <string name="ideas_title">Ideas</string>
+    <string name="ideas_add_to_itinerary">Add to itinerary</string>
+    <string name="ideas_added_to_day">Added to Day %1$d</string>
+    <string name="ideas_comments_count">%1$d comments</string>
+    <string name="ideas_added_to_itinerary_toast">Added to itinerary</string>
+    <string name="ideas_pick_day_title">Select day</string>
+    <string name="ideas_pick_day_label">Day %1$d · %2$s</string>
+
+    <!--Idea Details-->
+    <string name="idea_details_title">Idea</string>
+    <string name="idea_details_tab_details">Details</string>
+    <string name="idea_details_tab_discussion">Discussion</string>
+    <string name="idea_details_city">City</string>
+    <string name="idea_details_cost">Estimated cost</string>
+    <string name="idea_details_website">Website</string>
+    <string name="idea_details_notes">Notes</string>
+    <string name="idea_details_add_to_itinerary">Add to itinerary</string>
+    <string name="idea_details_added_to_day">Added to Day %1$d</string>
+    <string name="idea_details_delete">Delete idea</string>
+    <string name="idea_details_add_comment">Add a comment</string>
+    <string name="idea_details_added_toast">Idea added to itinerary</string>
+    <string name="idea_details_deleted_toast">Idea deleted</string>
+
+    <!--Idea Form-->
+    <string name="idea_form_title_add">Add idea</string>
+    <string name="idea_form_title_edit">Edit idea</string>
+    <string name="idea_form_primary_save">Save idea</string>
+    <string name="idea_form_title_label">Title *</string>
+    <string name="idea_form_city_label">City</string>
+    <string name="idea_form_city_picker_title">Choose city</string>
+    <string name="idea_form_cost_label">Estimated cost</string>
+    <string name="idea_form_website_label">Website or link</string>
+    <string name="idea_form_notes_label">Notes</string>
+    <string name="idea_form_title_placeholder">Enter idea title</string>
+    <string name="idea_form_city_placeholder">Choose city</string>
+    <string name="idea_form_cost_placeholder">0</string>
+    <string name="idea_form_cost_per_person">Per person</string>
+    <string name="idea_form_cost_total">Total</string>
+    <string name="idea_form_website_placeholder">https://</string>
+    <string name="idea_form_notes_placeholder">Add any notes or details</string>
+    <string name="idea_form_delete">Delete idea</string>
+    <string name="idea_form_created_toast">Idea saved</string>
+    <string name="idea_form_saved_toast">Idea updated</string>
+    <string name="idea_form_deleted_toast">Idea deleted</string>
+    <string name="idea_form_delete_not_available">Delete is available only in edit mode</string>
+
     <!--Activity Details-->
     <string name="activity_details_title">Activity details</string>
     <string name="activity_details_date_time_label">DATE &amp; TIME</string>

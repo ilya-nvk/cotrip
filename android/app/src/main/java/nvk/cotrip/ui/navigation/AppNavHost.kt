@@ -11,6 +11,10 @@ import nvk.cotrip.ui.activityform.CreateActivityScreen
 import nvk.cotrip.ui.activityform.EditActivityScreen
 import nvk.cotrip.ui.auth.SignInScreen
 import nvk.cotrip.ui.forecast.TripForecastScreen
+import nvk.cotrip.ui.ideaform.CreateIdeaScreen
+import nvk.cotrip.ui.ideaform.EditIdeaScreen
+import nvk.cotrip.ui.ideadetails.IdeaDetailsScreen
+import nvk.cotrip.ui.ideas.TripIdeasScreen
 import nvk.cotrip.ui.invitation.InvitePeopleScreen
 import nvk.cotrip.ui.itinerary.TripItineraryScreen
 import nvk.cotrip.ui.outofrangedays.OutOfRangeDaysScreen
@@ -87,7 +91,36 @@ fun AppNavHost(
                 navArgument(Destination.TripIdeas.ARG_TRIP_ID) { type = NavType.StringType }
             )
         ) {
-            //TripIdeasScreen()
+            TripIdeasScreen()
+        }
+
+        composable(
+            route = Destination.IdeaDetails.ROUTE_PATTERN,
+            arguments = listOf(
+                navArgument(Destination.IdeaDetails.ARG_TRIP_ID) { type = NavType.StringType },
+                navArgument(Destination.IdeaDetails.ARG_IDEA_ID) { type = NavType.StringType }
+            )
+        ) {
+            IdeaDetailsScreen()
+        }
+
+        composable(
+            route = Destination.CreateIdea.ROUTE_PATTERN,
+            arguments = listOf(
+                navArgument(Destination.CreateIdea.ARG_TRIP_ID) { type = NavType.StringType }
+            )
+        ) {
+            CreateIdeaScreen()
+        }
+
+        composable(
+            route = Destination.EditIdea.ROUTE_PATTERN,
+            arguments = listOf(
+                navArgument(Destination.EditIdea.ARG_TRIP_ID) { type = NavType.StringType },
+                navArgument(Destination.EditIdea.ARG_IDEA_ID) { type = NavType.StringType }
+            )
+        ) {
+            EditIdeaScreen()
         }
 
         composable(
