@@ -10,8 +10,8 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import nvk.cotrip.R
-import nvk.cotrip.ui.navigation.ARG_TRIP_ID
 import nvk.cotrip.ui.navigation.AppNavigator
+import nvk.cotrip.ui.navigation.Destination
 import nvk.cotrip.ui.theme.CoTripIcons
 import nvk.cotrip.ui.theme.Info
 import nvk.cotrip.ui.theme.TextSecondary
@@ -25,7 +25,8 @@ class TripForecastViewModel @Inject constructor(
     private val appNavigator: AppNavigator,
 ) : ViewModel() {
 
-    private val tripId: String = checkNotNull(savedStateHandle[ARG_TRIP_ID])
+    private val tripId: String =
+        checkNotNull(savedStateHandle[Destination.TripForecast.ARG_TRIP_ID])
 
     private val _state = MutableStateFlow(
         TripForecastState(
@@ -42,40 +43,61 @@ class TripForecastViewModel @Inject constructor(
                 ForecastDayUi("Tomorrow", "Fri, Jul 16", CoTripIcons.Info, Warning, "28°", "Sunny"),
                 ForecastDayUi(
                     "Sat, Jul 17",
-                    "",
+                    null,
                     CoTripIcons.Info,
                     TextSecondary,
                     "24°",
                     "Partly cloudy"
                 ),
-                ForecastDayUi("Sun, Jul 18", "", CoTripIcons.Info, Info, "22°", "Light rain"),
-                ForecastDayUi("Mon, Jul 19", "", CoTripIcons.Info, TextSecondary, "23°", "Cloudy"),
-                ForecastDayUi("Tue, Jul 20", "", CoTripIcons.Info, Warning, "27°", "Sunny"),
-                ForecastDayUi("Wed, Jul 21", "", CoTripIcons.Info, Warning, "29°", "Clear sky"),
-                ForecastDayUi("Thu, Jul 22", "", CoTripIcons.Info, Warning, "30°", "Hot and sunny"),
+                ForecastDayUi("Sun, Jul 18", null, CoTripIcons.Info, Info, "22°", "Light rain"),
+                ForecastDayUi(
+                    "Mon, Jul 19",
+                    null,
+                    CoTripIcons.Info,
+                    TextSecondary,
+                    "23°",
+                    "Cloudy"
+                ),
+                ForecastDayUi("Tue, Jul 20", null, CoTripIcons.Info, Warning, "27°", "Sunny"),
+                ForecastDayUi("Wed, Jul 21", null, CoTripIcons.Info, Warning, "29°", "Clear sky"),
+                ForecastDayUi(
+                    "Thu, Jul 22",
+                    null,
+                    CoTripIcons.Info,
+                    Warning,
+                    "30°",
+                    "Hot and sunny"
+                ),
                 ForecastDayUi(
                     "Fri, Jul 23",
-                    "",
+                    null,
                     CoTripIcons.Info,
                     TextSecondary,
                     "25°",
                     "Partly cloudy"
                 ),
-                ForecastDayUi("Sat, Jul 24", "", CoTripIcons.Info, Info, "21°", "Rain showers"),
+                ForecastDayUi("Sat, Jul 24", null, CoTripIcons.Info, Info, "21°", "Rain showers"),
                 ForecastDayUi(
                     "Sun, Jul 25",
-                    "",
+                    null,
                     CoTripIcons.Info,
                     TextSecondary,
                     "23°",
                     "Overcast"
                 ),
-                ForecastDayUi("Mon, Jul 26", "", CoTripIcons.Info, Warning, "26°", "Mostly sunny"),
-                ForecastDayUi("Tue, Jul 27", "", CoTripIcons.Info, Warning, "28°", "Sunny"),
-                ForecastDayUi("Wed, Jul 28", "", CoTripIcons.Info, Warning, "27°", "Clear"),
+                ForecastDayUi(
+                    "Mon, Jul 26",
+                    null,
+                    CoTripIcons.Info,
+                    Warning,
+                    "26°",
+                    "Mostly sunny"
+                ),
+                ForecastDayUi("Tue, Jul 27", null, CoTripIcons.Info, Warning, "28°", "Sunny"),
+                ForecastDayUi("Wed, Jul 28", null, CoTripIcons.Info, Warning, "27°", "Clear"),
                 ForecastDayUi(
                     "Thu, Jul 29",
-                    "",
+                    null,
                     CoTripIcons.Info,
                     TextSecondary,
                     "24°",

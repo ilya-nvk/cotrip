@@ -24,12 +24,16 @@ val Canvas = Color(0xFFE8E8E8)
 // Borders
 val Border = Color(0xFFE0E0E0)
 val BorderStrong = Color(0xFFBDBDBD)
+val BorderWarning = Color(0xFFFFB74D)
 
 // Semantic
 val Success = Color(0xFF4CAF50)
 val Error = Color(0xFFF44336)
-val Warning = Color(0xFFFF9800)
+val Warning = Color(0xFFFFF3E0)
 val Info = Color(0xFF2196F3)
+
+//Text
+val WarningText = Color(0xFFE65100)
 
 @Immutable
 data class CoTripExtraColors(

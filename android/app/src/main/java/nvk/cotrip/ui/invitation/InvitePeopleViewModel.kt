@@ -10,8 +10,8 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import nvk.cotrip.R
-import nvk.cotrip.ui.navigation.ARG_TRIP_ID
 import nvk.cotrip.ui.navigation.AppNavigator
+import nvk.cotrip.ui.navigation.Destination
 import javax.inject.Inject
 
 @HiltViewModel
@@ -20,7 +20,8 @@ class InvitePeopleViewModel @Inject constructor(
     private val appNavigator: AppNavigator,
 ) : ViewModel() {
 
-    private val tripId: String = checkNotNull(savedStateHandle[ARG_TRIP_ID])
+    private val tripId: String =
+        checkNotNull(savedStateHandle[Destination.InviteTravelers.ARG_TRIP_ID])
 
     private val _state = MutableStateFlow(
         InvitePeopleState(

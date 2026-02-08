@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import nvk.cotrip.R
 import nvk.cotrip.ui.navigation.AppNavigator
+import nvk.cotrip.ui.navigation.Destination
 import java.time.LocalDate
 import javax.inject.Inject
 
@@ -58,7 +59,7 @@ class EditTripViewModel @Inject constructor(
                 val s = state.value
                 if (!s.canSubmit || s.isLoading) return
                 emitToastRes(R.string.edit_trip_saved_toast)
-                closeScreen()
+                appNavigator.navigate(Destination.OutOfRangeDays(tripId))
             }
 
             TripFormEvent.OnArchiveClick -> {

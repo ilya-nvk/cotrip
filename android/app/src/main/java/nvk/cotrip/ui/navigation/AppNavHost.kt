@@ -6,15 +6,16 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import nvk.cotrip.ui.activitydetails.ActivityDetailsScreen
 import nvk.cotrip.ui.auth.SignInScreen
 import nvk.cotrip.ui.forecast.TripForecastScreen
 import nvk.cotrip.ui.invitation.InvitePeopleScreen
+import nvk.cotrip.ui.itinerary.TripItineraryScreen
+import nvk.cotrip.ui.outofrangedays.OutOfRangeDaysScreen
 import nvk.cotrip.ui.tripdetails.TripDetailsScreen
 import nvk.cotrip.ui.tripform.CreateTripScreen
 import nvk.cotrip.ui.tripform.EditTripScreen
 import nvk.cotrip.ui.trips.TripsListScreen
-
-const val ARG_TRIP_ID = "tripId"
 
 @Composable
 fun AppNavHost(
@@ -45,7 +46,7 @@ fun AppNavHost(
         composable(
             route = Destination.TripDetails.ROUTE_PATTERN,
             arguments = listOf(
-                navArgument(ARG_TRIP_ID) { type = NavType.StringType }
+                navArgument(Destination.TripDetails.ARG_TRIP_ID) { type = NavType.StringType }
             )
         ) {
             TripDetailsScreen()
@@ -54,16 +55,25 @@ fun AppNavHost(
         composable(
             route = Destination.EditTrip.ROUTE_PATTERN,
             arguments = listOf(
-                navArgument(ARG_TRIP_ID) { type = NavType.StringType }
+                navArgument(Destination.EditTrip.ARG_TRIP_ID) { type = NavType.StringType }
             )
         ) {
             EditTripScreen()
         }
 
         composable(
+            route = Destination.OutOfRangeDays.ROUTE_PATTERN,
+            arguments = listOf(
+                navArgument(Destination.OutOfRangeDays.ARG_TRIP_ID) { type = NavType.StringType }
+            )
+        ) {
+            OutOfRangeDaysScreen()
+        }
+
+        composable(
             route = Destination.InviteTravelers.ROUTE_PATTERN,
             arguments = listOf(
-                navArgument(ARG_TRIP_ID) { type = NavType.StringType }
+                navArgument(Destination.InviteTravelers.ARG_TRIP_ID) { type = NavType.StringType }
             )
         ) {
             InvitePeopleScreen()
@@ -72,7 +82,7 @@ fun AppNavHost(
         composable(
             route = Destination.TripIdeas.ROUTE_PATTERN,
             arguments = listOf(
-                navArgument(ARG_TRIP_ID) { type = NavType.StringType }
+                navArgument(Destination.TripIdeas.ARG_TRIP_ID) { type = NavType.StringType }
             )
         ) {
             //TripIdeasScreen()
@@ -81,16 +91,16 @@ fun AppNavHost(
         composable(
             route = Destination.TripItinerary.ROUTE_PATTERN,
             arguments = listOf(
-                navArgument(ARG_TRIP_ID) { type = NavType.StringType }
+                navArgument(Destination.TripItinerary.ARG_TRIP_ID) { type = NavType.StringType }
             )
         ) {
-            //TripItineraryScreen()
+            TripItineraryScreen()
         }
 
         composable(
             route = Destination.TripForecast.ROUTE_PATTERN,
             arguments = listOf(
-                navArgument(ARG_TRIP_ID) { type = NavType.StringType }
+                navArgument(Destination.TripForecast.ARG_TRIP_ID) { type = NavType.StringType }
             )
         ) {
             TripForecastScreen()
@@ -99,7 +109,7 @@ fun AppNavHost(
         composable(
             route = Destination.BuildRoute.ROUTE_PATTERN,
             arguments = listOf(
-                navArgument(ARG_TRIP_ID) { type = NavType.StringType }
+                navArgument(Destination.BuildRoute.ARG_TRIP_ID) { type = NavType.StringType }
             )
         ) {
             //BuildRouteScreen()
@@ -108,7 +118,7 @@ fun AppNavHost(
         composable(
             route = Destination.RouteSuggestions.ROUTE_PATTERN,
             arguments = listOf(
-                navArgument(ARG_TRIP_ID) { type = NavType.StringType }
+                navArgument(Destination.RouteSuggestions.ARG_TRIP_ID) { type = NavType.StringType }
             )
         ) {
             //RouteSuggestionsScreen()
@@ -117,10 +127,21 @@ fun AppNavHost(
         composable(
             route = Destination.Expenses.ROUTE_PATTERN,
             arguments = listOf(
-                navArgument(ARG_TRIP_ID) { type = NavType.StringType }
+                navArgument(Destination.Expenses.ARG_TRIP_ID) { type = NavType.StringType }
             )
         ) {
             //ExpensesScreen()
+        }
+
+        composable(
+            route = Destination.ActivityDetails.ROUTE_PATTERN,
+            arguments = listOf(
+                navArgument(Destination.ActivityDetails.ARG_ACTIVITY_ID) {
+                    type = NavType.StringType
+                }
+            )
+        ) {
+            ActivityDetailsScreen()
         }
     }
 }

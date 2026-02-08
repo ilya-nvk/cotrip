@@ -46,11 +46,6 @@ fun PrimaryButton(
             disabledContentColor = TextDisabled
         ),
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp),
-        elevation = ButtonDefaults.buttonElevation(
-            defaultElevation = 6.dp,
-            pressedElevation = 8.dp,
-            disabledElevation = 0.dp
-        )
     ) {
         if (leadingIcon != null) {
             leadingIcon()

@@ -83,6 +83,40 @@
     <string name="weather_forecast_updated">Last updated: %1$s</string>
     <string name="weather_forecast_city_not_implemented">City selection is not implemented yet</string>
 
+    <!--Out of Range Days-->
+    <string name="out_of_range_days_title">Out of range days</string>
+    <string name="out_of_range_days_banner">These days fall outside your new trip dates (%1$s). You can keep them hidden or remove them permanently.</string>
+    <string name="out_of_range_days_keep">Keep extra days</string>
+    <string name="out_of_range_days_remove">Remove extra days (%1$d)</string>
+    <string name="out_of_range_days_no_city">No city</string>
+    <string name="out_of_range_days_kept_toast">Extra days kept</string>
+    <string name="out_of_range_days_removed_toast">Extra days removed</string>
+
+    <!--Itinerary-->
+    <string name="itinerary_title">Itinerary</string>
+    <string name="itinerary_day_title">Day %1$d</string>
+    <string name="itinerary_choose_city">Choose city</string>
+    <string name="itinerary_empty_day_hint">Select a city to start planning this day</string>
+    <string name="itinerary_choose_city_title">Choose city</string>
+    <string name="itinerary_choose_city_placeholder">Search or enter city name</string>
+    <string name="itinerary_add_activity_not_implemented">Adding activities is not implemented yet</string>
+
+    <!--Activity Details-->
+    <string name="activity_details_title">Activity details</string>
+    <string name="activity_details_date_time_label">DATE &amp; TIME</string>
+    <string name="activity_details_location_label">LOCATION</string>
+    <string name="activity_details_cost_label">COST</string>
+    <string name="activity_details_website_label">WEBSITE</string>
+    <string name="activity_details_notes_label">NOTES</string>
+    <string name="activity_details_per_person">per person</string>
+    <string name="activity_details_empty">—</string>
+    <string name="activity_details_delete">Delete activity</string>
+    <string name="activity_details_edit_not_implemented">Editing is not implemented yet</string>
+    <string name="activity_details_open_location_not_implemented">Opening location is not implemented yet</string>
+    <string name="activity_details_open_website_not_implemented">Opening website is not implemented yet</string>
+    <string name="activity_details_deleted_toast">Activity deleted</string>
+
+
     <!--Currencies-->
     <string name="currency_eur">Euro (€)</string>
     <string name="currency_usd">US Dollar ($)</string>

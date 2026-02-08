@@ -37,6 +37,15 @@ sealed interface Destination {
         }
     }
 
+    data class OutOfRangeDays(val tripId: String) : Destination {
+        override val route: String = "trips/$tripId/out-of-range-days"
+
+        companion object {
+            const val ROUTE_PATTERN = "trips/{tripId}/out-of-range-days"
+            const val ARG_TRIP_ID = "tripId"
+        }
+    }
+
     data class InviteTravelers(val tripId: String) : Destination {
         override val route: String = "trips/$tripId/invite"
 
@@ -97,6 +106,16 @@ sealed interface Destination {
         companion object {
             const val ROUTE_PATTERN = "trips/{tripId}/expenses"
             const val ARG_TRIP_ID = "tripId"
+        }
+    }
+
+    data class ActivityDetails(val tripId: String, val activityId: String) : Destination {
+        override val route: String = "trips/$tripId/$activityId/activity-details"
+
+        companion object {
+            const val ROUTE_PATTERN = "trips/{tripId}/{activityId}/activity-details"
+            const val ARG_TRIP_ID = "tripId"
+            const val ARG_ACTIVITY_ID = "activityId"
         }
     }
 }

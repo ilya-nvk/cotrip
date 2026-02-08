@@ -3,6 +3,7 @@ package nvk.cotrip.ui.theme
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.outlined.ExitToApp
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
@@ -12,6 +13,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.CheckCircle
@@ -30,6 +32,7 @@ object CoTripIcons {
     val Share: ImageVector = Icons.Filled.Share
     val PhotoCamera: ImageVector = Icons.Filled.CheckCircle // todo
     val Copy: ImageVector = Icons.Outlined.CheckCircle // todo
+    val OpenInNew: ImageVector = Icons.AutoMirrored.Outlined.ExitToApp
 
     val CheckCircle: ImageVector = Icons.Filled.CheckCircle
     val Schedule: ImageVector = Icons.Filled.CheckCircle // todo
@@ -39,4 +42,6 @@ object CoTripIcons {
     val AccountBalance: ImageVector = Icons.Filled.CheckCircle // todo
     val Favorite: ImageVector = Icons.Filled.Favorite
     val FavoriteBorder: ImageVector = Icons.Filled.FavoriteBorder
+    val Location: ImageVector = Icons.Filled.LocationOn
+    val Link: ImageVector = Icons.Filled.CheckCircle // todo
 }

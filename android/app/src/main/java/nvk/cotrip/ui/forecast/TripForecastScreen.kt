@@ -168,11 +168,13 @@ private fun ForecastRow(
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.SemiBold
             )
-            Text(
-                text = day.subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = TextSecondary
-            )
+            day.subtitle?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary
+                )
+            }
         }
 
         Box(
@@ -190,7 +192,7 @@ private fun ForecastRow(
         Spacer(Modifier.width(CoTripTokens.spacing.x2))
 
         Column(
-            modifier = Modifier.width(64.dp),
+            modifier = Modifier.width(90.dp),
             horizontalAlignment = Alignment.End,
             verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x0_5)
         ) {
@@ -202,7 +204,8 @@ private fun ForecastRow(
             Text(
                 text = day.description,
                 style = MaterialTheme.typography.bodySmall,
-                color = TextSecondary
+                color = TextSecondary,
+                textAlign = TextAlign.End,
             )
         }
     }
