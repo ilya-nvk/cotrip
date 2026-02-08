@@ -63,6 +63,25 @@ object TripMemberRepository {
         }
     }
 
+    fun listMemberIds(tripId: String): Set<String> = dbQuery { conn ->
+        conn.prepareStatement(
+            """
+            SELECT user_id
+            FROM trip_members
+            WHERE trip_id = ? AND status = 'accepted'
+            """.trimIndent()
+        ).use { stmt ->
+            stmt.setObject(1, UUID.fromString(tripId))
+            stmt.executeQuery().use { rs ->
+                val result = mutableSetOf<String>()
+                while (rs.next()) {
+                    result += rs.getObject("user_id", UUID::class.java).toString()
+                }
+                result
+            }
+        }
+    }
+
     private fun mapMember(rs: ResultSet): TripMemberRow {
         return TripMemberRow(
             userId = rs.getObject("user_id", UUID::class.java).toString(),

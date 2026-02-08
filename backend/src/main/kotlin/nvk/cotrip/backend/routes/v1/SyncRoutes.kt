@@ -1,0 +1,82 @@
+package nvk.cotrip.backend.routes.v1
+
+import io.ktor.http.HttpStatusCode
+import io.ktor.server.application.call
+import io.ktor.server.auth.authenticate
+import io.ktor.server.auth.principal
+import io.ktor.server.auth.jwt.JWTPrincipal
+import io.ktor.server.request.receive
+import io.ktor.server.response.respond
+import io.ktor.server.routing.Route
+import io.ktor.server.routing.get
+import io.ktor.server.routing.post
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import nvk.cotrip.backend.db.SyncRepository
+import java.time.OffsetDateTime
+
+@Serializable
+data class SyncPushItem(
+    val entity: String,
+    val id: String,
+    val type: String,
+    val payload: JsonElement = JsonNull,
+)
+
+@Serializable
+data class SyncPushRequest(
+    val items: List<SyncPushItem> = emptyList(),
+)
+
+@Serializable
+data class SyncConflict(
+    val id: String,
+    val reason: String,
+)
+
+fun Route.syncRoutes() {
+    authenticate("auth-jwt") {
+        get("/v1/sync/changes") {
+            val principal = call.principal<JWTPrincipal>()
+            val userId = principal?.getClaim("userId", String::class) ?: run {
+                call.respond(HttpStatusCode.Unauthorized)
+                return@get
+            }
+
+            val sinceParam = call.request.queryParameters["since"] ?: run {
+                call.respond(HttpStatusCode.BadRequest)
+                return@get
+            }
+
+            val since = runCatching { OffsetDateTime.parse(sinceParam) }.getOrElse {
+                call.respond(HttpStatusCode.BadRequest)
+                return@get
+            }
+
+            val changes = SyncRepository.listChanges(userId, since).map { change ->
+                SyncChangeDto(
+                    entity = change.entity,
+                    id = change.id,
+                    updatedAt = change.updatedAt.toString(),
+                    deletedAt = change.deletedAt?.toString(),
+                    payload = change.payload,
+                )
+            }
+
+            call.respond(mapOf("items" to changes, "nextCursor" to null))
+        }
+
+        post("/v1/sync/changes") {
+            val principal = call.principal<JWTPrincipal>()
+            val userId = principal?.getClaim("userId", String::class) ?: run {
+                call.respond(HttpStatusCode.Unauthorized)
+                return@post
+            }
+
+            val request = call.receive<SyncPushRequest>()
+            val applied = request.items.map { it.id }
+            call.respond(mapOf("applied" to applied, "conflicts" to emptyList<SyncConflict>()))
+        }
+    }
+}
