@@ -9,6 +9,7 @@ import io.ktor.server.routing.post
 import kotlinx.serialization.Serializable
 import nvk.cotrip.backend.auth.GoogleTokenVerifier
 import nvk.cotrip.backend.auth.JwtService
+import nvk.cotrip.backend.config.AppConfig
 import nvk.cotrip.backend.db.UserRepository
 
 @Serializable
@@ -22,7 +23,14 @@ data class AuthResponse(
     val user: UserDto,
 )
 
-fun Route.authRoutes() {
+@Serializable
+data class DevAuthRequest(
+    val googleId: String? = null,
+    val name: String? = null,
+    val photoUrl: String? = null,
+)
+
+fun Route.authRoutes(appConfig: AppConfig) {
     post("/v1/auth/google") {
         val request = call.receive<GoogleAuthRequest>()
         val tokenInfo = GoogleTokenVerifier.verify(request.idToken)
@@ -34,6 +42,31 @@ fun Route.authRoutes() {
         val googleId = tokenInfo.sub
         val name = tokenInfo.name ?: tokenInfo.email ?: "User"
         val photoUrl = tokenInfo.picture
+
+        val user = UserRepository.findByGoogleId(googleId)
+            ?.let { existing ->
+                if (existing.name != name || existing.photoUrl != photoUrl) {
+                    UserRepository.updateUser(existing.id, name, photoUrl) ?: existing
+                } else {
+                    existing
+                }
+            }
+            ?: UserRepository.createUser(googleId, name, photoUrl)
+
+        val token = JwtService.createToken(user.id)
+        call.respond(AuthResponse(accessToken = token, user = user.toDto()))
+    }
+
+    post("/v1/auth/dev") {
+        if (!appConfig.devAuthEnabled) {
+            call.respond(HttpStatusCode.NotFound)
+            return@post
+        }
+
+        val request = call.receive<DevAuthRequest>()
+        val googleId = request.googleId ?: "dev-user"
+        val name = request.name ?: "Dev User"
+        val photoUrl = request.photoUrl
 
         val user = UserRepository.findByGoogleId(googleId)
             ?.let { existing ->
