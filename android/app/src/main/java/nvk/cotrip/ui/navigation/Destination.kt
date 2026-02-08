@@ -138,6 +138,35 @@ sealed interface Destination {
         }
     }
 
+    data class ExpenseDetails(val tripId: String, val expenseId: String) : Destination {
+        override val route: String = "trips/$tripId/expenses/$expenseId"
+
+        companion object {
+            const val ROUTE_PATTERN = "trips/{tripId}/expenses/{expenseId}"
+            const val ARG_TRIP_ID = "tripId"
+            const val ARG_EXPENSE_ID = "expenseId"
+        }
+    }
+
+    data class CreateExpense(val tripId: String) : Destination {
+        override val route: String = "trips/$tripId/expenses/create"
+
+        companion object {
+            const val ROUTE_PATTERN = "trips/{tripId}/expenses/create"
+            const val ARG_TRIP_ID = "tripId"
+        }
+    }
+
+    data class EditExpense(val tripId: String, val expenseId: String) : Destination {
+        override val route: String = "trips/$tripId/expenses/$expenseId/edit"
+
+        companion object {
+            const val ROUTE_PATTERN = "trips/{tripId}/expenses/{expenseId}/edit"
+            const val ARG_TRIP_ID = "tripId"
+            const val ARG_EXPENSE_ID = "expenseId"
+        }
+    }
+
     data class ActivityDetails(val activityId: String) : Destination {
         override val route: String = "trips/$activityId/activity-details"
 

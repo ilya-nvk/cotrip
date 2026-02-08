@@ -10,10 +10,14 @@ import nvk.cotrip.ui.activitydetails.ActivityDetailsScreen
 import nvk.cotrip.ui.activityform.CreateActivityScreen
 import nvk.cotrip.ui.activityform.EditActivityScreen
 import nvk.cotrip.ui.auth.SignInScreen
+import nvk.cotrip.ui.expensedetails.ExpenseDetailsScreen
+import nvk.cotrip.ui.expenseform.CreateExpenseScreen
+import nvk.cotrip.ui.expenseform.EditExpenseScreen
+import nvk.cotrip.ui.expenses.TripExpensesScreen
 import nvk.cotrip.ui.forecast.TripForecastScreen
+import nvk.cotrip.ui.ideadetails.IdeaDetailsScreen
 import nvk.cotrip.ui.ideaform.CreateIdeaScreen
 import nvk.cotrip.ui.ideaform.EditIdeaScreen
-import nvk.cotrip.ui.ideadetails.IdeaDetailsScreen
 import nvk.cotrip.ui.ideas.TripIdeasScreen
 import nvk.cotrip.ui.invitation.InvitePeopleScreen
 import nvk.cotrip.ui.itinerary.TripItineraryScreen
@@ -165,7 +169,36 @@ fun AppNavHost(
                 navArgument(Destination.Expenses.ARG_TRIP_ID) { type = NavType.StringType }
             )
         ) {
-            //ExpensesScreen()
+            TripExpensesScreen()
+        }
+
+        composable(
+            route = Destination.ExpenseDetails.ROUTE_PATTERN,
+            arguments = listOf(
+                navArgument(Destination.ExpenseDetails.ARG_TRIP_ID) { type = NavType.StringType },
+                navArgument(Destination.ExpenseDetails.ARG_EXPENSE_ID) { type = NavType.StringType }
+            )
+        ) {
+            ExpenseDetailsScreen()
+        }
+
+        composable(
+            route = Destination.CreateExpense.ROUTE_PATTERN,
+            arguments = listOf(
+                navArgument(Destination.CreateExpense.ARG_TRIP_ID) { type = NavType.StringType }
+            )
+        ) {
+            CreateExpenseScreen()
+        }
+
+        composable(
+            route = Destination.EditExpense.ROUTE_PATTERN,
+            arguments = listOf(
+                navArgument(Destination.EditExpense.ARG_TRIP_ID) { type = NavType.StringType },
+                navArgument(Destination.EditExpense.ARG_EXPENSE_ID) { type = NavType.StringType }
+            )
+        ) {
+            EditExpenseScreen()
         }
 
         composable(

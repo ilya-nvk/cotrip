@@ -148,6 +148,64 @@
     <string name="idea_form_deleted_toast">Idea deleted</string>
     <string name="idea_form_delete_not_available">Delete is available only in edit mode</string>
 
+    <!--Expenses-->
+    <string name="expenses_title">Expenses</string>
+    <string name="expenses_total_spent">Total spent</string>
+    <string name="expenses_your_balance">Your balance</string>
+    <string name="expenses_total_planned">Total planned</string>
+    <string name="expenses_balance_amount">%1$s %2$s</string>
+    <string name="expenses_spent_section">SPENT</string>
+    <string name="expenses_planned_section">PLANNED</string>
+    <string name="expenses_status_owed_to_you">You are owed %1$s</string>
+    <string name="expenses_status_you_owe">You owe %1$s</string>
+    <string name="expenses_status_settled">Settled</string>
+    <string name="expenses_status_planned">Planned</string>
+
+    <!--Expense Details-->
+    <string name="expense_details_title">Expense details</string>
+    <string name="expense_details_status_planned">Planned</string>
+    <string name="expense_details_status_unsettled">Unsettled</string>
+    <string name="expense_details_status_settled">Settled</string>
+    <string name="expense_details_paid_by">Paid by</string>
+    <string name="expense_details_date">Date</string>
+    <string name="expense_details_split_section">SPLIT DETAILS</string>
+    <string name="expense_details_note_section">NOTE</string>
+    <string name="expense_details_mark_paid">Mark paid</string>
+    <string name="expense_details_total">Total: %1$s</string>
+    <string name="expense_details_mark_as_paid">Mark as paid</string>
+    <string name="expense_details_mark_all_settled">Mark all as settled</string>
+
+    <!--Expense Form-->
+    <string name="expense_form_title_add">Add expense</string>
+    <string name="expense_form_title_edit">Edit expense</string>
+    <string name="expense_form_primary_save">Save expense</string>
+    <string name="expense_form_title_label">Title *</string>
+    <string name="expense_form_title_placeholder">Enter expense title</string>
+    <string name="expense_form_amount_label">Amount *</string>
+    <string name="expense_form_amount_placeholder">0</string>
+    <string name="expense_form_status_label">Expense status *</string>
+    <string name="expense_form_status_planned">Planned</string>
+    <string name="expense_form_status_paid">Paid</string>
+    <string name="expense_form_paid_by_label">Paid by *</string>
+    <string name="expense_form_paid_by_placeholder">Select person</string>
+    <string name="expense_form_paid_by_picker_title">Select person</string>
+    <string name="expense_form_date_label">Date</string>
+    <string name="expense_form_date_placeholder">Select date</string>
+    <string name="expense_form_split_between_label">Split between *</string>
+    <string name="expense_form_split_type_label">Split type *</string>
+    <string name="expense_form_split_equally">Split equally</string>
+    <string name="expense_form_custom_amounts">Custom amounts</string>
+    <string name="expense_form_amount_per_person">Amount per person</string>
+    <string name="expense_form_remaining">Remaining to allocate</string>
+    <string name="expense_form_note_label">Note (optional)</string>
+    <string name="expense_form_note_placeholder">Add any notes</string>
+    <string name="expense_form_delete">Delete expense</string>
+    <string name="expense_form_created_toast">Expense saved</string>
+    <string name="expense_form_saved_toast">Expense updated</string>
+    <string name="expense_form_deleted_toast">Expense deleted</string>
+    <string name="expense_form_delete_not_available">Delete is available only in edit mode</string>
+    <string name="expense_form_date_not_implemented">Date picker is not implemented yet</string>
+
     <!--Activity Details-->
     <string name="activity_details_title">Activity details</string>
     <string name="activity_details_date_time_label">DATE &amp; TIME</string>
