@@ -8,6 +8,7 @@ import nvk.cotrip.backend.config.AppConfig
 import nvk.cotrip.backend.routes.healthRoutes
 import nvk.cotrip.backend.routes.v1.authRoutes
 import nvk.cotrip.backend.routes.v1.commentRoutes
+import nvk.cotrip.backend.routes.v1.ideaRoutes
 import nvk.cotrip.backend.routes.v1.inviteRoutes
 import nvk.cotrip.backend.routes.v1.memberRoutes
 import nvk.cotrip.backend.routes.v1.notImplementedRoutes
@@ -24,6 +25,7 @@ fun Application.configureRouting(appConfig: AppConfig) {
         tripRoutes()
         memberRoutes()
         commentRoutes()
+        ideaRoutes()
         inviteRoutes(appConfig)
         notImplementedRoutes()
         commentsWebSocket()

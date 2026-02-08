@@ -18,15 +18,6 @@ fun Route.notImplementedRoutes() {
     route("/v1") {
         post("/auth/logout") { respondNotImplemented(call) }
 
-        get("/trips/{tripId}/ideas") { respondNotImplemented(call) }
-        post("/trips/{tripId}/ideas") { respondNotImplemented(call) }
-        get("/ideas/{ideaId}") { respondNotImplemented(call) }
-        patch("/ideas/{ideaId}") { respondNotImplemented(call) }
-        delete("/ideas/{ideaId}") { respondNotImplemented(call) }
-        post("/ideas/{ideaId}/approve") { respondNotImplemented(call) }
-        post("/ideas/{ideaId}/reject") { respondNotImplemented(call) }
-        post("/ideas/{ideaId}/convert-to-activity") { respondNotImplemented(call) }
-
         get("/trips/{tripId}/itinerary") { respondNotImplemented(call) }
         patch("/itinerary/days/{dayId}") { respondNotImplemented(call) }
         post("/itinerary/days/{dayId}/activities") { respondNotImplemented(call) }
