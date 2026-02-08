@@ -16,13 +16,6 @@ object JwtService {
     fun init(config: JwtConfig) {
         this.config = config
         algorithm = Algorithm.HMAC256(config.secret)
-
-object JwtService {
-    private lateinit var verifier: JWTVerifier
-
-    fun init(config: JwtConfig) {
-        val algorithm = Algorithm.HMAC256(config.secret)
->>>>>>> f5e4dad (Bootstrap backend skeleton and websocket scaffold)
         verifier = JWT.require(algorithm)
             .withIssuer(config.issuer)
             .withAudience(config.audience)
@@ -38,6 +31,7 @@ object JwtService {
             null
         }
     }
+
     fun createToken(userId: String): String {
         val expiresAt = Date.from(Instant.now().plus(30, ChronoUnit.DAYS))
         return JWT.create()
