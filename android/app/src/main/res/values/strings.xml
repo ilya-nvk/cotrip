@@ -1,3 +1,328 @@
 <resources>
     <string name="app_name">CoTrip</string>
+
+    <!--Sign In-->
+    <string name="sign_in_subtitle">Plan trips together. Easily.</string>
+    <string name="continue_with_google">Continue with Google</string>
+    <string name="signing_in">Signing in...</string>
+    <string name="sign_in_privacy_note">CoTrip uses your Google account only to identify you and sync your trips.</string>
+
+    <!--Trips List-->
+    <string name="trips_title">My Trips</string>
+    <string name="section_active">ACTIVE</string>
+    <string name="section_upcoming">UPCOMING</string>
+    <string name="section_past_with_count">PAST TRIPS (%1$d)</string>
+    <string name="in_progress">In progress</string>
+    <string name="no_upcoming_trips">No upcoming trips</string>
+    <string name="no_upcoming_trips_desc">Create a new trip to start planning.</string>
+    <string name="no_trips_yet">No trips yet</string>
+    <string name="no_trips_yet_desc">Create your first trip and start planning together.</string>
+    <string name="create_trip">Create trip</string>
+    <string name="settings">Settings</string>
+    <string name="settings_title">Settings</string>
+    <string name="toggle_past">Toggle past</string>
+
+    <!--Trip Form-->
+    <string name="common_cancel">Cancel</string>
+    <string name="create_trip_title">Create trip</string>
+    <string name="create_trip_primary_button">Create trip</string>
+    <string name="create_trip_created_toast">Trip created</string>
+    <string name="edit_trip_title">Edit trip</string>
+    <string name="edit_trip_primary_button">Save changes</string>
+    <string name="edit_trip_saved_toast">Changes saved</string>
+    <string name="edit_trip_archived_toast">Trip archived</string>
+    <string name="edit_trip_deleted_toast">Trip deleted</string>
+    <string name="trip_form_cover_section">COVER IMAGE</string>
+    <string name="trip_form_add_cover">Add cover image</string>
+    <string name="trip_form_name_label">Trip name</string>
+    <string name="trip_form_dates_section">DATES</string>
+    <string name="trip_form_start_date_label">Start date</string>
+    <string name="trip_form_end_date_label">End date</string>
+    <string name="trip_form_date_placeholder">dd.mm.yyyy</string>
+    <string name="trip_form_description_label">Description</string>
+    <string name="trip_form_currency_label">Currency</string>
+    <string name="trip_form_advanced_section">ADVANCED</string>
+    <string name="trip_form_archive">Archive trip</string>
+    <string name="trip_form_delete">Delete trip</string>
+    <string name="trip_form_date_not_implemented">Date picker is not implemented yet</string>
+    <string name="trip_form_cover_not_implemented">Cover image picker is not implemented yet</string>
+
+    <!--Trip Details-->
+    <string name="trip_details_back">Back</string>
+    <string name="trip_details_edit">Edit</string>
+    <string name="trip_details_travelers">TRAVELERS</string>
+    <string name="trip_details_invite">Invite</string>
+    <string name="trip_details_invite_travelers">Invite travelers</string>
+    <string name="trip_details_weather">WEATHER</string>
+    <string name="trip_details_view_full_forecast">View full forecast →</string>
+    <string name="trip_details_next_in_trip">NEXT IN YOUR TRIP</string>
+    <string name="trip_details_view_full_itinerary">View full itinerary →</string>
+    <string name="trip_details_start_planning">START PLANNING</string>
+    <string name="trip_details_start_planning_text">Your trip is coming together. Start adding ideas and building your route to make the most of your time.</string>
+    <string name="trip_details_browse_ideas">Browse ideas →</string>
+    <string name="trip_details_overview">OVERVIEW</string>
+    <string name="trip_details_ideas">Ideas</string>
+    <string name="trip_details_total_expenses">Total expenses</string>
+    <string name="trip_details_get_route_suggestions">Get route suggestions</string>
+    <string name="trip_details_build_route">Build your route</string>
+    <string name="trip_details_city_picker_stub">City selection is not implemented yet</string>
+
+    <!--Invitation-->
+    <string name="invite_people_title">Invite people</string>
+    <string name="invite_people_description">Share this link to invite others to join your trip. The link is valid for 12 hours.</string>
+    <string name="invite_people_link_label">INVITATION LINK</string>
+    <string name="invite_people_expires_hint">Link expires in %1$d hours</string>
+    <string name="invite_people_copy_link">Copy link</string>
+    <string name="invite_people_share_link">Share link</string>
+    <string name="invite_people_copied_toast">Link copied</string>
+    <string name="invite_people_share_not_implemented">Sharing is not implemented yet</string>
+
+    <!--Weather-->
+    <string name="weather_forecast_title">Weather forecast</string>
+    <string name="weather_forecast_disclaimer">Weather data is approximate and subject to change.</string>
+    <string name="weather_forecast_source">Source: %1$s</string>
+    <string name="weather_forecast_updated">Last updated: %1$s</string>
+    <string name="weather_forecast_city_not_implemented">City selection is not implemented yet</string>
+
+    <!--Out of Range Days-->
+    <string name="out_of_range_days_title">Out of range days</string>
+    <string name="out_of_range_days_banner">These days fall outside your new trip dates (%1$s). You can keep them hidden or remove them permanently.</string>
+    <string name="out_of_range_days_keep">Keep extra days</string>
+    <string name="out_of_range_days_remove">Remove extra days (%1$d)</string>
+    <string name="out_of_range_days_no_city">No city</string>
+    <string name="out_of_range_days_kept_toast">Extra days kept</string>
+    <string name="out_of_range_days_removed_toast">Extra days removed</string>
+
+    <!--Itinerary-->
+    <string name="itinerary_title">Itinerary</string>
+    <string name="itinerary_day_title">Day %1$d</string>
+    <string name="itinerary_choose_city">Choose city</string>
+    <string name="itinerary_empty_day_hint">Select a city to start planning this day</string>
+    <string name="itinerary_choose_city_title">Choose city</string>
+    <string name="itinerary_choose_city_placeholder">Search or enter city name</string>
+    <string name="itinerary_add_activity_not_implemented">Adding activities is not implemented yet</string>
+
+    <!--Ideas-->
+    <string name="ideas_title">Ideas</string>
+    <string name="ideas_add_to_itinerary">Add to itinerary</string>
+    <string name="ideas_added_to_day">Added to Day %1$d</string>
+    <string name="ideas_comments_count">%1$d comments</string>
+    <string name="ideas_added_to_itinerary_toast">Added to itinerary</string>
+    <string name="ideas_pick_day_title">Select day</string>
+    <string name="ideas_pick_day_label">Day %1$d · %2$s</string>
+
+    <!--Idea Details-->
+    <string name="idea_details_title">Idea</string>
+    <string name="idea_details_tab_details">Details</string>
+    <string name="idea_details_tab_discussion">Discussion</string>
+    <string name="idea_details_city">City</string>
+    <string name="idea_details_cost">Estimated cost</string>
+    <string name="idea_details_website">Website</string>
+    <string name="idea_details_notes">Notes</string>
+    <string name="idea_details_add_to_itinerary">Add to itinerary</string>
+    <string name="idea_details_added_to_day">Added to Day %1$d</string>
+    <string name="idea_details_delete">Delete idea</string>
+    <string name="idea_details_add_comment">Add a comment</string>
+    <string name="idea_details_added_toast">Idea added to itinerary</string>
+    <string name="idea_details_deleted_toast">Idea deleted</string>
+
+    <!--Idea Form-->
+    <string name="idea_form_title_add">Add idea</string>
+    <string name="idea_form_title_edit">Edit idea</string>
+    <string name="idea_form_primary_save">Save idea</string>
+    <string name="idea_form_title_label">Title *</string>
+    <string name="idea_form_city_label">City</string>
+    <string name="idea_form_city_picker_title">Choose city</string>
+    <string name="idea_form_cost_label">Estimated cost</string>
+    <string name="idea_form_website_label">Website or link</string>
+    <string name="idea_form_notes_label">Notes</string>
+    <string name="idea_form_title_placeholder">Enter idea title</string>
+    <string name="idea_form_city_placeholder">Choose city</string>
+    <string name="idea_form_cost_placeholder">0</string>
+    <string name="idea_form_cost_per_person">Per person</string>
+    <string name="idea_form_cost_total">Total</string>
+    <string name="idea_form_website_placeholder">https://</string>
+    <string name="idea_form_notes_placeholder">Add any notes or details</string>
+    <string name="idea_form_delete">Delete idea</string>
+    <string name="idea_form_created_toast">Idea saved</string>
+    <string name="idea_form_saved_toast">Idea updated</string>
+    <string name="idea_form_deleted_toast">Idea deleted</string>
+    <string name="idea_form_delete_not_available">Delete is available only in edit mode</string>
+
+    <!--AI Suggestions-->
+    <string name="ai_suggestions_title">AI suggestions</string>
+    <string name="ai_suggestions_hint">Describe what you are looking for and the AI will suggest activities tailored to your trip.</string>
+    <string name="ai_suggestions_city_label">City *</string>
+    <string name="ai_suggestions_city_hint">Cities from your itinerary</string>
+    <string name="ai_suggestions_select_city">Select a city</string>
+    <string name="ai_suggestions_select_city_title">Select a city</string>
+    <string name="ai_suggestions_description_label">Describe what you are looking for (optional)</string>
+    <string name="ai_suggestions_description_placeholder">Examples: Something relaxed for the evening • Museum</string>
+    <string name="ai_suggestions_description_hint">Tell the AI what you want in your own words - it will understand</string>
+    <string name="ai_suggestions_quick_preferences">Quick preferences (optional)</string>
+    <string name="ai_suggestions_type_label">Type</string>
+    <string name="ai_suggestions_time_of_day_label">Time of day</string>
+    <string name="ai_suggestions_budget_label">Budget</string>
+    <string name="ai_suggestions_generate">Generate suggestions</string>
+    <string name="ai_suggestions_change">Change</string>
+    <string name="ai_suggestions_loading">Generating suggestions...</string>
+    <string name="ai_suggestions_estimated_cost">Estimated cost: %1$s</string>
+    <string name="ai_suggestions_save_to_ideas">Save to Ideas</string>
+    <string name="ai_suggestions_saved">Saved</string>
+
+    <!--Settings-->
+    <string name="settings_profile">PROFILE</string>
+    <string name="settings_change_photo">Change photo</string>
+    <string name="settings_remove_photo">Remove photo</string>
+    <string name="settings_name_label">Name</string>
+    <string name="settings_name_hint">Used as display name in trips, discussions, expenses</string>
+    <string name="settings_notifications">NOTIFICATIONS</string>
+    <string name="settings_danger_zone">DANGER ZONE</string>
+    <string name="settings_log_out">Log out</string>
+    <string name="settings_delete_profile">Delete profile</string>
+    <string name="settings_delete_dialog_title">Delete profile?</string>
+    <string name="settings_delete_dialog_message">All your trips, ideas, expenses, and data will be permanently deleted.</string>
+    <string name="settings_photo_changed_toast">Photo updated</string>
+    <string name="settings_profile_deleted_toast">Profile deleted</string>
+
+    <!--Expenses-->
+    <string name="expenses_title">Expenses</string>
+    <string name="expenses_total_spent">Total spent</string>
+    <string name="expenses_your_balance">Your balance</string>
+    <string name="expenses_total_planned">Total planned</string>
+    <string name="expenses_balance_amount">%1$s %2$s</string>
+    <string name="expenses_spent_section">SPENT</string>
+    <string name="expenses_planned_section">PLANNED</string>
+    <string name="expenses_status_owed_to_you">You are owed %1$s</string>
+    <string name="expenses_status_you_owe">You owe %1$s</string>
+    <string name="expenses_status_settled">Settled</string>
+    <string name="expenses_status_planned">Planned</string>
+
+    <!--Expense Details-->
+    <string name="expense_details_title">Expense details</string>
+    <string name="expense_details_status_planned">Planned</string>
+    <string name="expense_details_status_unsettled">Unsettled</string>
+    <string name="expense_details_status_settled">Settled</string>
+    <string name="expense_details_paid_by">Paid by</string>
+    <string name="expense_details_date">Date</string>
+    <string name="expense_details_split_section">SPLIT DETAILS</string>
+    <string name="expense_details_note_section">NOTE</string>
+    <string name="expense_details_mark_paid">Mark paid</string>
+    <string name="expense_details_total">Total: %1$s</string>
+    <string name="expense_details_mark_as_paid">Mark as paid</string>
+    <string name="expense_details_mark_all_settled">Mark all as settled</string>
+
+    <!--Expense Form-->
+    <string name="expense_form_title_add">Add expense</string>
+    <string name="expense_form_title_edit">Edit expense</string>
+    <string name="expense_form_primary_save">Save expense</string>
+    <string name="expense_form_title_label">Title *</string>
+    <string name="expense_form_title_placeholder">Enter expense title</string>
+    <string name="expense_form_amount_label">Amount *</string>
+    <string name="expense_form_amount_placeholder">0</string>
+    <string name="expense_form_status_label">Expense status *</string>
+    <string name="expense_form_status_planned">Planned</string>
+    <string name="expense_form_status_paid">Paid</string>
+    <string name="expense_form_paid_by_label">Paid by *</string>
+    <string name="expense_form_paid_by_placeholder">Select person</string>
+    <string name="expense_form_paid_by_picker_title">Select person</string>
+    <string name="expense_form_date_label">Date</string>
+    <string name="expense_form_date_placeholder">Select date</string>
+    <string name="expense_form_split_between_label">Split between *</string>
+    <string name="expense_form_split_type_label">Split type *</string>
+    <string name="expense_form_split_equally">Split equally</string>
+    <string name="expense_form_custom_amounts">Custom amounts</string>
+    <string name="expense_form_amount_per_person">Amount per person</string>
+    <string name="expense_form_remaining">Remaining to allocate</string>
+    <string name="expense_form_note_label">Note (optional)</string>
+    <string name="expense_form_note_placeholder">Add any notes</string>
+    <string name="expense_form_delete">Delete expense</string>
+    <string name="expense_form_created_toast">Expense saved</string>
+    <string name="expense_form_saved_toast">Expense updated</string>
+    <string name="expense_form_deleted_toast">Expense deleted</string>
+    <string name="expense_form_delete_not_available">Delete is available only in edit mode</string>
+    <string name="expense_form_date_not_implemented">Date picker is not implemented yet</string>
+
+    <!--Activity Details-->
+    <string name="activity_details_title">Activity details</string>
+    <string name="activity_details_date_time_label">DATE &amp; TIME</string>
+    <string name="activity_details_location_label">LOCATION</string>
+    <string name="activity_details_cost_label">COST</string>
+    <string name="activity_details_website_label">WEBSITE</string>
+    <string name="activity_details_notes_label">NOTES</string>
+    <string name="activity_details_per_person">per person</string>
+    <string name="activity_details_empty">—</string>
+    <string name="activity_details_delete">Delete activity</string>
+    <string name="activity_details_edit_not_implemented">Editing is not implemented yet</string>
+    <string name="activity_details_open_location_not_implemented">Opening location is not implemented yet</string>
+    <string name="activity_details_open_website_not_implemented">Opening website is not implemented yet</string>
+    <string name="activity_details_deleted_toast">Activity deleted</string>
+
+    <!--Activity Form-->
+    <string name="activity_form_title_add">Add activity</string>
+    <string name="activity_form_title_edit">Edit activity</string>
+    <string name="activity_form_section_title">ACTIVITY TITLE</string>
+    <string name="activity_form_title_placeholder">e.g., Visit the Louvre Museum</string>
+    <string name="activity_form_section_date">DATE</string>
+    <string name="activity_form_section_time_optional">TIME (OPTIONAL)</string>
+    <string name="activity_form_time_placeholder">--:-- --</string>
+    <string name="activity_form_section_location_optional">LOCATION (OPTIONAL)</string>
+    <string name="activity_form_location_name_placeholder">e.g., Louvre Museum</string>
+    <string name="activity_form_location_link_placeholder">Map or location link (optional)</string>
+    <string name="activity_form_section_cost_optional">COST (OPTIONAL)</string>
+    <string name="activity_form_cost_placeholder">e.g., 17</string>
+    <string name="activity_form_cost_per_person">Per person</string>
+    <string name="activity_form_cost_total">Total</string>
+    <string name="activity_form_section_website_optional">WEBSITE (OPTIONAL)</string>
+    <string name="activity_form_website_placeholder">e.g., https://louvre.fr</string>
+    <string name="activity_form_section_notes_optional">NOTES (OPTIONAL)</string>
+    <string name="activity_form_notes_placeholder">Add any additional details or reminders...</string>
+    <string name="activity_form_primary_add">Add activity</string>
+    <string name="activity_form_primary_save">Save changes</string>
+    <string name="activity_form_delete">Delete activity</string>
+    <string name="activity_form_pick_date_not_implemented">Date picker is not implemented yet</string>
+    <string name="activity_form_pick_time_not_implemented">Time picker is not implemented yet</string>
+    <string name="activity_form_created_toast">Activity added</string>
+    <string name="activity_form_saved_toast">Changes saved</string>
+    <string name="activity_form_deleted_toast">Activity deleted</string>
+    <string name="activity_form_delete_not_available">Delete is available only in edit mode</string>
+
+    <!--Currencies-->
+    <string name="currency_eur">Euro (€)</string>
+    <string name="currency_usd">US Dollar ($)</string>
+    <string name="currency_gbp">British Pound (£)</string>
+    <string name="currency_jpy">Japanese Yen (¥)</string>
+    <string name="currency_cny">Chinese Yuan (¥)</string>
+    <string name="currency_krw">South Korean Won (₩)</string>
+    <string name="currency_aud">Australian Dollar ($)</string>
+    <string name="currency_cad">Canadian Dollar ($)</string>
+    <string name="currency_chf">Swiss Franc (CHF)</string>
+    <string name="currency_sek">Swedish Krona (kr)</string>
+    <string name="currency_nok">Norwegian Krone (kr)</string>
+    <string name="currency_dkk">Danish Krone (kr)</string>
+    <string name="currency_pln">Polish Złoty (zł)</string>
+    <string name="currency_czk">Czech Koruna (Kč)</string>
+    <string name="currency_huf">Hungarian Forint (Ft)</string>
+    <string name="currency_try">Turkish Lira (₺)</string>
+    <string name="currency_ils">Israeli Shekel (₪)</string>
+    <string name="currency_aed">UAE Dirham (د.إ)</string>
+    <string name="currency_sar">Saudi Riyal (﷼)</string>
+    <string name="currency_inr">Indian Rupee (₹)</string>
+    <string name="currency_thb">Thai Baht (฿)</string>
+    <string name="currency_sgd">Singapore Dollar ($)</string>
+    <string name="currency_hkd">Hong Kong Dollar ($)</string>
+    <string name="currency_idr">Indonesian Rupiah (Rp)</string>
+    <string name="currency_myr">Malaysian Ringgit (RM)</string>
+    <string name="currency_php">Philippine Peso (₱)</string>
+    <string name="currency_mxn">Mexican Peso ($)</string>
+    <string name="currency_brl">Brazilian Real (R$)</string>
+    <string name="currency_ars">Argentine Peso ($)</string>
+    <string name="currency_clp">Chilean Peso ($)</string>
+    <string name="currency_cop">Colombian Peso ($)</string>
+    <string name="currency_zar">South African Rand (R)</string>
+    <string name="currency_egp">Egyptian Pound (£)</string>
+    <string name="currency_rub">Russian Ruble (₽)</string>
+    <string name="currency_uah">Ukrainian Hryvnia (₴)</string>
+    <string name="currency_kzt">Kazakhstani Tenge (₸)</string>
+    <string name="currency_byn">Belarusian Ruble (Br)</string>
 </resources>
