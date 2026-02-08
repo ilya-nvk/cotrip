@@ -7,6 +7,7 @@ import androidx.compose.material.icons.automirrored.outlined.ExitToApp
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
@@ -44,4 +45,5 @@ object CoTripIcons {
     val FavoriteBorder: ImageVector = Icons.Filled.FavoriteBorder
     val Location: ImageVector = Icons.Filled.LocationOn
     val Link: ImageVector = Icons.Filled.CheckCircle // todo
+    val Calendar: ImageVector = Icons.Filled.DateRange
 }

@@ -10,7 +10,6 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import nvk.cotrip.R
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import javax.inject.Inject
@@ -149,13 +148,14 @@ class TripItineraryViewModel @Inject constructor(
     fun onEvent(event: TripItineraryEvent) {
         when (event) {
             TripItineraryEvent.OnBackClick -> appNavigator.popBackStack()
-            TripItineraryEvent.OnAddActivityClick -> emitToast(R.string.itinerary_add_activity_not_implemented)
+            TripItineraryEvent.OnAddActivityClick -> appNavigator.navigate(
+                Destination.CreateActivity(
+                    tripId
+                )
+            )
             TripItineraryEvent.OnDismissCityPicker -> _state.update { it.copy(cityPicker = null) }
             is TripItineraryEvent.OnActivityClick -> appNavigator.navigate(
-                Destination.ActivityDetails(
-                    tripId,
-                    event.activityId
-                )
+                Destination.ActivityDetails(event.activityId)
             )
 
             is TripItineraryEvent.OnChooseCityClick -> openCityPicker(event.dayId)

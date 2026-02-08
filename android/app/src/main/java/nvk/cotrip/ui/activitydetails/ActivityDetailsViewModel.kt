@@ -21,14 +21,11 @@ class ActivityDetailsViewModel @Inject constructor(
     private val appNavigator: AppNavigator,
 ) : ViewModel() {
 
-    private val tripId: String =
-        checkNotNull(savedStateHandle[Destination.ActivityDetails.ARG_TRIP_ID])
     private val activityId: String =
         (savedStateHandle.get<String>(Destination.ActivityDetails.ARG_ACTIVITY_ID)).orEmpty()
 
     private val _state = MutableStateFlow(
         ActivityDetailsState(
-            tripId = tripId,
             dayId = "2",
             activityId = activityId.ifBlank { "a5" },
             dayAndCity = "Day 2 · Paris",
@@ -49,7 +46,11 @@ class ActivityDetailsViewModel @Inject constructor(
     fun onEvent(event: ActivityDetailsEvent) {
         when (event) {
             ActivityDetailsEvent.OnBackClick -> appNavigator.popBackStack()
-            ActivityDetailsEvent.OnEditClick -> emitToast(R.string.activity_details_edit_not_implemented)
+            ActivityDetailsEvent.OnEditClick -> appNavigator.navigate(
+                Destination.EditActivity(
+                    activityId
+                )
+            )
             ActivityDetailsEvent.OnOpenLocationClick -> emitToast(R.string.activity_details_open_location_not_implemented)
             ActivityDetailsEvent.OnOpenWebsiteClick -> emitToast(R.string.activity_details_open_website_not_implemented)
             ActivityDetailsEvent.OnDeleteClick -> {

@@ -49,10 +49,11 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.flow.collectLatest
 import nvk.cotrip.R
-import nvk.cotrip.ui.AvatarsStack
+import nvk.cotrip.ui.components.AvatarsStack
 import nvk.cotrip.ui.components.CoTripFab
 import nvk.cotrip.ui.components.CoTripIconButton
 import nvk.cotrip.ui.components.PrimaryButton
+import nvk.cotrip.ui.components.tripGradientFromId
 import nvk.cotrip.ui.theme.Border
 import nvk.cotrip.ui.theme.CoTripIcons
 import nvk.cotrip.ui.theme.CoTripTokens
@@ -61,7 +62,6 @@ import nvk.cotrip.ui.theme.PrimaryLight
 import nvk.cotrip.ui.theme.TextMedium
 import nvk.cotrip.ui.theme.TextPrimary
 import nvk.cotrip.ui.theme.TextSecondary
-import nvk.cotrip.ui.tripGradientFromId
 
 private const val KEY_ACTIVE_HEADER = "active_header"
 private const val KEY_UPCOMING_HEADER = "upcoming_header"

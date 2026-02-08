@@ -116,6 +116,34 @@
     <string name="activity_details_open_website_not_implemented">Opening website is not implemented yet</string>
     <string name="activity_details_deleted_toast">Activity deleted</string>
 
+    <!--Activity Form-->
+    <string name="activity_form_title_add">Add activity</string>
+    <string name="activity_form_title_edit">Edit activity</string>
+    <string name="activity_form_section_title">ACTIVITY TITLE</string>
+    <string name="activity_form_title_placeholder">e.g., Visit the Louvre Museum</string>
+    <string name="activity_form_section_date">DATE</string>
+    <string name="activity_form_section_time_optional">TIME (OPTIONAL)</string>
+    <string name="activity_form_time_placeholder">--:-- --</string>
+    <string name="activity_form_section_location_optional">LOCATION (OPTIONAL)</string>
+    <string name="activity_form_location_name_placeholder">e.g., Louvre Museum</string>
+    <string name="activity_form_location_link_placeholder">Map or location link (optional)</string>
+    <string name="activity_form_section_cost_optional">COST (OPTIONAL)</string>
+    <string name="activity_form_cost_placeholder">e.g., 17</string>
+    <string name="activity_form_cost_per_person">Per person</string>
+    <string name="activity_form_cost_total">Total</string>
+    <string name="activity_form_section_website_optional">WEBSITE (OPTIONAL)</string>
+    <string name="activity_form_website_placeholder">e.g., https://louvre.fr</string>
+    <string name="activity_form_section_notes_optional">NOTES (OPTIONAL)</string>
+    <string name="activity_form_notes_placeholder">Add any additional details or reminders...</string>
+    <string name="activity_form_primary_add">Add activity</string>
+    <string name="activity_form_primary_save">Save changes</string>
+    <string name="activity_form_delete">Delete activity</string>
+    <string name="activity_form_pick_date_not_implemented">Date picker is not implemented yet</string>
+    <string name="activity_form_pick_time_not_implemented">Time picker is not implemented yet</string>
+    <string name="activity_form_created_toast">Activity added</string>
+    <string name="activity_form_saved_toast">Changes saved</string>
+    <string name="activity_form_deleted_toast">Activity deleted</string>
+    <string name="activity_form_delete_not_available">Delete is available only in edit mode</string>
 
     <!--Currencies-->
     <string name="currency_eur">Euro (€)</string>

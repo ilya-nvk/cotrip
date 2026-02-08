@@ -1,7 +1,6 @@
 package nvk.cotrip.ui.activitydetails
 
 data class ActivityDetailsState(
-    val tripId: String,
     val dayId: String,
     val activityId: String,
     val dayAndCity: String,

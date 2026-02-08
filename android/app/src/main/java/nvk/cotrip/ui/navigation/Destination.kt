@@ -4,7 +4,7 @@ sealed interface Destination {
     val route: String
 
     data object SignIn : Destination {
-        override val route = "auth/signin"
+        override val route = "auth/sign-in"
     }
 
     data object Trips : Destination {
@@ -109,12 +109,29 @@ sealed interface Destination {
         }
     }
 
-    data class ActivityDetails(val tripId: String, val activityId: String) : Destination {
-        override val route: String = "trips/$tripId/$activityId/activity-details"
+    data class ActivityDetails(val activityId: String) : Destination {
+        override val route: String = "trips/$activityId/activity-details"
 
         companion object {
-            const val ROUTE_PATTERN = "trips/{tripId}/{activityId}/activity-details"
+            const val ROUTE_PATTERN = "trips/{activityId}/activity-details"
+            const val ARG_ACTIVITY_ID = "activityId"
+        }
+    }
+
+    data class CreateActivity(val tripId: String) : Destination {
+        override val route: String = "trips/$tripId/create-activity"
+
+        companion object {
+            const val ROUTE_PATTERN = "trips/{tripId}/create-activity"
             const val ARG_TRIP_ID = "tripId"
+        }
+    }
+
+    data class EditActivity(val activityId: String) : Destination {
+        override val route: String = "trips/$activityId/activity-details"
+
+        companion object {
+            const val ROUTE_PATTERN = "trips/{activityId}/activity-details"
             const val ARG_ACTIVITY_ID = "activityId"
         }
     }

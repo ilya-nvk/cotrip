@@ -7,6 +7,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import nvk.cotrip.ui.activitydetails.ActivityDetailsScreen
+import nvk.cotrip.ui.activityform.CreateActivityScreen
+import nvk.cotrip.ui.activityform.EditActivityScreen
 import nvk.cotrip.ui.auth.SignInScreen
 import nvk.cotrip.ui.forecast.TripForecastScreen
 import nvk.cotrip.ui.invitation.InvitePeopleScreen
@@ -142,6 +144,28 @@ fun AppNavHost(
             )
         ) {
             ActivityDetailsScreen()
+        }
+
+        composable(
+            route = Destination.CreateActivity.ROUTE_PATTERN,
+            arguments = listOf(
+                navArgument(Destination.CreateActivity.ARG_TRIP_ID) {
+                    type = NavType.StringType
+                }
+            )
+        ) {
+            CreateActivityScreen()
+        }
+
+        composable(
+            route = Destination.EditActivity.ROUTE_PATTERN,
+            arguments = listOf(
+                navArgument(Destination.EditActivity.ARG_ACTIVITY_ID) {
+                    type = NavType.StringType
+                }
+            )
+        ) {
+            EditActivityScreen()
         }
     }
 }
