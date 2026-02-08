@@ -35,6 +35,18 @@ data class SyncConflict(
     val reason: String,
 )
 
+@Serializable
+data class SyncPullResponse(
+    val items: List<SyncChangeDto>,
+    val nextCursor: String? = null,
+)
+
+@Serializable
+data class SyncPushResponse(
+    val applied: List<String>,
+    val conflicts: List<SyncConflict>,
+)
+
 fun Route.syncRoutes() {
     authenticate("auth-jwt") {
         get("/v1/sync/changes") {
@@ -64,7 +76,7 @@ fun Route.syncRoutes() {
                 )
             }
 
-            call.respond(mapOf("items" to changes, "nextCursor" to null))
+            call.respond(SyncPullResponse(items = changes, nextCursor = null))
         }
 
         post("/v1/sync/changes") {
@@ -76,7 +88,7 @@ fun Route.syncRoutes() {
 
             val request = call.receive<SyncPushRequest>()
             val applied = request.items.map { it.id }
-            call.respond(mapOf("applied" to applied, "conflicts" to emptyList<SyncConflict>()))
+            call.respond(SyncPushResponse(applied = applied, conflicts = emptyList()))
         }
     }
 }

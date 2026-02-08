@@ -2,7 +2,9 @@ package nvk.cotrip.backend.db
 
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import org.postgresql.util.PGobject
 import java.sql.ResultSet
+import java.sql.Types
 import java.time.OffsetDateTime
 import java.util.UUID
 
@@ -69,9 +71,9 @@ object AiRepository {
             stmt.setObject(1, UUID.fromString(tripId))
             stmt.setString(2, city)
             stmt.setString(3, description)
-            stmt.setString(4, typeOptions?.let { json.encodeToString(it) })
-            stmt.setString(5, timeOfDayOptions?.let { json.encodeToString(it) })
-            stmt.setString(6, budgetOptions?.let { json.encodeToString(it) })
+            setJsonb(stmt, 4, typeOptions?.let { json.encodeToString(it) })
+            setJsonb(stmt, 5, timeOfDayOptions?.let { json.encodeToString(it) })
+            setJsonb(stmt, 6, budgetOptions?.let { json.encodeToString(it) })
             stmt.setString(7, provider)
             stmt.setObject(8, UUID.fromString(createdBy))
             stmt.executeQuery().use { rs ->
@@ -198,5 +200,17 @@ object AiRepository {
             isSaved = rs.getBoolean("is_saved"),
             savedIdeaId = rs.getObject("saved_idea_id", UUID::class.java)?.toString(),
         )
+    }
+
+    private fun setJsonb(stmt: java.sql.PreparedStatement, index: Int, value: String?) {
+        if (value == null) {
+            stmt.setNull(index, Types.OTHER)
+            return
+        }
+        val jsonb = PGobject().apply {
+            type = "jsonb"
+            this.value = value
+        }
+        stmt.setObject(index, jsonb)
     }
 }
