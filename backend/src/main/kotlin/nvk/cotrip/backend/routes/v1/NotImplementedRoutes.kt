@@ -18,14 +18,6 @@ fun Route.notImplementedRoutes() {
     route("/v1") {
         post("/auth/logout") { respondNotImplemented(call) }
 
-        get("/trips/{tripId}/itinerary") { respondNotImplemented(call) }
-        patch("/itinerary/days/{dayId}") { respondNotImplemented(call) }
-        post("/itinerary/days/{dayId}/activities") { respondNotImplemented(call) }
-        patch("/itinerary/activities/{activityId}") { respondNotImplemented(call) }
-        delete("/itinerary/activities/{activityId}") { respondNotImplemented(call) }
-        post("/itinerary/days/{dayId}/activities/reorder") { respondNotImplemented(call) }
-        post("/trips/{tripId}/itinerary/trim-out-of-range") { respondNotImplemented(call) }
-
         get("/trips/{tripId}/expenses") { respondNotImplemented(call) }
         post("/trips/{tripId}/expenses") { respondNotImplemented(call) }
         get("/expenses/{expenseId}") { respondNotImplemented(call) }
