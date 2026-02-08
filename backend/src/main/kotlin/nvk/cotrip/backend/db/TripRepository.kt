@@ -307,6 +307,21 @@ object TripRepository {
         }
     }
 
+    fun isMember(tripId: String, userId: String): Boolean = dbQuery { conn ->
+        conn.prepareStatement(
+            """
+            SELECT 1 FROM trip_members
+            WHERE trip_id = ? AND user_id = ? AND status = 'accepted'
+            """.trimIndent()
+        ).use { stmt ->
+            stmt.setObject(1, UUID.fromString(tripId))
+            stmt.setObject(2, UUID.fromString(userId))
+            stmt.executeQuery().use { rs ->
+                rs.next()
+            }
+        }
+    }
+
     private fun mapTrip(rs: ResultSet): TripRow {
         return TripRow(
             id = rs.getObject("id", UUID::class.java).toString(),

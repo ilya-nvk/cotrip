@@ -47,6 +47,15 @@ data class InviteInfoDto(
     val expiresAt: String,
 )
 
+@Serializable
+data class CommentDto(
+    val id: String,
+    val ideaId: String,
+    val authorId: String,
+    val body: String,
+    val createdAt: String,
+)
+
 fun UserRow.toDto(): UserDto = UserDto(
     id = id,
     name = name,

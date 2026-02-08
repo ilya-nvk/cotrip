@@ -30,9 +30,6 @@ fun Route.notImplementedRoutes() {
         post("/ideas/{ideaId}/reject") { respondNotImplemented(call) }
         post("/ideas/{ideaId}/convert-to-activity") { respondNotImplemented(call) }
 
-        get("/ideas/{ideaId}/comments") { respondNotImplemented(call) }
-        delete("/comments/{commentId}") { respondNotImplemented(call) }
-
         get("/trips/{tripId}/itinerary") { respondNotImplemented(call) }
         patch("/itinerary/days/{dayId}") { respondNotImplemented(call) }
         post("/itinerary/days/{dayId}/activities") { respondNotImplemented(call) }

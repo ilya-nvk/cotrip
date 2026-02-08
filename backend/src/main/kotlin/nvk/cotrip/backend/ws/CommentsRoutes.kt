@@ -12,8 +12,9 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import nvk.cotrip.backend.auth.JwtService
-import java.time.Instant
-import java.util.UUID
+import nvk.cotrip.backend.db.CommentRepository
+import nvk.cotrip.backend.db.IdeaRepository
+import nvk.cotrip.backend.db.TripRepository
 
 fun Route.commentsWebSocket() {
     webSocket("/v1/ws/trips/{tripId}/comments") {
@@ -53,13 +54,22 @@ private suspend fun handleTextFrame(tripId: String, userId: String, text: String
     when (type) {
         "comment.create" -> {
             val create = json.decodeFromString<CommentCreateMessage>(text)
+            val ideaId = create.payload.ideaId
+            val body = create.payload.body.trim()
+            if (body.isBlank()) return
+
+            val ideaTripId = IdeaRepository.findTripIdByIdeaId(ideaId) ?: return
+            if (ideaTripId != tripId) return
+            if (!TripRepository.isMember(tripId, userId)) return
+
+            val stored = CommentRepository.create(ideaId, userId, body)
             val created = CommentCreatedMessage(
                 payload = CommentCreatedPayload(
-                    id = UUID.randomUUID().toString(),
-                    ideaId = create.payload.ideaId,
-                    authorId = userId,
-                    body = create.payload.body,
-                    createdAt = Instant.now().toString(),
+                    id = stored.id,
+                    ideaId = stored.ideaId,
+                    authorId = stored.authorId,
+                    body = stored.body,
+                    createdAt = stored.createdAt.toString(),
                 )
             )
             broadcast(tripId, json.encodeToString(created))

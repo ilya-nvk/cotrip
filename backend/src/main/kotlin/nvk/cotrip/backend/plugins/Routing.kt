@@ -7,6 +7,7 @@ import io.ktor.server.routing.routing
 import nvk.cotrip.backend.config.AppConfig
 import nvk.cotrip.backend.routes.healthRoutes
 import nvk.cotrip.backend.routes.v1.authRoutes
+import nvk.cotrip.backend.routes.v1.commentRoutes
 import nvk.cotrip.backend.routes.v1.inviteRoutes
 import nvk.cotrip.backend.routes.v1.notImplementedRoutes
 import nvk.cotrip.backend.routes.v1.tripRoutes
@@ -20,6 +21,7 @@ fun Application.configureRouting(appConfig: AppConfig) {
         authRoutes(appConfig)
         userRoutes()
         tripRoutes()
+        commentRoutes()
         inviteRoutes(appConfig)
         notImplementedRoutes()
         commentsWebSocket()
