@@ -80,9 +80,9 @@ dependencies {
     kapt(libs.androidx.hilt.compiler)
 
     implementation(libs.retrofit)
-    implementation(libs.retrofit.kotlin.serialization)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.okhttp)
+    implementation(libs.androidx.datastore.preferences)
 
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
