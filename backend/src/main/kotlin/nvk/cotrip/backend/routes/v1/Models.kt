@@ -56,6 +56,16 @@ data class CommentDto(
     val createdAt: String,
 )
 
+@Serializable
+data class MemberDto(
+    val userId: String,
+    val name: String,
+    val photoUrl: String? = null,
+    val initials: String,
+    val role: String,
+    val status: String,
+)
+
 fun UserRow.toDto(): UserDto = UserDto(
     id = id,
     name = name,
