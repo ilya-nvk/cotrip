@@ -1,5 +1,6 @@
 package nvk.cotrip.ui.expense.form
 
+import android.app.DatePickerDialog
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -67,6 +68,8 @@ import nvk.cotrip.ui.theme.TextPrimary
 import nvk.cotrip.ui.theme.TextSecondary
 import nvk.cotrip.ui.theme.Warning
 import nvk.cotrip.ui.theme.WarningText
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.abs
 
@@ -92,6 +95,23 @@ private fun ExpenseFormScreen(
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val dateFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy", Locale.getDefault())
+
+    fun showDatePicker() {
+        val initialDate = runCatching { LocalDate.parse(state.dateText, dateFormatter) }
+            .getOrNull() ?: LocalDate.now()
+        DatePickerDialog(
+            context,
+            { _, year, month, dayOfMonth ->
+                viewModel.onEvent(
+                    ExpenseFormEvent.OnDateSelected(LocalDate.of(year, month + 1, dayOfMonth))
+                )
+            },
+            initialDate.year,
+            initialDate.monthValue - 1,
+            initialDate.dayOfMonth
+        ).show()
+    }
 
     LaunchedEffect(viewModel) {
         viewModel.effects.collectLatest { effect ->
@@ -278,10 +298,10 @@ private fun ExpenseFormScreen(
                     CoTripIconButton(
                         icon = CoTripIcons.Calendar,
                         contentDescription = null,
-                        onClick = { viewModel.onEvent(ExpenseFormEvent.OnDateClick) }
+                        onClick = { showDatePicker() }
                     )
                 },
-                onClick = { viewModel.onEvent(ExpenseFormEvent.OnDateClick) }
+                onClick = { showDatePicker() }
             )
 
             CoTripDivider(modifier = Modifier.padding(top = CoTripTokens.spacing.x1))

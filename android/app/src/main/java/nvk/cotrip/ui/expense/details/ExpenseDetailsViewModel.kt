@@ -2,18 +2,34 @@ package nvk.cotrip.ui.expense.details
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import nvk.cotrip.data.network.CoTripApi
+import nvk.cotrip.data.network.dto.ExpenseDto
+import nvk.cotrip.data.network.dto.ExpenseParticipantDto
+import nvk.cotrip.data.network.dto.ExpenseParticipantInput
+import nvk.cotrip.data.network.dto.ExpenseUpdateRequest
+import nvk.cotrip.data.network.dto.MemberDto
+import nvk.cotrip.data.network.dto.TripDto
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
+import nvk.cotrip.ui.trip.form.TripCurrency
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import javax.inject.Inject
 
 @HiltViewModel
 class ExpenseDetailsViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val appNavigator: AppNavigator,
+    private val api: CoTripApi,
 ) : ViewModel() {
 
     private val tripId: String =
@@ -21,8 +37,31 @@ class ExpenseDetailsViewModel @Inject constructor(
     private val expenseId: String =
         checkNotNull(savedStateHandle[Destination.ExpenseDetails.ARG_EXPENSE_ID])
 
-    private val _state = MutableStateFlow(initialState(tripId, expenseId))
+    private var currentExpense: ExpenseDto? = null
+    private var membersById: Map<String, MemberDto> = emptyMap()
+    private var meId: String? = null
+    private var currencySymbol: String = "€"
+
+    private val _state = MutableStateFlow(
+        ExpenseDetailsState(
+            tripId = tripId,
+            expenseId = expenseId,
+            title = "",
+            amount = "",
+            status = ExpenseDetailsStatus.Planned,
+            paidBy = null,
+            date = null,
+            splitType = "",
+            note = null,
+            splitRows = emptyList(),
+            total = ""
+        )
+    )
     val state = _state.asStateFlow()
+
+    init {
+        loadExpense()
+    }
 
     fun onEvent(event: ExpenseDetailsEvent) {
         when (event) {
@@ -40,104 +79,164 @@ class ExpenseDetailsViewModel @Inject constructor(
         }
     }
 
-    private fun markAsPaid() {
-        _state.update { current ->
-            if (current.status != ExpenseDetailsStatus.Planned) return@update current
-            current.copy(
-                status = ExpenseDetailsStatus.Unsettled,
-                paidBy = "You",
-                date = "Jul 16, 2026"
-            )
+    private fun loadExpense() {
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    val expense = api.getExpense(expenseId)
+                    val trip = api.getTrip(tripId)
+                    val members = api.listMembers(tripId).items
+                    val me = api.getMe()
+                    ExpensePayload(expense, trip, members, me.id)
+                }
+            }.onSuccess { payload ->
+                currentExpense = payload.expense
+                currencySymbol = currencySymbolFor(payload.trip.currencyCode)
+                membersById = payload.members.associateBy { it.userId }
+                meId = payload.meId
+                _state.update { payload.expense.toState(payload.meId, membersById, currencySymbol) }
+            }
         }
+    }
+
+    private fun markAsPaid() {
+        val expense = currentExpense ?: return
+        if (expense.status != "planned") return
+        val payerId = meId ?: return
+        val participants = expense.participants.map { participant ->
+            participant.copy(isPaid = participant.userId == payerId)
+        }
+        updateExpense(
+            ExpenseUpdateRequest(
+                status = "paid",
+                paidById = payerId,
+                date = LocalDate.now().toString(),
+                participants = participants.toInputs()
+            )
+        )
     }
 
     private fun markAllSettled() {
-        _state.update { current ->
-            val settledRows = current.splitRows.map { it.copy(isPaid = true) }
-            current.copy(
-                status = ExpenseDetailsStatus.Settled,
-                splitRows = settledRows
+        val expense = currentExpense ?: return
+        if (expense.status != "paid") return
+        val participants = expense.participants.map { it.copy(isPaid = true) }
+        updateExpense(
+            ExpenseUpdateRequest(
+                participants = participants.toInputs()
             )
-        }
+        )
     }
 
     private fun markParticipantPaid(participantId: String) {
-        _state.update { current ->
-            if (current.status == ExpenseDetailsStatus.Planned) return@update current
-            val updatedRows = current.splitRows.map { row ->
-                if (row.id == participantId) row.copy(isPaid = true) else row
-            }
-            val allSettled = updatedRows.all { it.isPaid }
-            current.copy(
-                status = if (allSettled) ExpenseDetailsStatus.Settled else current.status,
-                splitRows = updatedRows
+        val expense = currentExpense ?: return
+        if (expense.status != "paid") return
+        val participants = expense.participants.map { participant ->
+            if (participant.userId == participantId) participant.copy(isPaid = true) else participant
+        }
+        updateExpense(
+            ExpenseUpdateRequest(
+                participants = participants.toInputs()
             )
+        )
+    }
+
+    private fun updateExpense(request: ExpenseUpdateRequest) {
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    api.updateExpense(expenseId, request)
+                }
+            }.onSuccess {
+                loadExpense()
+            }
         }
     }
 
-    private fun initialState(tripId: String, expenseId: String): ExpenseDetailsState {
-        return if (expenseId == "ex4" || expenseId == "ex5") {
-            ExpenseDetailsState(
-                tripId = tripId,
-                expenseId = expenseId,
-                title = if (expenseId == "ex4") "Eiffel Tower tickets" else "Seine River cruise",
-                amount = if (expenseId == "ex4") "€60.00" else "€120.00",
-                status = ExpenseDetailsStatus.Planned,
-                paidBy = null,
-                date = null,
-                splitType = "Split equally",
-                note = null,
-                splitRows = listOf(
-                    ExpenseSplitRowUi(
-                        "p1",
-                        "YO",
-                        "You",
-                        if (expenseId == "ex4") "€15.00" else "€30.00",
-                        false
-                    ),
-                    ExpenseSplitRowUi(
-                        "p2",
-                        "SL",
-                        "Sophie Laurent",
-                        if (expenseId == "ex4") "€15.00" else "€30.00",
-                        false
-                    ),
-                    ExpenseSplitRowUi(
-                        "p3",
-                        "JC",
-                        "James Chen",
-                        if (expenseId == "ex4") "€15.00" else "€30.00",
-                        false
-                    ),
-                    ExpenseSplitRowUi(
-                        "p4",
-                        "MG",
-                        "Maria Garcia",
-                        if (expenseId == "ex4") "€15.00" else "€30.00",
-                        false
-                    ),
-                ),
-                total = if (expenseId == "ex4") "€60.00" else "€120.00"
-            )
-        } else {
-            ExpenseDetailsState(
-                tripId = tripId,
-                expenseId = expenseId,
-                title = "Louvre Museum tickets",
-                amount = "€68.00",
-                status = ExpenseDetailsStatus.Unsettled,
-                paidBy = "You",
-                date = "Jul 16, 2026",
-                splitType = "Split equally",
-                note = "Bought online in advance",
-                splitRows = listOf(
-                    ExpenseSplitRowUi("p1", "YO", "You", "€17.00", true),
-                    ExpenseSplitRowUi("p2", "SL", "Sophie Laurent", "€17.00", false),
-                    ExpenseSplitRowUi("p3", "JC", "James Chen", "€17.00", false),
-                    ExpenseSplitRowUi("p4", "MG", "Maria Garcia", "€17.00", true),
-                ),
-                total = "€68.00"
-            )
-        }
+    private data class ExpensePayload(
+        val expense: ExpenseDto,
+        val trip: TripDto,
+        val members: List<MemberDto>,
+        val meId: String,
+    )
+}
+
+private fun ExpenseDto.toState(
+    meId: String,
+    membersById: Map<String, MemberDto>,
+    currencySymbol: String,
+): ExpenseDetailsState {
+    val statusUi = when {
+        status == "planned" -> ExpenseDetailsStatus.Planned
+        participants.filter { it.isIncluded }.all { it.isPaid } -> ExpenseDetailsStatus.Settled
+        else -> ExpenseDetailsStatus.Unsettled
     }
+
+    val paidByName = paidById?.let { payerId ->
+        if (payerId == meId) "You" else membersById[payerId]?.name
+    }
+
+    val splitTypeLabel = if (splitType == "equally") "Split equally" else "Custom amounts"
+    val shares = computeShares(this)
+    val splitRows = participants.filter { it.isIncluded }.map { participant ->
+        val member = membersById[participant.userId]
+        ExpenseSplitRowUi(
+            id = participant.userId,
+            initials = member?.initials ?: "?",
+            name = member?.name ?: "Unknown",
+            amount = formatMoney(shares[participant.userId] ?: 0.0, currencySymbol),
+            isPaid = participant.isPaid
+        )
+    }
+
+    val dateText = date?.let { LocalDate.parse(it) }
+        ?.format(DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.getDefault()))
+
+    return ExpenseDetailsState(
+        tripId = tripId,
+        expenseId = id,
+        title = title,
+        amount = formatMoney(amount, currencySymbol),
+        status = statusUi,
+        paidBy = paidByName,
+        date = dateText,
+        splitType = splitTypeLabel,
+        note = note,
+        splitRows = splitRows,
+        total = formatMoney(amount, currencySymbol)
+    )
+}
+
+private fun List<ExpenseParticipantDto>.toInputs(): List<ExpenseParticipantInput> {
+    return map { participant ->
+        ExpenseParticipantInput(
+            userId = participant.userId,
+            shareAmount = participant.shareAmount,
+            isIncluded = participant.isIncluded,
+            isPaid = participant.isPaid
+        )
+    }
+}
+
+private fun computeShares(expense: ExpenseDto): Map<String, Double> {
+    val included = expense.participants.filter { it.isIncluded }
+    if (included.isEmpty()) return emptyMap()
+    return if (expense.splitType == "equally") {
+        val share = expense.amount / included.size
+        included.associate { it.userId to share }
+    } else {
+        included.associate { it.userId to (it.shareAmount ?: 0.0) }
+    }
+}
+
+private fun formatMoney(amount: Double, currencySymbol: String): String {
+    val display = if (amount % 1.0 == 0.0) {
+        amount.toInt().toString()
+    } else {
+        String.format(Locale.getDefault(), "%.2f", amount)
+    }
+    return "$currencySymbol$display"
+}
+
+private fun currencySymbolFor(code: String): String {
+    return TripCurrency.values().firstOrNull { it.code == code }?.symbol ?: code
 }

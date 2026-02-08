@@ -2,17 +2,30 @@ package nvk.cotrip.ui.expense.list
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import nvk.cotrip.data.network.CoTripApi
+import nvk.cotrip.data.network.dto.ExpenseDto
+import nvk.cotrip.data.network.dto.MemberDto
+import nvk.cotrip.data.network.dto.TripDto
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
+import nvk.cotrip.ui.trip.form.TripCurrency
+import java.util.Locale
 import javax.inject.Inject
+import kotlin.math.abs
 
 @HiltViewModel
 class TripExpensesViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val appNavigator: AppNavigator,
+    private val api: CoTripApi,
 ) : ViewModel() {
 
     private val tripId: String =
@@ -22,66 +35,26 @@ class TripExpensesViewModel @Inject constructor(
         TripExpensesState(
             tripId = tripId,
             summary = ExpenseSummaryUi(
-                totalSpent = "€185.00",
-                balanceLabel = "Owed",
-                balanceAmount = "€29.75",
-                totalPlanned = "€180.00"
+                totalSpent = "€0",
+                balanceLabel = "Settled",
+                balanceAmount = "€0",
+                totalPlanned = "€0"
             ),
-            spent = listOf(
-                ExpenseListItemUi(
-                    id = "ex1",
-                    title = "Louvre Museum tickets",
-                    amount = "€68.00",
-                    paidBy = "Paid by You",
-                    splitType = "Split equally",
-                    settlement = ExpenseSettlementUi.OwedToYou("€51.00")
-                ),
-                ExpenseListItemUi(
-                    id = "ex2",
-                    title = "Lunch at Le Marais",
-                    amount = "€85.00",
-                    paidBy = "Paid by Sophie Laurent",
-                    splitType = "Split equally",
-                    settlement = ExpenseSettlementUi.YouOwe("€21.25")
-                ),
-                ExpenseListItemUi(
-                    id = "ex3",
-                    title = "Taxi to hotel",
-                    amount = "€32.00",
-                    paidBy = "Paid by You",
-                    splitType = "Split equally",
-                    settlement = ExpenseSettlementUi.Settled
-                ),
-            ),
-            planned = listOf(
-                ExpenseListItemUi(
-                    id = "ex4",
-                    title = "Eiffel Tower tickets",
-                    amount = "€60.00",
-                    paidBy = "Planned",
-                    splitType = "Split equally",
-                    settlement = ExpenseSettlementUi.Planned
-                ),
-                ExpenseListItemUi(
-                    id = "ex5",
-                    title = "Seine River cruise",
-                    amount = "€120.00",
-                    paidBy = "Planned",
-                    splitType = "Split equally",
-                    settlement = ExpenseSettlementUi.Planned
-                ),
-            )
+            spent = emptyList(),
+            planned = emptyList()
         )
     )
     val state = _state.asStateFlow()
+
+    init {
+        loadExpenses()
+    }
 
     fun onEvent(event: TripExpensesEvent) {
         when (event) {
             TripExpensesEvent.OnBackClick -> appNavigator.popBackStack()
             TripExpensesEvent.OnAddExpenseClick -> appNavigator.navigate(
-                Destination.CreateExpense(
-                    tripId
-                )
+                Destination.CreateExpense(tripId)
             )
 
             is TripExpensesEvent.OnExpenseClick -> appNavigator.navigate(
@@ -92,4 +65,153 @@ class TripExpensesViewModel @Inject constructor(
             )
         }
     }
+
+    private fun loadExpenses() {
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    val trip = api.getTrip(tripId)
+                    val expenses = api.listExpenses(tripId).items
+                    val members = api.listMembers(tripId).items
+                    val me = api.getMe()
+                    ExpensesPayload(
+                        trip = trip,
+                        expenses = expenses,
+                        members = members,
+                        meId = me.id
+                    )
+                }
+            }.onSuccess { payload ->
+                val currencySymbol = currencySymbolFor(payload.trip.currencyCode)
+                val memberById = payload.members.associateBy { it.userId }
+                var totalSpent = 0.0
+                var totalPlanned = 0.0
+                var netBalance = 0.0
+
+                val spentItems = mutableListOf<ExpenseListItemUi>()
+                val plannedItems = mutableListOf<ExpenseListItemUi>()
+
+                payload.expenses.forEach { expense ->
+                    val shares = computeShares(expense)
+                    val myShare = shares[payload.meId] ?: 0.0
+
+                    if (expense.status == "paid") {
+                        totalSpent += expense.amount
+                        if (expense.paidById == payload.meId) {
+                            netBalance += (expense.amount - myShare)
+                        } else {
+                            netBalance -= myShare
+                        }
+                    } else {
+                        totalPlanned += expense.amount
+                    }
+
+                    val listItem = expense.toListItem(
+                        currencySymbol = currencySymbol,
+                        memberById = memberById,
+                        meId = payload.meId,
+                        shares = shares
+                    )
+                    if (expense.status == "paid") {
+                        spentItems.add(listItem)
+                    } else {
+                        plannedItems.add(listItem)
+                    }
+                }
+
+                val balanceLabel = when {
+                    abs(netBalance) < 0.01 -> "Settled"
+                    netBalance > 0 -> "Owed"
+                    else -> "You owe"
+                }
+
+                _state.update {
+                    it.copy(
+                        summary = ExpenseSummaryUi(
+                            totalSpent = formatMoney(totalSpent, currencySymbol),
+                            balanceLabel = balanceLabel,
+                            balanceAmount = formatMoney(abs(netBalance), currencySymbol),
+                            totalPlanned = formatMoney(totalPlanned, currencySymbol)
+                        ),
+                        spent = spentItems,
+                        planned = plannedItems
+                    )
+                }
+            }
+        }
+    }
+
+    private data class ExpensesPayload(
+        val trip: TripDto,
+        val expenses: List<ExpenseDto>,
+        val members: List<MemberDto>,
+        val meId: String,
+    )
+}
+
+private fun ExpenseDto.toListItem(
+    currencySymbol: String,
+    memberById: Map<String, MemberDto>,
+    meId: String,
+    shares: Map<String, Double>,
+): ExpenseListItemUi {
+    val paidByText = when {
+        status != "paid" -> "Planned"
+        paidById == null -> "Paid"
+        paidById == meId -> "Paid by You"
+        else -> "Paid by ${memberById[paidById]?.name ?: "Member"}"
+    }
+    val splitTypeText = if (splitType == "equally") "Split equally" else "Custom amounts"
+    val settlement = when {
+        status != "paid" -> ExpenseSettlementUi.Planned
+        paidById == meId -> {
+            val owed = participants.filter { it.isIncluded && it.userId != meId && !it.isPaid }
+                .sumOf { shares[it.userId] ?: 0.0 }
+            if (owed <= 0.01) ExpenseSettlementUi.Settled
+            else ExpenseSettlementUi.OwedToYou(formatMoney(owed, currencySymbol))
+        }
+
+        else -> {
+            val meParticipant = participants.firstOrNull { it.userId == meId }
+            val meShare = shares[meId] ?: 0.0
+            if (meParticipant == null || meParticipant.isPaid || meShare <= 0.0) {
+                ExpenseSettlementUi.Settled
+            } else {
+                ExpenseSettlementUi.YouOwe(formatMoney(meShare, currencySymbol))
+            }
+        }
+    }
+
+    return ExpenseListItemUi(
+        id = id,
+        title = title,
+        amount = formatMoney(amount, currencySymbol),
+        paidBy = paidByText,
+        splitType = splitTypeText,
+        settlement = settlement
+    )
+}
+
+private fun computeShares(expense: ExpenseDto): Map<String, Double> {
+    val included = expense.participants.filter { it.isIncluded }
+    if (included.isEmpty()) return emptyMap()
+    return if (expense.splitType == "equally") {
+        val share = expense.amount / included.size
+        included.associate { it.userId to share }
+    } else {
+        included.associate { it.userId to (it.shareAmount ?: 0.0) }
+    }
+}
+
+private fun formatMoney(amount: Double, currencySymbol: String): String {
+    val display = if (amount % 1.0 == 0.0) {
+        amount.toInt().toString()
+    } else {
+        String.format(Locale.getDefault(), "%.2f", amount)
+    }
+    return "$currencySymbol$display"
+}
+
+private fun currencySymbolFor(code: String): String {
+    return TripCurrency.values().firstOrNull { it.code == code }?.symbol ?: code
 }

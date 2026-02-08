@@ -1,10 +1,13 @@
 package nvk.cotrip.ui.expense.form
 
+import java.time.LocalDate
+
 sealed interface ExpenseFormEvent {
     data object OnBackClick : ExpenseFormEvent
     data object OnPrimaryClick : ExpenseFormEvent
     data object OnDeleteClick : ExpenseFormEvent
     data object OnDateClick : ExpenseFormEvent
+    data class OnDateSelected(val date: LocalDate) : ExpenseFormEvent
     data object OnPaidByClick : ExpenseFormEvent
     data object OnDismissPaidByPicker : ExpenseFormEvent
     data class OnTitleChange(val value: String) : ExpenseFormEvent
