@@ -67,6 +67,8 @@ curl -X POST http://localhost:8081/v1/invites/<INVITE_TOKEN>/accept \
   -H "Authorization: Bearer <MEMBER_TOKEN>"
 ```
 
+Expected: `200 OK` with `{ "tripId": "<TRIP_ID>" }`.
+
 ## 4. Create expense
 
 ```bash
