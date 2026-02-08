@@ -1,5 +1,7 @@
 package nvk.cotrip.ui.activity.form
 
+import android.app.DatePickerDialog
+import android.app.TimePickerDialog
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -32,6 +34,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
+import java.time.LocalDate
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import kotlinx.coroutines.flow.collectLatest
 import nvk.cotrip.R
 import nvk.cotrip.ui.components.CoTripDivider
@@ -67,6 +73,7 @@ private fun ActivityFormScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
+    val dateFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy", Locale.getDefault())
 
     LaunchedEffect(viewModel) {
         viewModel.effects.collectLatest { effect ->
@@ -76,6 +83,35 @@ private fun ActivityFormScreen(
                         .show()
             }
         }
+    }
+
+    fun showDatePicker() {
+        val initialDate = runCatching { LocalDate.parse(state.dateText, dateFormatter) }
+            .getOrNull() ?: LocalDate.now()
+        DatePickerDialog(
+            context,
+            { _, year, month, dayOfMonth ->
+                viewModel.onEvent(ActivityFormEvent.OnDateSelected(LocalDate.of(year, month + 1, dayOfMonth)))
+            },
+            initialDate.year,
+            initialDate.monthValue - 1,
+            initialDate.dayOfMonth
+        ).show()
+    }
+
+    fun showTimePicker() {
+        val initialTime = runCatching {
+            if (state.timeText.isBlank()) null else LocalTime.parse(state.timeText)
+        }.getOrNull() ?: LocalTime.now()
+        TimePickerDialog(
+            context,
+            { _, hour, minute ->
+                viewModel.onEvent(ActivityFormEvent.OnTimeSelected(LocalTime.of(hour, minute)))
+            },
+            initialTime.hour,
+            initialTime.minute,
+            true
+        ).show()
     }
 
     Scaffold(
@@ -193,7 +229,7 @@ private fun ActivityFormScreen(
                     CoTripIconButton(
                         icon = CoTripIcons.Calendar,
                         contentDescription = null,
-                        onClick = { viewModel.onEvent(ActivityFormEvent.OnPickDateClick) }
+                        onClick = { showDatePicker() }
                     )
                 }
             )
@@ -211,7 +247,7 @@ private fun ActivityFormScreen(
                     CoTripIconButton(
                         icon = CoTripIcons.Schedule,
                         contentDescription = null,
-                        onClick = { viewModel.onEvent(ActivityFormEvent.OnPickTimeClick) }
+                        onClick = { showTimePicker() }
                     )
                 }
             )

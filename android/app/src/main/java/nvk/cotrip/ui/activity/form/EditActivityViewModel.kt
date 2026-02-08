@@ -4,41 +4,59 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.time.LocalDate
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
+import javax.inject.Inject
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import nvk.cotrip.R
+import nvk.cotrip.data.network.CoTripApi
+import nvk.cotrip.data.network.dto.ActivityDto
+import nvk.cotrip.data.network.dto.ItineraryDayDto
+import nvk.cotrip.data.network.dto.MoveActivityRequest
+import nvk.cotrip.data.network.dto.TripDto
+import nvk.cotrip.data.network.dto.UpdateActivityRequest
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
-import javax.inject.Inject
+import nvk.cotrip.ui.trip.form.TripCurrency
 
 @HiltViewModel
 class EditActivityViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val appNavigator: AppNavigator,
+    private val api: CoTripApi,
 ) : ViewModel(), ActivityFormContract {
 
     private val activityId: String =
         checkNotNull(savedStateHandle.get<String>(Destination.EditActivity.ARG_ACTIVITY_ID))
 
+    private var selectedDayId: String? = null
+    private var originalDayId: String? = null
+    private var dayByDate: Map<LocalDate, ItineraryDayDto> = emptyMap()
+
     private val _state = MutableStateFlow(
         ActivityFormState(
             mode = ActivityFormMode.Edit,
             activityId = activityId,
-            headerText = "DAY 2 · PARIS",
-            title = "Visit the Louvre Museum",
-            dateText = "16.07.2026",
-            timeText = "09:00 AM",
-            locationName = "Louvre Museum",
-            locationLink = "https://maps.google.com/?q=Louvre+Museum",
+            headerText = null,
+            title = "",
+            dateText = "",
+            timeText = "",
+            locationName = "",
+            locationLink = "",
             currencySymbol = "€",
-            costAmount = "17",
+            costAmount = "",
             costType = CostType.PerPerson,
-            website = "https://louvre.fr",
-            notes = "Book tickets in advance to skip the line. The museum is closed on Tuesdays. Allow at least 3-4 hours to see the highlights.",
+            website = "",
+            notes = "",
             isSaving = false
         )
     )
@@ -47,32 +65,200 @@ class EditActivityViewModel @Inject constructor(
     private val _effects = MutableSharedFlow<ActivityFormEffect>()
     override val effects = _effects.asSharedFlow()
 
+    init {
+        loadActivity()
+    }
+
     override fun onEvent(event: ActivityFormEvent) {
         when (event) {
             ActivityFormEvent.OnBackClick -> appNavigator.popBackStack()
-            ActivityFormEvent.OnPrimaryClick -> {
-                emit(ActivityFormEffect.ShowToastRes(R.string.activity_form_saved_toast))
-                appNavigator.popBackStack()
-            }
-
-            ActivityFormEvent.OnDeleteClick -> {
-                emit(ActivityFormEffect.ShowToastRes(R.string.activity_form_deleted_toast))
-                appNavigator.popBackStack()
-            }
-
-            ActivityFormEvent.OnPickDateClick -> emit(ActivityFormEffect.ShowToastRes(R.string.activity_form_pick_date_not_implemented))
-            ActivityFormEvent.OnPickTimeClick -> emit(ActivityFormEffect.ShowToastRes(R.string.activity_form_pick_time_not_implemented))
+            ActivityFormEvent.OnPrimaryClick -> updateActivity()
+            ActivityFormEvent.OnDeleteClick -> deleteActivity()
+            ActivityFormEvent.OnPickDateClick -> Unit
+            ActivityFormEvent.OnPickTimeClick -> Unit
+            is ActivityFormEvent.OnDateSelected -> selectDate(event.date)
+            is ActivityFormEvent.OnTimeSelected -> selectTime(event.time)
             is ActivityFormEvent.OnTitleChange -> _state.update { it.copy(title = event.value) }
             is ActivityFormEvent.OnLocationNameChange -> _state.update { it.copy(locationName = event.value) }
             is ActivityFormEvent.OnLocationLinkChange -> _state.update { it.copy(locationLink = event.value) }
-            is ActivityFormEvent.OnCostAmountChange -> _state.update { it.copy(costAmount = event.value.filter { c -> c.isDigit() || c == '.' || c == ',' }) }
+            is ActivityFormEvent.OnCostAmountChange -> _state.update { it.copy(costAmount = moneyInput(event.value)) }
             is ActivityFormEvent.OnCostTypeChange -> _state.update { it.copy(costType = event.value) }
             is ActivityFormEvent.OnWebsiteChange -> _state.update { it.copy(website = event.value) }
             is ActivityFormEvent.OnNotesChange -> _state.update { it.copy(notes = event.value) }
         }
     }
 
+    private fun loadActivity() {
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    findActivity(activityId)
+                }
+            }.onSuccess { info ->
+                selectedDayId = info.day.id
+                originalDayId = info.day.id
+                dayByDate = info.days.associateBy { LocalDate.parse(it.date) }
+                _state.update {
+                    it.copy(
+                        headerText = headerFor(info.day),
+                        title = info.activity.title,
+                        dateText = formatDate(LocalDate.parse(info.day.date)),
+                        timeText = info.activity.timeText.orEmpty(),
+                        locationName = info.activity.locationName.orEmpty(),
+                        locationLink = info.activity.locationLink.orEmpty(),
+                        costAmount = info.activity.costAmount?.let { amount -> formatAmount(amount) }.orEmpty(),
+                        costType = info.activity.costType.toCostType(),
+                        website = info.activity.website.orEmpty(),
+                        notes = info.activity.notes.orEmpty(),
+                        currencySymbol = currencySymbolFor(info.trip.currencyCode)
+                    )
+                }
+            }.onFailure {
+                emit(ActivityFormEffect.ShowToastRes(R.string.common_error_message))
+            }
+        }
+    }
+
+    private fun selectTime(time: LocalTime) {
+        _state.update { it.copy(timeText = time.format(DateTimeFormatter.ofPattern("HH:mm"))) }
+    }
+
+    private fun selectDate(date: LocalDate) {
+        val day = dayByDate[date] ?: run {
+            emit(ActivityFormEffect.ShowToastRes(R.string.common_error_message))
+            return
+        }
+        selectedDayId = day.id
+        _state.update {
+            it.copy(
+                dateText = formatDate(date),
+                headerText = headerFor(day)
+            )
+        }
+    }
+
+    private fun updateActivity() {
+        val snapshot = _state.value
+        if (snapshot.title.isBlank()) return
+        _state.update { it.copy(isSaving = true) }
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    val targetDayId = selectedDayId
+                    val original = originalDayId
+                    if (!targetDayId.isNullOrBlank() && targetDayId != original) {
+                        api.moveActivity(
+                            activityId = activityId,
+                            request = MoveActivityRequest(dayId = targetDayId)
+                        )
+                    }
+                    api.updateActivity(
+                        activityId = activityId,
+                        request = UpdateActivityRequest(
+                            title = snapshot.title.trim(),
+                            timeText = snapshot.timeText.trim().ifBlank { null },
+                            locationName = snapshot.locationName.trim().ifBlank { null },
+                            locationLink = snapshot.locationLink.trim().ifBlank { null },
+                            costAmount = parseAmount(snapshot.costAmount),
+                            costType = snapshot.costAmount.toCostType(snapshot.costType),
+                            website = snapshot.website.trim().ifBlank { null },
+                            notes = snapshot.notes.trim().ifBlank { null },
+                        )
+                    )
+                }
+            }.onSuccess {
+                emit(ActivityFormEffect.ShowToastRes(R.string.activity_form_saved_toast))
+                appNavigator.popBackStack()
+            }.onFailure {
+                emit(ActivityFormEffect.ShowToastRes(R.string.common_error_message))
+                _state.update { it.copy(isSaving = false) }
+            }
+        }
+    }
+
+    private fun deleteActivity() {
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) { api.deleteActivity(activityId) }
+            }.onSuccess {
+                emit(ActivityFormEffect.ShowToastRes(R.string.activity_form_deleted_toast))
+                appNavigator.popBackStack()
+            }.onFailure {
+                emit(ActivityFormEffect.ShowToastRes(R.string.common_error_message))
+            }
+        }
+    }
+
+    private fun moneyInput(value: String): String {
+        return value.filter { it.isDigit() || it == '.' || it == ',' }
+    }
+
+    private suspend fun findActivity(activityId: String): ActivityLookup {
+        val trips = api.listTrips().items
+        trips.forEach { trip ->
+            val itinerary = api.getItinerary(trip.id).items
+            itinerary.forEach { day ->
+                val match = day.activities.firstOrNull { it.id == activityId }
+                if (match != null) {
+                    return ActivityLookup(trip, day, match, itinerary)
+                }
+            }
+        }
+        throw IllegalStateException("Activity not found")
+    }
+
     private fun emit(effect: ActivityFormEffect) {
         viewModelScope.launch { _effects.emit(effect) }
+    }
+
+    private data class ActivityLookup(
+        val trip: TripDto,
+        val day: ItineraryDayDto,
+        val activity: ActivityDto,
+        val days: List<ItineraryDayDto>,
+    )
+}
+
+private fun formatDate(date: LocalDate): String {
+    return date.format(DateTimeFormatter.ofPattern("dd.MM.yyyy", Locale.getDefault()))
+}
+
+private fun headerFor(day: ItineraryDayDto): String {
+    return if (day.city.isNullOrBlank()) {
+        "Day ${day.dayNumber}"
+    } else {
+        "Day ${day.dayNumber} · ${day.city}"
+    }
+}
+
+private fun String?.toCostType(): CostType {
+    return when (this) {
+        "total" -> CostType.Total
+        else -> CostType.PerPerson
+    }
+}
+
+private fun parseAmount(amount: String): Double? {
+    val normalized = amount.replace(',', '.').trim()
+    return normalized.toDoubleOrNull()
+}
+
+private fun String.toCostType(type: CostType): String? {
+    if (this.replace(',', '.').trim().isBlank()) return null
+    return when (type) {
+        CostType.PerPerson -> "per_person"
+        CostType.Total -> "total"
+    }
+}
+
+private fun currencySymbolFor(code: String): String {
+    return TripCurrency.values().firstOrNull { it.code == code }?.symbol ?: code
+}
+
+private fun formatAmount(amount: Double): String {
+    return if (amount % 1.0 == 0.0) {
+        amount.toInt().toString()
+    } else {
+        String.format(Locale.getDefault(), "%.2f", amount)
     }
 }

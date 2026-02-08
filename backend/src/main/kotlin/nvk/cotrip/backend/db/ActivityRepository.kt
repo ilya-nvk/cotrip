@@ -171,6 +171,28 @@ object ActivityRepository {
         }
     }
 
+    fun move(
+        activityId: String,
+        dayId: String,
+        orderIndex: Int,
+    ): ActivityRow? = dbQuery { conn ->
+        conn.prepareStatement(
+            """
+            UPDATE activities
+            SET day_id = ?, order_index = ?, updated_at = now()
+            WHERE id = ? AND deleted_at IS NULL
+            RETURNING id, day_id, title, time_text, location_name, location_link, cost_amount, cost_type, website, notes, order_index, created_at
+            """.trimIndent()
+        ).use { stmt ->
+            stmt.setObject(1, UUID.fromString(dayId))
+            stmt.setInt(2, orderIndex)
+            stmt.setObject(3, UUID.fromString(activityId))
+            stmt.executeQuery().use { rs ->
+                if (rs.next()) mapActivity(rs) else null
+            }
+        }
+    }
+
     fun softDelete(activityId: String): Boolean = dbQuery { conn ->
         conn.prepareStatement(
             """

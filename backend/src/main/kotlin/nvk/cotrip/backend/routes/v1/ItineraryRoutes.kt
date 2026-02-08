@@ -50,6 +50,12 @@ data class UpdateActivityRequest(
 )
 
 @Serializable
+data class MoveActivityRequest(
+    val dayId: String,
+    val orderIndex: Int? = null,
+)
+
+@Serializable
 data class ReorderRequest(
     val orderedIds: List<String>,
 )
@@ -258,6 +264,60 @@ fun Route.itineraryRoutes() {
             }
 
             call.respond(HttpStatusCode.NoContent)
+        }
+
+        post("/v1/itinerary/activities/{activityId}/move") {
+            val principal = call.principal<JWTPrincipal>()
+            val userId = principal?.getClaim("userId", String::class) ?: run {
+                call.respond(HttpStatusCode.Unauthorized)
+                return@post
+            }
+
+            val activityId = call.parameters["activityId"] ?: run {
+                call.respond(HttpStatusCode.BadRequest)
+                return@post
+            }
+
+            val existing = ActivityRepository.get(activityId)
+            if (existing == null) {
+                call.respond(HttpStatusCode.NotFound)
+                return@post
+            }
+
+            val activityTripId = DayRepository.findTripIdByDayId(existing.dayId)
+            if (activityTripId == null) {
+                call.respond(HttpStatusCode.NotFound)
+                return@post
+            }
+
+            if (!TripRepository.isMember(activityTripId, userId)) {
+                call.respond(HttpStatusCode.Forbidden)
+                return@post
+            }
+
+            val request = call.receive<MoveActivityRequest>()
+            val targetTripId = DayRepository.findTripIdByDayId(request.dayId)
+            if (targetTripId == null) {
+                call.respond(HttpStatusCode.NotFound)
+                return@post
+            }
+
+            if (targetTripId != activityTripId) {
+                call.respond(
+                    HttpStatusCode.BadRequest,
+                    mapOf("error" to mapOf("code" to "invalid_day", "message" to "Day does not belong to activity trip"))
+                )
+                return@post
+            }
+
+            val orderIndex = request.orderIndex ?: ActivityRepository.nextOrderIndex(request.dayId)
+            val moved = ActivityRepository.move(activityId, request.dayId, orderIndex)
+            if (moved == null) {
+                call.respond(HttpStatusCode.NotFound)
+                return@post
+            }
+
+            call.respond(moved.toDto())
         }
 
         post("/v1/itinerary/days/{dayId}/activities/reorder") {

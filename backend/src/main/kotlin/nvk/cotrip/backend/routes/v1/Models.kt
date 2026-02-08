@@ -80,6 +80,7 @@ data class IdeaDto(
     val notes: String? = null,
     val status: String,
     val updatedAt: String,
+    val commentsCount: Int = 0,
 )
 
 @Serializable

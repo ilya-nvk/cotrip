@@ -3,8 +3,15 @@ package nvk.cotrip.data.network
 import nvk.cotrip.data.network.dto.AuthDevRequest
 import nvk.cotrip.data.network.dto.AuthGoogleRequest
 import nvk.cotrip.data.network.dto.AuthResponse
+import nvk.cotrip.data.network.dto.ActivityDto
+import nvk.cotrip.data.network.dto.CommentDto
+import nvk.cotrip.data.network.dto.ConvertIdeaRequest
+import nvk.cotrip.data.network.dto.CreateActivityRequest
+import nvk.cotrip.data.network.dto.CreateIdeaRequest
 import nvk.cotrip.data.network.dto.CreateTripRequest
+import nvk.cotrip.data.network.dto.ExpenseCreateRequest
 import nvk.cotrip.data.network.dto.ExpenseDto
+import nvk.cotrip.data.network.dto.ExpenseUpdateRequest
 import nvk.cotrip.data.network.dto.IdeaDto
 import nvk.cotrip.data.network.dto.ItineraryDayDto
 import nvk.cotrip.data.network.dto.InviteInfoDto
@@ -13,6 +20,10 @@ import nvk.cotrip.data.network.dto.MemberDto
 import nvk.cotrip.data.network.dto.TripDto
 import nvk.cotrip.data.network.dto.TransferOwnerRequest
 import nvk.cotrip.data.network.dto.TrimOutOfRangeRequest
+import nvk.cotrip.data.network.dto.MoveActivityRequest
+import nvk.cotrip.data.network.dto.UpdateActivityRequest
+import nvk.cotrip.data.network.dto.UpdateDayRequest
+import nvk.cotrip.data.network.dto.UpdateIdeaRequest
 import nvk.cotrip.data.network.dto.UpdateTripRequest
 import nvk.cotrip.data.network.dto.UpdateUserRequest
 import nvk.cotrip.data.network.dto.UserDto
@@ -94,15 +105,90 @@ interface CoTripApi {
         @Query("city") city: String? = null,
     ): ApiListResponse<IdeaDto>
 
+    @POST("v1/trips/{tripId}/ideas")
+    suspend fun createIdea(
+        @Path("tripId") tripId: String,
+        @Body request: CreateIdeaRequest,
+    ): IdeaDto
+
+    @GET("v1/ideas/{ideaId}")
+    suspend fun getIdea(@Path("ideaId") ideaId: String): IdeaDto
+
+    @PATCH("v1/ideas/{ideaId}")
+    suspend fun updateIdea(
+        @Path("ideaId") ideaId: String,
+        @Body request: UpdateIdeaRequest,
+    ): IdeaDto
+
+    @DELETE("v1/ideas/{ideaId}")
+    suspend fun deleteIdea(@Path("ideaId") ideaId: String): Unit
+
+    @POST("v1/ideas/{ideaId}/convert-to-activity")
+    suspend fun convertIdeaToActivity(
+        @Path("ideaId") ideaId: String,
+        @Body request: ConvertIdeaRequest,
+    ): Unit
+
+    @GET("v1/ideas/{ideaId}/comments")
+    suspend fun listComments(@Path("ideaId") ideaId: String): ApiListResponse<CommentDto>
+
+    @DELETE("v1/comments/{commentId}")
+    suspend fun deleteComment(@Path("commentId") commentId: String): Unit
+
     @GET("v1/trips/{tripId}/expenses")
     suspend fun listExpenses(
         @Path("tripId") tripId: String,
     ): ApiListResponse<ExpenseDto>
 
+    @POST("v1/trips/{tripId}/expenses")
+    suspend fun createExpense(
+        @Path("tripId") tripId: String,
+        @Body request: ExpenseCreateRequest,
+    ): ExpenseDto
+
+    @GET("v1/expenses/{expenseId}")
+    suspend fun getExpense(@Path("expenseId") expenseId: String): ExpenseDto
+
+    @PATCH("v1/expenses/{expenseId}")
+    suspend fun updateExpense(
+        @Path("expenseId") expenseId: String,
+        @Body request: ExpenseUpdateRequest,
+    ): ExpenseDto
+
+    @DELETE("v1/expenses/{expenseId}")
+    suspend fun deleteExpense(@Path("expenseId") expenseId: String): Unit
+
     @GET("v1/trips/{tripId}/itinerary")
     suspend fun getItinerary(
         @Path("tripId") tripId: String,
     ): ApiListResponse<ItineraryDayDto>
+
+    @PATCH("v1/itinerary/days/{dayId}")
+    suspend fun updateDay(
+        @Path("dayId") dayId: String,
+        @Body request: UpdateDayRequest,
+    ): Unit
+
+    @POST("v1/itinerary/days/{dayId}/activities")
+    suspend fun createActivity(
+        @Path("dayId") dayId: String,
+        @Body request: CreateActivityRequest,
+    ): ActivityDto
+
+    @PATCH("v1/itinerary/activities/{activityId}")
+    suspend fun updateActivity(
+        @Path("activityId") activityId: String,
+        @Body request: UpdateActivityRequest,
+    ): ActivityDto
+
+    @DELETE("v1/itinerary/activities/{activityId}")
+    suspend fun deleteActivity(@Path("activityId") activityId: String): Unit
+
+    @POST("v1/itinerary/activities/{activityId}/move")
+    suspend fun moveActivity(
+        @Path("activityId") activityId: String,
+        @Body request: MoveActivityRequest,
+    ): ActivityDto
 
     @POST("v1/trips/{tripId}/itinerary/trim-out-of-range")
     suspend fun trimOutOfRangeDays(

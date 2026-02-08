@@ -14,6 +14,7 @@ import io.ktor.server.routing.patch
 import io.ktor.server.routing.post
 import kotlinx.serialization.Serializable
 import nvk.cotrip.backend.db.ActivityRepository
+import nvk.cotrip.backend.db.CommentRepository
 import nvk.cotrip.backend.db.DayRepository
 import nvk.cotrip.backend.db.IdeaRepository
 import nvk.cotrip.backend.db.IdeaRow
@@ -70,11 +71,13 @@ fun Route.ideaRoutes() {
             val authorId = call.request.queryParameters["authorId"]
             val city = call.request.queryParameters["city"]
 
-            val ideas = IdeaRepository.list(tripId, search, status, authorId, city).map { idea ->
-                idea.toDto()
+            val ideas = IdeaRepository.list(tripId, search, status, authorId, city)
+            val commentCounts = CommentRepository.countByIdeaIds(ideas.map { it.id })
+            val items = ideas.map { idea ->
+                idea.toDto(commentCounts[idea.id] ?: 0)
             }
 
-            call.respond(mapOf("items" to ideas, "nextCursor" to null))
+            call.respond(mapOf("items" to items, "nextCursor" to null))
         }
 
         post("/v1/trips/{tripId}/ideas") {
@@ -106,7 +109,7 @@ fun Route.ideaRoutes() {
                 notes = request.notes,
             )
 
-            call.respond(idea.toDto())
+            call.respond(idea.toDto(0))
         }
 
         get("/v1/ideas/{ideaId}") {
@@ -132,7 +135,8 @@ fun Route.ideaRoutes() {
                 return@get
             }
 
-            call.respond(idea.toDto())
+            val commentCount = CommentRepository.countByIdeaIds(listOf(idea.id))[idea.id] ?: 0
+            call.respond(idea.toDto(commentCount))
         }
 
         patch("/v1/ideas/{ideaId}") {
@@ -175,7 +179,8 @@ fun Route.ideaRoutes() {
                 return@patch
             }
 
-            call.respond(updated.toDto())
+            val commentCount = CommentRepository.countByIdeaIds(listOf(updated.id))[updated.id] ?: 0
+            call.respond(updated.toDto(commentCount))
         }
 
         delete("/v1/ideas/{ideaId}") {
@@ -240,7 +245,8 @@ fun Route.ideaRoutes() {
                 return@post
             }
 
-            call.respond(updated.toDto())
+            val commentCount = CommentRepository.countByIdeaIds(listOf(updated.id))[updated.id] ?: 0
+            call.respond(updated.toDto(commentCount))
         }
 
         post("/v1/ideas/{ideaId}/reject") {
@@ -272,7 +278,8 @@ fun Route.ideaRoutes() {
                 return@post
             }
 
-            call.respond(updated.toDto())
+            val commentCount = CommentRepository.countByIdeaIds(listOf(updated.id))[updated.id] ?: 0
+            call.respond(updated.toDto(commentCount))
         }
 
         post("/v1/ideas/{ideaId}/convert-to-activity") {
@@ -323,7 +330,7 @@ fun Route.ideaRoutes() {
     }
 }
 
-private fun IdeaRow.toDto(): IdeaDto = IdeaDto(
+private fun IdeaRow.toDto(commentsCount: Int = 0): IdeaDto = IdeaDto(
     id = id,
     tripId = tripId,
     authorId = authorId,
@@ -335,4 +342,5 @@ private fun IdeaRow.toDto(): IdeaDto = IdeaDto(
     notes = notes,
     status = status,
     updatedAt = updatedAt.toString(),
+    commentsCount = commentsCount,
 )

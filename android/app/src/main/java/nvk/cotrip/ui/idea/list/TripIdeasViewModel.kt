@@ -4,92 +4,47 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
+import javax.inject.Inject
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import nvk.cotrip.R
+import nvk.cotrip.data.network.CoTripApi
+import nvk.cotrip.data.network.dto.ConvertIdeaRequest
+import nvk.cotrip.data.network.dto.IdeaDto
+import nvk.cotrip.data.network.dto.ItineraryDayDto
 import nvk.cotrip.ui.idea.common.IdeaDayOptionUi
 import nvk.cotrip.ui.idea.common.IdeaDayPickerState
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
-import javax.inject.Inject
+import nvk.cotrip.ui.trip.form.TripCurrency
 
 @HiltViewModel
 class TripIdeasViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val appNavigator: AppNavigator,
+    private val api: CoTripApi,
 ) : ViewModel() {
 
     private val tripId: String =
         checkNotNull(savedStateHandle[Destination.TripIdeas.ARG_TRIP_ID])
 
-    private val days = listOf(
-        IdeaDayOptionUi(
-            id = "d1",
-            dayNumber = 1,
-            dateText = "Thu, Jul 15",
-            city = "Paris"
-        ),
-        IdeaDayOptionUi(
-            id = "d2",
-            dayNumber = 2,
-            dateText = "Fri, Jul 16",
-            city = "Paris"
-        ),
-        IdeaDayOptionUi(
-            id = "d3",
-            dayNumber = 3,
-            dateText = "Sat, Jul 17",
-            city = "Paris"
-        ),
-        IdeaDayOptionUi(
-            id = "d4",
-            dayNumber = 4,
-            dateText = "Sun, Jul 18",
-            city = "Versailles"
-        ),
-    )
+    private var dayOptions: List<IdeaDayOptionUi> = emptyList()
+    private var currencySymbol: String = "€"
+    private val addedDays = mutableMapOf<String, Int>()
 
     private val _state = MutableStateFlow(
         TripIdeasState(
             tripId = tripId,
-            ideas = listOf(
-                IdeaListItemUi(
-                    id = "i1",
-                    title = "Visit the Louvre Museum",
-                    city = "Paris",
-                    cost = "€15",
-                    commentsCount = 3,
-                    addedDay = 2
-                ),
-                IdeaListItemUi(
-                    id = "i2",
-                    title = "Sunset at Eiffel Tower",
-                    city = "Paris",
-                    cost = null,
-                    commentsCount = 0,
-                    addedDay = null
-                ),
-                IdeaListItemUi(
-                    id = "i3",
-                    title = "Food tour in Le Marais",
-                    city = "Paris",
-                    cost = "€75",
-                    commentsCount = 7,
-                    addedDay = 3
-                ),
-                IdeaListItemUi(
-                    id = "i4",
-                    title = "Day trip to Versailles",
-                    city = "Versailles",
-                    cost = "€40",
-                    commentsCount = 1,
-                    addedDay = null
-                ),
-            ),
+            ideas = emptyList(),
             dayPicker = null
         )
     )
@@ -97,6 +52,10 @@ class TripIdeasViewModel @Inject constructor(
 
     private val _effects = MutableSharedFlow<TripIdeasEffect>()
     val effects = _effects.asSharedFlow()
+
+    init {
+        loadIdeas()
+    }
 
     fun onEvent(event: TripIdeasEvent) {
         when (event) {
@@ -115,9 +74,41 @@ class TripIdeasViewModel @Inject constructor(
         }
     }
 
+    private fun loadIdeas() {
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    val trip = api.getTrip(tripId)
+                    val ideas = api.listIdeas(tripId).items
+                    val itinerary = api.getItinerary(tripId).items
+                    currencySymbol = currencySymbolFor(trip.currencyCode)
+                    dayOptions = itinerary
+                        .filter { !it.isOutOfRange }
+                        .map { it.toDayOption() }
+                    ideas
+                }
+            }.onSuccess { ideas ->
+                _state.update { current ->
+                    current.copy(
+                        ideas = ideas.map { idea ->
+                            idea.toUi(currencySymbol, addedDays[idea.id])
+                        }
+                    )
+                }
+            }.onFailure {
+                emit(TripIdeasEffect.ShowToastRes(R.string.common_error_message))
+                _state.update { it.copy(ideas = emptyList(), dayPicker = null) }
+            }
+        }
+    }
+
     private fun openDayPicker(ideaId: String) {
+        if (dayOptions.isEmpty()) {
+            emit(TripIdeasEffect.ShowToastRes(R.string.common_error_message))
+            return
+        }
         _state.update { current ->
-            current.copy(dayPicker = IdeaDayPickerState(ideaId = ideaId, days = days))
+            current.copy(dayPicker = IdeaDayPickerState(ideaId = ideaId, days = dayOptions))
         }
     }
 
@@ -127,18 +118,65 @@ class TripIdeasViewModel @Inject constructor(
 
     private fun selectDay(day: IdeaDayOptionUi) {
         val ideaId = _state.value.dayPicker?.ideaId ?: return
-        _state.update { current ->
-            current.copy(
-                dayPicker = null,
-                ideas = current.ideas.map { idea ->
-                    if (idea.id == ideaId) idea.copy(addedDay = day.dayNumber) else idea
+        _state.update { it.copy(dayPicker = null) }
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    api.convertIdeaToActivity(ideaId, ConvertIdeaRequest(dayId = day.id))
                 }
-            )
+            }.onSuccess {
+                addedDays[ideaId] = day.dayNumber
+                _state.update { current ->
+                    current.copy(
+                        ideas = current.ideas.map { idea ->
+                            if (idea.id == ideaId) idea.copy(addedDay = day.dayNumber) else idea
+                        }
+                    )
+                }
+                emit(TripIdeasEffect.ShowToastRes(R.string.ideas_added_to_itinerary_toast))
+            }.onFailure {
+                emit(TripIdeasEffect.ShowToastRes(R.string.common_error_message))
+            }
         }
-        emit(TripIdeasEffect.ShowToastRes(R.string.ideas_added_to_itinerary_toast))
     }
 
     private fun emit(effect: TripIdeasEffect) {
         viewModelScope.launch { _effects.emit(effect) }
     }
+}
+
+private fun IdeaDto.toUi(currencySymbol: String, addedDay: Int?): IdeaListItemUi {
+    val cost = costAmount?.let { formatCost(it, currencySymbol) }
+    return IdeaListItemUi(
+        id = id,
+        title = title,
+        city = city.orEmpty(),
+        cost = cost,
+        commentsCount = commentsCount,
+        addedDay = addedDay
+    )
+}
+
+private fun ItineraryDayDto.toDayOption(): IdeaDayOptionUi {
+    val date = LocalDate.parse(date)
+    val formatter = DateTimeFormatter.ofPattern("EEE, MMM d", Locale.getDefault())
+    return IdeaDayOptionUi(
+        id = id,
+        dayNumber = dayNumber,
+        dateText = date.format(formatter),
+        city = city.orEmpty(),
+    )
+}
+
+private fun currencySymbolFor(code: String): String {
+    return TripCurrency.values().firstOrNull { it.code == code }?.symbol ?: code
+}
+
+private fun formatCost(amount: Double, currencySymbol: String): String {
+    val display = if (amount % 1.0 == 0.0) {
+        amount.toInt().toString()
+    } else {
+        String.format(Locale.getDefault(), "%.2f", amount)
+    }
+    return "$currencySymbol$display"
 }

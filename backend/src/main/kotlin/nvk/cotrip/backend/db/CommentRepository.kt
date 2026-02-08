@@ -13,6 +13,31 @@ data class CommentRow(
 )
 
 object CommentRepository {
+    fun countByIdeaIds(ideaIds: List<String>): Map<String, Int> = dbQuery { conn ->
+        if (ideaIds.isEmpty()) return@dbQuery emptyMap<String, Int>()
+        val placeholders = ideaIds.joinToString(",") { "?" }
+        val sql = """
+            SELECT idea_id, COUNT(*) AS cnt
+            FROM idea_comments
+            WHERE idea_id IN ($placeholders) AND deleted_at IS NULL
+            GROUP BY idea_id
+        """.trimIndent()
+
+        conn.prepareStatement(sql).use { stmt ->
+            ideaIds.forEachIndexed { idx, id ->
+                stmt.setObject(idx + 1, UUID.fromString(id))
+            }
+            stmt.executeQuery().use { rs ->
+                val result = mutableMapOf<String, Int>()
+                while (rs.next()) {
+                    val ideaId = rs.getObject("idea_id", UUID::class.java).toString()
+                    result[ideaId] = rs.getInt("cnt")
+                }
+                result
+            }
+        }
+    }
+
     fun listByIdea(ideaId: String): List<CommentRow> = dbQuery { conn ->
         conn.prepareStatement(
             """
