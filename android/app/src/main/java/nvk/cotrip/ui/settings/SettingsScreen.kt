@@ -54,14 +54,15 @@ import nvk.cotrip.R
 import nvk.cotrip.ui.components.CoTripDivider
 import nvk.cotrip.ui.components.CoTripIconButton
 import nvk.cotrip.ui.theme.Border
+import nvk.cotrip.ui.theme.BorderStrong
 import nvk.cotrip.ui.theme.CoTripIcons
 import nvk.cotrip.ui.theme.CoTripTokens
 import nvk.cotrip.ui.theme.Error
 import nvk.cotrip.ui.theme.PrimaryBlue
 import nvk.cotrip.ui.theme.PrimaryLight
+import nvk.cotrip.ui.theme.TextDisabled
 import nvk.cotrip.ui.theme.TextPrimary
 import nvk.cotrip.ui.theme.TextSecondary
-import nvk.cotrip.ui.theme.WarningText
 
 private const val KEY_PROFILE = "profile"
 private const val KEY_NOTIFICATION_TITLE = "notifications_title"
@@ -212,7 +213,7 @@ private fun ProfileSection(
                     icon = CoTripIcons.Close,
                     text = stringResource(R.string.settings_remove_photo),
                     onClick = onRemovePhoto,
-                    color = WarningText
+                    color = TextSecondary
                 )
             }
         }
@@ -320,7 +321,15 @@ private fun NotificationSection(
                 )
                 Switch(
                     checked = item.enabled,
-                    onCheckedChange = { enabled -> onToggle(item.key, enabled) }
+                    onCheckedChange = { enabled -> onToggle(item.key, enabled) },
+                    colors = androidx.compose.material3.SwitchDefaults.colors(
+                        checkedThumbColor = PrimaryBlue,
+                        checkedTrackColor = PrimaryBlue.copy(alpha = 0.5f),
+                        checkedBorderColor = PrimaryBlue.copy(alpha = 0.5f),
+                        uncheckedThumbColor = MaterialTheme.colorScheme.surface,
+                        uncheckedTrackColor = BorderStrong,
+                        uncheckedBorderColor = BorderStrong
+                    )
                 )
             }
         }
@@ -343,7 +352,9 @@ private fun DangerZone(
 
         OutlinedButton(
             onClick = onLogout,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp),
             shape = MaterialTheme.shapes.large,
             border = BorderStroke(1.dp, Border),
             colors = ButtonDefaults.outlinedButtonColors(contentColor = TextPrimary)
@@ -353,7 +364,9 @@ private fun DangerZone(
 
         OutlinedButton(
             onClick = onDeleteProfile,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp),
             shape = MaterialTheme.shapes.large,
             border = BorderStroke(1.dp, Error),
             colors = ButtonDefaults.outlinedButtonColors(contentColor = Error)
@@ -373,7 +386,7 @@ private fun DeleteProfileDialog(
         title = {
             Text(
                 text = stringResource(R.string.settings_delete_dialog_title),
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.titleLarge,
                 color = TextPrimary
             )
         },
@@ -414,7 +427,7 @@ private fun SectionHeader(
     Text(
         text = title,
         style = MaterialTheme.typography.labelMedium,
-        color = TextSecondary,
+        color = TextDisabled,
         modifier = modifier
     )
 }

@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
@@ -39,7 +40,7 @@ fun CoTripCard(
 ) {
     Surface(
         modifier = modifier,
-        shape = MaterialTheme.shapes.large,
+        shape = RoundedCornerShape(18.dp),
         color = MaterialTheme.colorScheme.surface,
         border = border
     ) {
@@ -123,15 +124,15 @@ fun CoTripTextField(
         value = value,
         onValueChange = onValueChange,
         modifier = modifier,
-        shape = MaterialTheme.shapes.large,
+        shape = RoundedCornerShape(18.dp),
         placeholder = { Text(text = placeholder, color = TextSecondary) },
         singleLine = true,
         colors = TextFieldDefaults.colors(
             focusedContainerColor = MaterialTheme.colorScheme.surface,
             unfocusedContainerColor = MaterialTheme.colorScheme.surface,
             disabledContainerColor = MaterialTheme.colorScheme.surface,
-            focusedIndicatorColor = Border,
-            unfocusedIndicatorColor = Border,
+            focusedIndicatorColor = PrimaryBlue,
+            unfocusedIndicatorColor = BorderStrong,
             disabledIndicatorColor = Border
         )
     )

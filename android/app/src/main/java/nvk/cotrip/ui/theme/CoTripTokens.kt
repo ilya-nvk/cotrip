@@ -1,18 +1,18 @@
 package nvk.cotrip.ui.theme
 
-import androidx.compose.runtime.Immutable
-import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 @Immutable
 data class CoTripRadius(
     val small: Dp = 4.dp,
-    val medium: Dp = 6.dp,
-    val large: Dp = 8.dp,
-    val xLarge: Dp = 16.dp
+    val medium: Dp = 18.dp,
+    val large: Dp = 18.dp,
+    val xLarge: Dp = 18.dp
 )
 
 @Immutable
@@ -28,7 +28,7 @@ data class CoTripSpacing(
 
 @Immutable
 data class CoTripElevation(
-    val cardHover: Dp = 8.dp,
+    val cardHover: Dp = 2.dp,
     val fabElevated: Dp = 4.dp,
     val phoneFrame: Dp = 4.dp
 )

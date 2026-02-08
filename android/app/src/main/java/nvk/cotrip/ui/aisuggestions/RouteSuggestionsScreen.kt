@@ -194,7 +194,7 @@ private fun SummaryHeader(
             )
             Text(
                 text = stringResource(R.string.ai_suggestions_change),
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.labelLarge,
                 color = PrimaryBlue,
                 modifier = Modifier
                     .clickable(onClick = onChangeClick)
@@ -231,7 +231,7 @@ private fun SuggestionCard(
     ) {
         Text(
             text = suggestion.title,
-            style = MaterialTheme.typography.headlineMedium,
+            style = MaterialTheme.typography.titleLarge,
             color = TextPrimary
         )
 
@@ -287,7 +287,7 @@ private fun SuggestionCard(
                     Spacer(Modifier.width(CoTripTokens.spacing.x1))
                     Text(
                         text = stringResource(R.string.ai_suggestions_saved),
-                        style = MaterialTheme.typography.headlineSmall,
+                        style = MaterialTheme.typography.labelLarge,
                         color = Success,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -309,7 +309,7 @@ private fun MetaChip(
     text: String,
 ) {
     Surface(
-        shape = MaterialTheme.shapes.medium,
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
         color = Border.copy(alpha = 0.35f)
     ) {
         Row(
@@ -325,7 +325,7 @@ private fun MetaChip(
             )
             Text(
                 text = text,
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.bodyMedium,
                 color = TextSecondary
             )
         }

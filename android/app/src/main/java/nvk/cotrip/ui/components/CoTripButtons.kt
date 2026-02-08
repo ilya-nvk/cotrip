@@ -3,8 +3,10 @@ package nvk.cotrip.ui.components
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Button
@@ -26,6 +28,8 @@ import nvk.cotrip.ui.theme.PrimaryBlue
 import nvk.cotrip.ui.theme.TextDisabled
 import nvk.cotrip.ui.theme.WhiteCards
 
+private val ControlShape = RoundedCornerShape(18.dp)
+
 @Composable
 fun PrimaryButton(
     text: String,
@@ -37,15 +41,20 @@ fun PrimaryButton(
     Button(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier,
-        shape = MaterialTheme.shapes.medium,
+        modifier = modifier.heightIn(min = 52.dp),
+        shape = ControlShape,
         colors = ButtonDefaults.buttonColors(
             containerColor = PrimaryBlue,
             contentColor = WhiteCards,
-            disabledContainerColor = BorderStrong,
+            disabledContainerColor = Border,
             disabledContentColor = TextDisabled
         ),
-        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp),
+        elevation = ButtonDefaults.buttonElevation(
+            defaultElevation = 2.dp,
+            pressedElevation = 4.dp,
+            disabledElevation = 0.dp
+        ),
+        contentPadding = PaddingValues(horizontal = 32.dp, vertical = 12.dp),
     ) {
         if (leadingIcon != null) {
             leadingIcon()
@@ -69,14 +78,14 @@ fun SecondaryButton(
     OutlinedButton(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier,
-        shape = MaterialTheme.shapes.medium,
+        modifier = modifier.heightIn(min = 52.dp),
+        shape = ControlShape,
         border = BorderStroke(1.dp, if (enabled) BorderStrong else Border),
         colors = ButtonDefaults.outlinedButtonColors(
             contentColor = MaterialTheme.colorScheme.onBackground,
             disabledContentColor = TextDisabled
         ),
-        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp)
+        contentPadding = PaddingValues(horizontal = 32.dp, vertical = 12.dp)
     ) {
         if (leadingIcon != null) {
             leadingIcon()
@@ -100,14 +109,14 @@ fun SecondaryOutlinedButton(
     OutlinedButton(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier,
-        shape = MaterialTheme.shapes.medium,
+        modifier = modifier.heightIn(min = 52.dp),
+        shape = ControlShape,
         border = BorderStroke(1.dp, if (enabled) PrimaryBlue else Border),
         colors = ButtonDefaults.outlinedButtonColors(
             contentColor = PrimaryBlue,
             disabledContentColor = TextDisabled
         ),
-        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp)
+        contentPadding = PaddingValues(horizontal = 32.dp, vertical = 12.dp)
     ) {
         if (leadingIcon != null) {
             leadingIcon()
@@ -160,14 +169,14 @@ fun DestructiveOutlinedButton(
     OutlinedButton(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier,
-        shape = MaterialTheme.shapes.medium,
+        modifier = modifier.heightIn(min = 52.dp),
+        shape = ControlShape,
         border = BorderStroke(1.dp, if (enabled) Error else Border),
         colors = ButtonDefaults.outlinedButtonColors(
             contentColor = Error,
             disabledContentColor = TextDisabled
         ),
-        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp)
+        contentPadding = PaddingValues(horizontal = 32.dp, vertical = 12.dp)
     ) {
         if (leadingIcon != null) {
             leadingIcon()
@@ -188,12 +197,12 @@ fun CoTripFab(
     FloatingActionButton(
         onClick = onClick,
         modifier = modifier.size(56.dp),
-        shape = MaterialTheme.shapes.medium,
+        shape = RoundedCornerShape(16.dp),
         containerColor = PrimaryBlue,
         contentColor = WhiteCards,
         elevation = FloatingActionButtonDefaults.elevation(
-            defaultElevation = 8.dp,
-            pressedElevation = 10.dp
+            defaultElevation = 4.dp,
+            pressedElevation = 8.dp
         )
     ) {
         Icon(

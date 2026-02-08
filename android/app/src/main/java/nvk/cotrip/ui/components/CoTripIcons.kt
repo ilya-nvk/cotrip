@@ -32,12 +32,18 @@ fun CoTripIconButton(
     enabled: Boolean = true,
     tint: Color = if (enabled) TextDark else TextDisabled
 ) {
-    IconButton(onClick = onClick, enabled = enabled, modifier = modifier) {
+    IconButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = Modifier
+            .size(40.dp)
+            .then(modifier)
+    ) {
         Icon(
             imageVector = icon,
             contentDescription = contentDescription,
             tint = tint,
-            modifier = Modifier.size(28.dp)
+            modifier = Modifier.size(24.dp)
         )
     }
 }

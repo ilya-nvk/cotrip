@@ -3,7 +3,6 @@ package nvk.cotrip.ui.components
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.material3.Divider
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -32,7 +31,7 @@ fun CoTripDashedDivider(modifier: Modifier = Modifier) {
             color = Border,
             start = androidx.compose.ui.geometry.Offset(0f, 0f),
             end = androidx.compose.ui.geometry.Offset(size.width, 0f),
-            strokeWidth = 2f,
+            strokeWidth = 1f,
             pathEffect = dash
         )
     }

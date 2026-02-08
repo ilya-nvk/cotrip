@@ -2,13 +2,17 @@ package nvk.cotrip.ui.components
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.unit.dp
 import nvk.cotrip.ui.theme.Border
 import nvk.cotrip.ui.theme.BorderStrong
-import nvk.cotrip.ui.theme.CoTripTokens
 import nvk.cotrip.ui.theme.Error
 import nvk.cotrip.ui.theme.PrimaryBlue
 import nvk.cotrip.ui.theme.TextDisabled
@@ -30,7 +34,7 @@ fun CoTripTextField(
     visualTransformation: VisualTransformation = VisualTransformation.None
 ) {
     val isError = !errorText.isNullOrBlank()
-    val shape = androidx.compose.foundation.shape.RoundedCornerShape(CoTripTokens.radius.medium)
+    val shape = RoundedCornerShape(18.dp)
 
     Column(modifier = modifier) {
         OutlinedTextField(
@@ -43,6 +47,7 @@ fun CoTripTextField(
             label = label?.let { { Text(it) } },
             modifier = Modifier.fillMaxWidth(),
             shape = shape,
+            textStyle = MaterialTheme.typography.bodyLarge,
             visualTransformation = visualTransformation,
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = PrimaryBlue,

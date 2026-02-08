@@ -181,7 +181,7 @@ fun BuildRouteScreen(
             item {
                 Text(
                     text = stringResource(R.string.ai_suggestions_quick_preferences),
-                    style = MaterialTheme.typography.headlineSmall,
+                    style = MaterialTheme.typography.titleLarge,
                     color = TextPrimary
                 )
             }
@@ -221,7 +221,7 @@ fun BuildRouteScreen(
 private fun HintCard() {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(18.dp),
         border = BorderStroke(1.dp, HintPurpleBorder),
         color = HintPurple
     ) {

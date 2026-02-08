@@ -19,6 +19,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -85,6 +86,13 @@ fun SignInScreen(
                     onClick = { viewModel.onEvent(SignInEvent.SignInWithGoogle) },
                     enabled = !state.isLoading,
                     modifier = Modifier.fillMaxWidth(),
+                    leadingIcon = {
+                        androidx.compose.material3.Icon(
+                            painter = painterResource(R.drawable.googleicon),
+                            contentDescription = null,
+                            modifier = Modifier.height(20.dp)
+                        )
+                    }
                 )
 
                 Text(
