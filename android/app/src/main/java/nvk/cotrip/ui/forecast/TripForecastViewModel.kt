@@ -35,35 +35,63 @@ class TripForecastViewModel @Inject constructor(
                 ForecastDayUi(
                     "Today",
                     "Thu, Jul 15",
-                    CoTripIcons.Info,
+                    CoTripIcons.WeatherSunny,
                     Warning,
                     "26°",
                     "Mostly sunny"
                 ),
-                ForecastDayUi("Tomorrow", "Fri, Jul 16", CoTripIcons.Info, Warning, "28°", "Sunny"),
+                ForecastDayUi(
+                    "Tomorrow",
+                    "Fri, Jul 16",
+                    CoTripIcons.WeatherSunny,
+                    Warning,
+                    "28°",
+                    "Sunny"
+                ),
                 ForecastDayUi(
                     "Sat, Jul 17",
                     null,
-                    CoTripIcons.Info,
+                    CoTripIcons.WeatherCloudy,
                     TextSecondary,
                     "24°",
                     "Partly cloudy"
                 ),
-                ForecastDayUi("Sun, Jul 18", null, CoTripIcons.Info, Info, "22°", "Light rain"),
+                ForecastDayUi(
+                    "Sun, Jul 18",
+                    null,
+                    CoTripIcons.WeatherRain,
+                    Info,
+                    "22°",
+                    "Light rain"
+                ),
                 ForecastDayUi(
                     "Mon, Jul 19",
                     null,
-                    CoTripIcons.Info,
+                    CoTripIcons.WeatherCloudy,
                     TextSecondary,
                     "23°",
                     "Cloudy"
                 ),
-                ForecastDayUi("Tue, Jul 20", null, CoTripIcons.Info, Warning, "27°", "Sunny"),
-                ForecastDayUi("Wed, Jul 21", null, CoTripIcons.Info, Warning, "29°", "Clear sky"),
+                ForecastDayUi(
+                    "Tue, Jul 20",
+                    null,
+                    CoTripIcons.WeatherSunny,
+                    Warning,
+                    "27°",
+                    "Sunny"
+                ),
+                ForecastDayUi(
+                    "Wed, Jul 21",
+                    null,
+                    CoTripIcons.WeatherSunny,
+                    Warning,
+                    "29°",
+                    "Clear sky"
+                ),
                 ForecastDayUi(
                     "Thu, Jul 22",
                     null,
-                    CoTripIcons.Info,
+                    CoTripIcons.WeatherSunny,
                     Warning,
                     "30°",
                     "Hot and sunny"
@@ -71,16 +99,23 @@ class TripForecastViewModel @Inject constructor(
                 ForecastDayUi(
                     "Fri, Jul 23",
                     null,
-                    CoTripIcons.Info,
+                    CoTripIcons.WeatherCloudy,
                     TextSecondary,
                     "25°",
                     "Partly cloudy"
                 ),
-                ForecastDayUi("Sat, Jul 24", null, CoTripIcons.Info, Info, "21°", "Rain showers"),
+                ForecastDayUi(
+                    "Sat, Jul 24",
+                    null,
+                    CoTripIcons.WeatherRain,
+                    Info,
+                    "21°",
+                    "Rain showers"
+                ),
                 ForecastDayUi(
                     "Sun, Jul 25",
                     null,
-                    CoTripIcons.Info,
+                    CoTripIcons.WeatherCloudy,
                     TextSecondary,
                     "23°",
                     "Overcast"
@@ -88,17 +123,31 @@ class TripForecastViewModel @Inject constructor(
                 ForecastDayUi(
                     "Mon, Jul 26",
                     null,
-                    CoTripIcons.Info,
+                    CoTripIcons.WeatherSunny,
                     Warning,
                     "26°",
                     "Mostly sunny"
                 ),
-                ForecastDayUi("Tue, Jul 27", null, CoTripIcons.Info, Warning, "28°", "Sunny"),
-                ForecastDayUi("Wed, Jul 28", null, CoTripIcons.Info, Warning, "27°", "Clear"),
+                ForecastDayUi(
+                    "Tue, Jul 27",
+                    null,
+                    CoTripIcons.WeatherSunny,
+                    Warning,
+                    "28°",
+                    "Sunny"
+                ),
+                ForecastDayUi(
+                    "Wed, Jul 28",
+                    null,
+                    CoTripIcons.WeatherSunny,
+                    Warning,
+                    "27°",
+                    "Clear"
+                ),
                 ForecastDayUi(
                     "Thu, Jul 29",
                     null,
-                    CoTripIcons.Info,
+                    CoTripIcons.WeatherCloudy,
                     TextSecondary,
                     "24°",
                     "Partly cloudy"

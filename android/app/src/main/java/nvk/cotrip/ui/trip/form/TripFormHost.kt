@@ -2,6 +2,7 @@ package nvk.cotrip.ui.trip.form
 
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -349,7 +350,7 @@ private fun DateField(
                 tint = TextSecondary
             )
         },
-        modifier = modifier,
+        modifier = modifier.clickable(onClick = onClick),
         shape = RoundedCornerShape(CoTripTokens.radius.medium),
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = BorderStrong,

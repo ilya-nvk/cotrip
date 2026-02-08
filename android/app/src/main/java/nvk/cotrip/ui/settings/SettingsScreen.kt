@@ -28,12 +28,10 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -53,6 +51,7 @@ import kotlinx.coroutines.flow.collectLatest
 import nvk.cotrip.R
 import nvk.cotrip.ui.components.CoTripDivider
 import nvk.cotrip.ui.components.CoTripIconButton
+import nvk.cotrip.ui.components.CoTripTextField
 import nvk.cotrip.ui.theme.Border
 import nvk.cotrip.ui.theme.BorderStrong
 import nvk.cotrip.ui.theme.CoTripIcons
@@ -218,20 +217,11 @@ private fun ProfileSection(
             }
         }
 
-        OutlinedTextField(
+        CoTripTextField(
             value = profile.name,
             onValueChange = onNameChange,
             modifier = Modifier.fillMaxWidth(),
-            shape = MaterialTheme.shapes.large,
-            label = { Text(text = stringResource(R.string.settings_name_label)) },
-            singleLine = true,
-            colors = TextFieldDefaults.colors(
-                focusedContainerColor = MaterialTheme.colorScheme.surface,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                focusedIndicatorColor = Border,
-                unfocusedIndicatorColor = Border,
-                cursorColor = PrimaryBlue
-            )
+            label = stringResource(R.string.settings_name_label)
         )
 
         Text(

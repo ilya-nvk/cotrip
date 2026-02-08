@@ -20,13 +20,12 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -38,15 +37,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import nvk.cotrip.R
 import nvk.cotrip.ui.components.CoTripIconButton
 import nvk.cotrip.ui.components.CoTripListItem
+import nvk.cotrip.ui.components.CoTripTextField
 import nvk.cotrip.ui.components.PrimaryButton
 import nvk.cotrip.ui.theme.Border
-import nvk.cotrip.ui.theme.BorderStrong
 import nvk.cotrip.ui.theme.CoTripIcons
 import nvk.cotrip.ui.theme.CoTripTokens
 import nvk.cotrip.ui.theme.PrimaryBlue
@@ -152,28 +150,15 @@ fun BuildRouteScreen(
 
             item {
                 FieldLabel(stringResource(R.string.ai_suggestions_description_label))
-                OutlinedTextField(
+                CoTripTextField(
                     value = state.description,
                     onValueChange = { viewModel.onEvent(BuildRouteEvent.OnDescriptionChange(it)) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(110.dp),
-                    placeholder = {
-                        Text(
-                            text = stringResource(R.string.ai_suggestions_description_placeholder),
-                            color = TextSecondary,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    },
-                    shape = MaterialTheme.shapes.large,
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = WhiteCards,
-                        unfocusedContainerColor = WhiteCards,
-                        focusedIndicatorColor = BorderStrong,
-                        unfocusedIndicatorColor = Border,
-                        cursorColor = PrimaryBlue
-                    )
+                    placeholder = stringResource(R.string.ai_suggestions_description_placeholder),
+                    singleLine = false,
+                    maxLines = 4
                 )
                 FieldHint(stringResource(R.string.ai_suggestions_description_hint))
             }
@@ -288,7 +273,7 @@ private fun CitySelector(
             horizontalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x1)
         ) {
             if (city != null) {
-                androidx.compose.material3.Icon(
+                Icon(
                     imageVector = CoTripIcons.Location,
                     contentDescription = null,
                     tint = TextSecondary,
@@ -303,7 +288,7 @@ private fun CitySelector(
                 modifier = Modifier.weight(1f)
             )
 
-            androidx.compose.material3.Icon(
+            Icon(
                 imageVector = CoTripIcons.ExpandMore,
                 contentDescription = null,
                 tint = TextSecondary

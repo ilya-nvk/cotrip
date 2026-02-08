@@ -32,4 +32,5 @@
     <color name="sidebar_primary">#1447E6</color>
     <color name="sidebar_primary_foreground">#FAFAFA</color>
     <color name="sidebar_ring">#626262</color>
+    <color name="ic_launcher_background">#1976D2</color>
 </resources>

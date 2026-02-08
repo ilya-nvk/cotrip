@@ -6,6 +6,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -16,6 +17,8 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.WaterDrop
+import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.ui.graphics.vector.ImageVector
 
 object CoTripIcons {
@@ -36,6 +39,9 @@ object CoTripIcons {
     val CheckCircle: ImageVector = Icons.Filled.CheckCircle
     val Schedule: ImageVector = Icons.Filled.DateRange
     val Info: ImageVector = Icons.Filled.Info
+    val WeatherSunny: ImageVector = Icons.Filled.WbSunny
+    val WeatherCloudy: ImageVector = Icons.Filled.Cloud
+    val WeatherRain: ImageVector = Icons.Filled.WaterDrop
 
     val TripOrigin: ImageVector = Icons.Filled.LocationOn
     val AccountBalance: ImageVector = Icons.Filled.Info

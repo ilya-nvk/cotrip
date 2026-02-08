@@ -34,4 +34,5 @@
     <color name="sidebar_primary_foreground">#FAFAFA</color>
     <color name="sidebar_ring">#A1A1A1</color>
     <color name="switch_background">#CBCED4</color>
+    <color name="ic_launcher_background">#1976D2</color>
 </resources>

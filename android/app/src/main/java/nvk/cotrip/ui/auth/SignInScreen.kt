@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -87,7 +88,7 @@ fun SignInScreen(
                     enabled = !state.isLoading,
                     modifier = Modifier.fillMaxWidth(),
                     leadingIcon = {
-                        androidx.compose.material3.Icon(
+                        Icon(
                             painter = painterResource(R.drawable.googleicon),
                             contentDescription = null,
                             modifier = Modifier.height(20.dp)

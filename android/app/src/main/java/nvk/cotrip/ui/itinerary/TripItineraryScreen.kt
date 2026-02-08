@@ -48,6 +48,8 @@ import nvk.cotrip.R
 import nvk.cotrip.ui.components.CoTripCard
 import nvk.cotrip.ui.components.CoTripFab
 import nvk.cotrip.ui.components.CoTripIconButton
+import nvk.cotrip.ui.components.CoTripListItem
+import nvk.cotrip.ui.components.CoTripTextField
 import nvk.cotrip.ui.components.TertiaryTextButton
 import nvk.cotrip.ui.theme.Border
 import nvk.cotrip.ui.theme.CoTripIcons
@@ -413,7 +415,7 @@ private fun CityPickerSheet(
             color = TextPrimary
         )
 
-        nvk.cotrip.ui.components.CoTripTextField(
+        CoTripTextField(
             value = query,
             onValueChange = onQueryChange,
             placeholder = stringResource(R.string.itinerary_choose_city_placeholder),
@@ -428,7 +430,7 @@ private fun CityPickerSheet(
             verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x0_5)
         ) {
             items(cities, key = { it }) { city ->
-                nvk.cotrip.ui.components.CoTripListItem(
+                CoTripListItem(
                     title = city,
                     onClick = { onSelect(city) }
                 )

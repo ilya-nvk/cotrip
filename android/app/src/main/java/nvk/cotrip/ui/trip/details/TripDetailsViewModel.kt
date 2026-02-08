@@ -117,11 +117,11 @@ class TripDetailsViewModel @Inject constructor(
                 weather = WeatherCardUi(
                     city = "Paris",
                     days = listOf(
-                        WeatherDayUi("Today", "26°", CoTripIcons.Info, Info),
-                        WeatherDayUi("Fri", "28°", CoTripIcons.Info, Warning),
-                        WeatherDayUi("Sat", "24°", CoTripIcons.Info, TextSecondary),
-                        WeatherDayUi("Sun", "22°", CoTripIcons.Info, Success),
-                        WeatherDayUi("Mon", "23°", CoTripIcons.Info, TextSecondary),
+                        WeatherDayUi("Today", "26°", CoTripIcons.WeatherSunny, Info),
+                        WeatherDayUi("Fri", "28°", CoTripIcons.WeatherSunny, Warning),
+                        WeatherDayUi("Sat", "24°", CoTripIcons.WeatherCloudy, TextSecondary),
+                        WeatherDayUi("Sun", "22°", CoTripIcons.WeatherRain, Success),
+                        WeatherDayUi("Mon", "23°", CoTripIcons.WeatherCloudy, TextSecondary),
                     )
                 ),
                 nextInTrip = NextInTripUi(

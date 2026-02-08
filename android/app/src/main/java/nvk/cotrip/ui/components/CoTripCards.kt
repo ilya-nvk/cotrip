@@ -14,21 +14,17 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
-import nvk.cotrip.ui.theme.Border
 import nvk.cotrip.ui.theme.BorderStrong
 import nvk.cotrip.ui.theme.CoTripTokens
 import nvk.cotrip.ui.theme.PrimaryBlue
 import nvk.cotrip.ui.theme.TextPrimary
-import nvk.cotrip.ui.theme.TextSecondary
 import nvk.cotrip.ui.theme.WhiteCards
 
 @Composable
@@ -110,32 +106,6 @@ fun FilterChip(
             Text(text)
         }
     }
-}
-
-
-@Composable
-fun CoTripTextField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    placeholder: String,
-    modifier: Modifier = Modifier,
-) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        modifier = modifier,
-        shape = RoundedCornerShape(18.dp),
-        placeholder = { Text(text = placeholder, color = TextSecondary) },
-        singleLine = true,
-        colors = TextFieldDefaults.colors(
-            focusedContainerColor = MaterialTheme.colorScheme.surface,
-            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-            disabledContainerColor = MaterialTheme.colorScheme.surface,
-            focusedIndicatorColor = PrimaryBlue,
-            unfocusedIndicatorColor = BorderStrong,
-            disabledIndicatorColor = Border
-        )
-    )
 }
 
 @Composable
