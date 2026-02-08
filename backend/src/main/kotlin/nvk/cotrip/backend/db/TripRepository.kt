@@ -63,6 +63,19 @@ object TripRepository {
             stmt.executeUpdate()
         }
 
+        conn.prepareStatement(
+            """
+            INSERT INTO itinerary_days (trip_id, date, day_number)
+            SELECT ?, day::date, ROW_NUMBER() OVER (ORDER BY day)
+            FROM generate_series(?, ?, interval '1 day') AS day
+            """.trimIndent()
+        ).use { stmt ->
+            stmt.setObject(1, UUID.fromString(trip.id))
+            stmt.setObject(2, trip.startDate)
+            stmt.setObject(3, trip.endDate)
+            stmt.executeUpdate()
+        }
+
         trip
     }
 
