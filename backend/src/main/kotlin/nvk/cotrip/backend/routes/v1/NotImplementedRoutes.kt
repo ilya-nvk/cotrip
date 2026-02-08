@@ -16,27 +16,10 @@ private suspend fun respondNotImplemented(call: io.ktor.server.application.Appli
 
 fun Route.notImplementedRoutes() {
     route("/v1") {
-        post("/auth/google") { respondNotImplemented(call) }
         post("/auth/logout") { respondNotImplemented(call) }
-
-        get("/users/me") { respondNotImplemented(call) }
-        patch("/users/me") { respondNotImplemented(call) }
-        delete("/users/me") { respondNotImplemented(call) }
-
-        post("/trips") { respondNotImplemented(call) }
-        get("/trips") { respondNotImplemented(call) }
-        get("/trips/{tripId}") { respondNotImplemented(call) }
-        patch("/trips/{tripId}") { respondNotImplemented(call) }
-        delete("/trips/{tripId}") { respondNotImplemented(call) }
-        post("/trips/{tripId}/archive") { respondNotImplemented(call) }
-        post("/trips/{tripId}/transfer-owner") { respondNotImplemented(call) }
 
         get("/trips/{tripId}/members") { respondNotImplemented(call) }
         delete("/trips/{tripId}/members/{userId}") { respondNotImplemented(call) }
-
-        post("/trips/{tripId}/invite") { respondNotImplemented(call) }
-        get("/invites/{token}") { respondNotImplemented(call) }
-        post("/invites/{token}/accept") { respondNotImplemented(call) }
 
         get("/trips/{tripId}/ideas") { respondNotImplemented(call) }
         post("/trips/{tripId}/ideas") { respondNotImplemented(call) }

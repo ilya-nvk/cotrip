@@ -17,5 +17,10 @@ fun loadConfig(config: ApplicationConfig): AppConfig {
         poolSize = config.property("ktor.db.poolSize").getString().toInt(),
     )
 
-    return AppConfig(jwt = jwt, db = db)
+    val invite = InviteConfig(
+        baseUrl = config.propertyOrNull("ktor.invite.baseUrl")?.getString()
+            ?: "http://localhost:8080/invite",
+    )
+
+    return AppConfig(jwt = jwt, db = db, invite = invite)
 }

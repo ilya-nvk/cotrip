@@ -35,7 +35,7 @@ fun Application.module() {
     configureStatusPages()
     configureWebSockets()
     configureAuth(appConfig.jwt)
-    configureRouting()
+    configureRouting(appConfig)
 
     environment.monitor.subscribe(ApplicationStarted) {
         log.info("CoTrip backend started")

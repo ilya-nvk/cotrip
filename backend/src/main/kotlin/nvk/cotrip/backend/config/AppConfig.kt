@@ -14,7 +14,12 @@ data class DbConfig(
     val poolSize: Int,
 )
 
+data class InviteConfig(
+    val baseUrl: String,
+)
+
 data class AppConfig(
     val jwt: JwtConfig,
     val db: DbConfig,
+    val invite: InviteConfig,
 )
