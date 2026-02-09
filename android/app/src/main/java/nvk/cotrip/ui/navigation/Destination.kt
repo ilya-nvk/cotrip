@@ -19,6 +19,10 @@ sealed interface Destination {
         override val route = "settings"
     }
 
+    data object JoinTrip : Destination {
+        override val route = "trips/join"
+    }
+
     data class TripDetails(val tripId: String) : Destination {
         override val route: String = "trips/$tripId"
 
@@ -51,6 +55,15 @@ sealed interface Destination {
 
         companion object {
             const val ROUTE_PATTERN = "trips/{tripId}/invite"
+            const val ARG_TRIP_ID = "tripId"
+        }
+    }
+
+    data class TripMembers(val tripId: String) : Destination {
+        override val route: String = "trips/$tripId/members"
+
+        companion object {
+            const val ROUTE_PATTERN = "trips/{tripId}/members"
             const val ARG_TRIP_ID = "tripId"
         }
     }

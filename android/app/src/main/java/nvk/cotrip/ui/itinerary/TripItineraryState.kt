@@ -6,4 +6,5 @@ data class TripItineraryState(
     val mode: ItineraryMode,
     val days: List<ItineraryDayUi>,
     val cityPicker: CityPickerState?,
+    val isReordering: Boolean,
 )

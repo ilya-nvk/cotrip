@@ -12,11 +12,13 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nvk.cotrip.R
-import nvk.cotrip.data.network.CoTripApi
 import nvk.cotrip.data.network.dto.ExpenseDto
 import nvk.cotrip.data.network.dto.IdeaDto
 import nvk.cotrip.data.network.dto.MemberDto
 import nvk.cotrip.data.network.dto.TripDto
+import nvk.cotrip.data.repository.ExpenseRepository
+import nvk.cotrip.data.repository.IdeaRepository
+import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import nvk.cotrip.ui.trip.form.TripCurrency
@@ -34,7 +36,9 @@ import javax.inject.Inject
 class TripDetailsViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val appNavigator: AppNavigator,
-    private val api: CoTripApi,
+    private val tripRepository: TripRepository,
+    private val ideaRepository: IdeaRepository,
+    private val expenseRepository: ExpenseRepository,
 ) : ViewModel() {
 
     private val tripId: String = checkNotNull(savedStateHandle["tripId"])
@@ -58,6 +62,9 @@ class TripDetailsViewModel @Inject constructor(
                 Destination.InviteTravelers(
                     tripId
                 )
+            )
+            TripDetailsEvent.OnMembersClick -> appNavigator.navigate(
+                Destination.TripMembers(tripId)
             )
 
             TripDetailsEvent.OnWeatherCityClick -> emitToast(R.string.trip_details_city_picker_stub)
@@ -124,10 +131,10 @@ class TripDetailsViewModel @Inject constructor(
         viewModelScope.launch {
             val result = runCatching {
                 withContext(Dispatchers.IO) {
-                    val trip = api.getTrip(tripId)
-                    val members = api.listMembers(tripId).items
-                    val ideas = api.listIdeas(tripId).items
-                    val expenses = api.listExpenses(tripId).items
+                    val trip = tripRepository.getTrip(tripId)
+                    val members = tripRepository.listMembers(tripId)
+                    val ideas = ideaRepository.listIdeas(tripId)
+                    val expenses = expenseRepository.listExpenses(tripId)
                     LoadedTrip(trip, members, ideas, expenses)
                 }
             }

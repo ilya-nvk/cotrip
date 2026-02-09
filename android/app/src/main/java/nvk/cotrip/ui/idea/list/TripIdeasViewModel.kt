@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -72,7 +73,8 @@ class TripIdeasViewModel @Inject constructor(
     init {
         observeSocket()
         connectSocket()
-        loadIdeas()
+        observeData()
+        refreshIdeas()
     }
 
     override fun onCleared() {
@@ -83,7 +85,7 @@ class TripIdeasViewModel @Inject constructor(
     fun onEvent(event: TripIdeasEvent) {
         when (event) {
             TripIdeasEvent.OnBackClick -> appNavigator.popBackStack()
-            TripIdeasEvent.OnRefresh -> loadIdeas()
+            TripIdeasEvent.OnRefresh -> refreshIdeas()
             TripIdeasEvent.OnAddIdeaClick -> appNavigator.navigate(
                 Destination.CreateIdea(tripId)
             )
@@ -98,30 +100,45 @@ class TripIdeasViewModel @Inject constructor(
         }
     }
 
-    private fun loadIdeas() {
+    private fun observeData() {
         viewModelScope.launch {
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    val trip = tripRepository.getTrip(tripId)
-                    val ideas = ideaRepository.listIdeas(tripId)
-                    val itinerary = itineraryRepository.getItinerary(tripId)
+            combine(
+                ideaRepository.observeIdeas(tripId),
+                tripRepository.observeTrip(tripId),
+                itineraryRepository.observeItinerary(tripId)
+            ) { ideas, trip, itinerary ->
+                Triple(ideas, trip, itinerary)
+            }.collect { (ideas, trip, itinerary) ->
+                if (trip != null) {
                     currencySymbol = currencySymbolFor(trip.currencyCode)
-                    dayOptions = itinerary
-                        .filter { !it.isOutOfRange }
-                        .map { it.toDayOption() }
-                    ideas
                 }
-            }.onSuccess { ideas ->
+                dayOptions = itinerary
+                    .filter { !it.isOutOfRange }
+                    .map { it.toDayOption() }
+
                 _state.update { current ->
+                    val updatedPicker = current.dayPicker?.copy(days = dayOptions)
                     current.copy(
                         ideas = ideas.map { idea ->
                             idea.toUi(currencySymbol, addedDays[idea.id])
-                        }
+                        },
+                        dayPicker = updatedPicker
                     )
+                }
+            }
+        }
+    }
+
+    private fun refreshIdeas() {
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    tripRepository.getTrip(tripId)
+                    ideaRepository.refreshIdeas(tripId)
+                    itineraryRepository.refreshItinerary(tripId)
                 }
             }.onFailure {
                 emit(TripIdeasEffect.ShowToastRes(R.string.common_error_message))
-                _state.update { it.copy(ideas = emptyList(), dayPicker = null) }
             }
         }
     }

@@ -109,7 +109,8 @@ fun TripDetailsScreen(
                     travelers = state.travelers,
                     peopleCountText = state.peopleCountText,
                     isEmpty = state.isEmpty,
-                    onInvite = { viewModel.onEvent(TripDetailsEvent.OnInviteTravelersClick) }
+                    onInvite = { viewModel.onEvent(TripDetailsEvent.OnInviteTravelersClick) },
+                    onMembers = { viewModel.onEvent(TripDetailsEvent.OnMembersClick) }
                 )
             }
 
@@ -256,6 +257,7 @@ private fun TravelersSection(
     peopleCountText: String,
     isEmpty: Boolean,
     onInvite: () -> Unit,
+    onMembers: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -311,6 +313,12 @@ private fun TravelersSection(
             )
 
             Spacer(Modifier.weight(1f))
+
+            CoTripIconButton(
+                icon = CoTripIcons.ChevronRight,
+                contentDescription = stringResource(R.string.trip_details_members),
+                onClick = onMembers
+            )
 
             if (isEmpty) {
                 Text(

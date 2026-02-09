@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nvk.cotrip.R
-import nvk.cotrip.data.network.CoTripApi
+import nvk.cotrip.data.repository.InviteRepository
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import java.time.OffsetDateTime
@@ -23,7 +23,7 @@ import javax.inject.Inject
 class InvitePeopleViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val appNavigator: AppNavigator,
-    private val api: CoTripApi,
+    private val inviteRepository: InviteRepository,
 ) : ViewModel() {
 
     private val tripId: String =
@@ -59,7 +59,7 @@ class InvitePeopleViewModel @Inject constructor(
         viewModelScope.launch {
             val result = runCatching {
                 withContext(Dispatchers.IO) {
-                    api.createInvite(tripId)
+                    inviteRepository.createInvite(tripId)
                 }
             }
 

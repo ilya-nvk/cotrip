@@ -22,6 +22,7 @@ import nvk.cotrip.ui.idea.form.CreateIdeaScreen
 import nvk.cotrip.ui.idea.form.EditIdeaScreen
 import nvk.cotrip.ui.idea.list.TripIdeasScreen
 import nvk.cotrip.ui.invitation.InvitePeopleScreen
+import nvk.cotrip.ui.invitation.JoinTripScreen
 import nvk.cotrip.ui.itinerary.TripItineraryScreen
 import nvk.cotrip.ui.outofrangedays.OutOfRangeDaysScreen
 import nvk.cotrip.ui.settings.SettingsScreen
@@ -29,6 +30,7 @@ import nvk.cotrip.ui.trip.details.TripDetailsScreen
 import nvk.cotrip.ui.trip.form.CreateTripScreen
 import nvk.cotrip.ui.trip.form.EditTripScreen
 import nvk.cotrip.ui.trip.list.TripsListScreen
+import nvk.cotrip.ui.trip.members.TripMembersScreen
 
 @Composable
 fun AppNavHost(
@@ -54,6 +56,10 @@ fun AppNavHost(
 
         composable(Destination.Settings.route) {
             SettingsScreen()
+        }
+
+        composable(Destination.JoinTrip.route) {
+            JoinTripScreen()
         }
 
         composable(
@@ -90,6 +96,15 @@ fun AppNavHost(
             )
         ) {
             InvitePeopleScreen()
+        }
+
+        composable(
+            route = Destination.TripMembers.ROUTE_PATTERN,
+            arguments = listOf(
+                navArgument(Destination.TripMembers.ARG_TRIP_ID) { type = NavType.StringType }
+            )
+        ) {
+            TripMembersScreen()
         }
 
         composable(

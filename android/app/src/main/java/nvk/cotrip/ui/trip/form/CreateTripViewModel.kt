@@ -12,8 +12,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nvk.cotrip.R
-import nvk.cotrip.data.network.CoTripApi
 import nvk.cotrip.data.network.dto.CreateTripRequest
+import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import javax.inject.Inject
@@ -21,7 +21,7 @@ import javax.inject.Inject
 @HiltViewModel
 class CreateTripViewModel @Inject constructor(
     private val appNavigator: AppNavigator,
-    private val api: CoTripApi,
+    private val tripRepository: TripRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(TripFormState())
@@ -95,7 +95,7 @@ class CreateTripViewModel @Inject constructor(
 
             val result = runCatching {
                 withContext(Dispatchers.IO) {
-                    api.createTrip(
+                    tripRepository.createTrip(
                         CreateTripRequest(
                             title = s.name,
                             description = s.description.takeIf { it.isNotBlank() },

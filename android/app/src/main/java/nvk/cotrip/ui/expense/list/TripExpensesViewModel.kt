@@ -7,6 +7,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -15,6 +16,7 @@ import nvk.cotrip.data.network.dto.MemberDto
 import nvk.cotrip.data.network.dto.TripDto
 import nvk.cotrip.data.repository.ExpenseRepository
 import nvk.cotrip.data.repository.TripRepository
+import nvk.cotrip.data.repository.UserRepository
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import nvk.cotrip.ui.trip.form.TripCurrency
@@ -28,6 +30,7 @@ class TripExpensesViewModel @Inject constructor(
     private val appNavigator: AppNavigator,
     private val tripRepository: TripRepository,
     private val expenseRepository: ExpenseRepository,
+    private val userRepository: UserRepository,
 ) : ViewModel() {
 
     private val tripId: String =
@@ -48,14 +51,18 @@ class TripExpensesViewModel @Inject constructor(
     )
     val state = _state.asStateFlow()
 
+    private val membersState = MutableStateFlow<List<MemberDto>>(emptyList())
+    private val meIdState = MutableStateFlow<String?>(null)
+
     init {
-        loadExpenses()
+        observeData()
+        refreshExpenses()
     }
 
     fun onEvent(event: TripExpensesEvent) {
         when (event) {
             TripExpensesEvent.OnBackClick -> appNavigator.popBackStack()
-            TripExpensesEvent.OnRefresh -> loadExpenses()
+            TripExpensesEvent.OnRefresh -> refreshExpenses()
             TripExpensesEvent.OnAddExpenseClick -> appNavigator.navigate(
                 Destination.CreateExpense(tripId)
             )
@@ -69,22 +76,26 @@ class TripExpensesViewModel @Inject constructor(
         }
     }
 
-    private fun loadExpenses() {
+    private fun observeData() {
         viewModelScope.launch {
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    val trip = tripRepository.getTrip(tripId)
-                    val expenses = expenseRepository.listExpenses(tripId)
-                    val members = tripRepository.listMembers(tripId)
-                    val me = tripRepository.getMe()
+            combine(
+                expenseRepository.observeExpenses(tripId),
+                tripRepository.observeTrip(tripId),
+                membersState,
+                meIdState
+            ) { expenses, trip, members, meId ->
+                if (trip == null || meId == null) {
+                    null
+                } else {
                     ExpensesPayload(
                         trip = trip,
                         expenses = expenses,
                         members = members,
-                        meId = me.id
+                        meId = meId
                     )
                 }
-            }.onSuccess { payload ->
+            }.collect { payload ->
+                if (payload == null) return@collect
                 val currencySymbol = currencySymbolFor(payload.trip.currencyCode)
                 val memberById = payload.members.associateBy { it.userId }
                 var totalSpent = 0.0
@@ -139,6 +150,21 @@ class TripExpensesViewModel @Inject constructor(
                         spent = spentItems,
                         planned = plannedItems
                     )
+                }
+            }
+        }
+    }
+
+    private fun refreshExpenses() {
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    tripRepository.getTrip(tripId)
+                    expenseRepository.refreshExpenses(tripId)
+                    val members = tripRepository.listMembers(tripId)
+                    val me = userRepository.getMe()
+                    membersState.value = members
+                    meIdState.value = me.id
                 }
             }
         }

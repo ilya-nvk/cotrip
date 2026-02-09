@@ -19,7 +19,7 @@ val localProps = Properties().apply {
 val apiBaseUrl = (project.findProperty("API_BASE_URL") as String?)
     ?.takeIf { it.isNotBlank() }
     ?: (localProps.getProperty("API_BASE_URL")?.takeIf { it.isNotBlank() })
-    ?: "http://10.0.2.2:8081/"
+    ?: "https://api.cotrip.site/"
 val googleServerClientId = (project.findProperty("GOOGLE_SERVER_CLIENT_ID") as String?)
     ?.takeIf { it.isNotBlank() }
     ?: (localProps.getProperty("GOOGLE_SERVER_CLIENT_ID")?.takeIf { it.isNotBlank() })
@@ -81,6 +81,7 @@ android {
 dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.bundles.compose)
+    implementation(libs.androidx.compose.material)
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.navigation.compose)

@@ -2,6 +2,7 @@ package nvk.cotrip.ui.settings
 
 sealed interface SettingsEvent {
     data object OnBackClick : SettingsEvent
+    data object OnSaveClick : SettingsEvent
     data object OnChangePhotoClick : SettingsEvent
     data object OnRemovePhotoClick : SettingsEvent
     data class OnNameChange(val value: String) : SettingsEvent

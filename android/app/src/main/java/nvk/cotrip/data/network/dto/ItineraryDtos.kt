@@ -54,6 +54,11 @@ data class MoveActivityRequest(
 )
 
 @Serializable
+data class ReorderActivitiesRequest(
+    val orderedIds: List<String>,
+)
+
+@Serializable
 data class ItineraryDayDto(
     val id: String,
     val tripId: String,

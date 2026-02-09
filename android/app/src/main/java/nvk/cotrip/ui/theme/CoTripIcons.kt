@@ -14,9 +14,11 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -27,6 +29,9 @@ object CoTripIcons {
     val Settings: ImageVector = Icons.Filled.Settings
     val ChevronRight: ImageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight
     val ExpandMore: ImageVector = Icons.Default.KeyboardArrowDown
+    val ArrowUp: ImageVector = Icons.Filled.KeyboardArrowUp
+    val ArrowDown: ImageVector = Icons.Filled.KeyboardArrowDown
+    val Reorder: ImageVector = Icons.Filled.SwapVert
 
     val Add: ImageVector = Icons.Filled.Add
     val Edit: ImageVector = Icons.Filled.Edit
