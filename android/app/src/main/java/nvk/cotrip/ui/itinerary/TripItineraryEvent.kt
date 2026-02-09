@@ -10,14 +10,10 @@ sealed interface TripItineraryEvent {
     data class OnChooseCityClick(val dayId: String) : TripItineraryEvent
     data class OnCityQueryChange(val value: String) : TripItineraryEvent
     data class OnCitySelected(val city: String) : TripItineraryEvent
-    data class OnMoveActivity(
+    data class OnReorderMove(
         val dayId: String,
-        val activityId: String,
-        val direction: MoveDirection,
+        val fromIndex: Int,
+        val toIndex: Int,
     ) : TripItineraryEvent
-}
-
-enum class MoveDirection {
-    Up,
-    Down,
+    data class OnReorderCommit(val dayId: String) : TripItineraryEvent
 }

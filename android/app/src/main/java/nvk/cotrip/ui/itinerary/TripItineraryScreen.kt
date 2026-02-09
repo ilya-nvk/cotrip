@@ -3,6 +3,7 @@ package nvk.cotrip.ui.itinerary
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,15 +36,25 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -196,14 +207,17 @@ fun TripItineraryScreen(
                                     TripItineraryEvent.OnActivityClick(it)
                                 )
                             },
-                            onMoveActivity = { activityId, direction ->
+                            onReorderMove = { fromIndex, toIndex ->
                                 viewModel.onEvent(
-                                    TripItineraryEvent.OnMoveActivity(
+                                    TripItineraryEvent.OnReorderMove(
                                         dayId = day.id,
-                                        activityId = activityId,
-                                        direction = direction
+                                        fromIndex = fromIndex,
+                                        toIndex = toIndex
                                     )
                                 )
+                            },
+                            onReorderCommit = {
+                                viewModel.onEvent(TripItineraryEvent.OnReorderCommit(day.id))
                             },
                         )
                     }
@@ -238,8 +252,16 @@ private fun FilledDaySection(
     isReordering: Boolean,
     onChooseCity: () -> Unit,
     onActivityClick: (String) -> Unit,
-    onMoveActivity: (String, MoveDirection) -> Unit,
+    onReorderMove: (fromIndex: Int, toIndex: Int) -> Unit,
+    onReorderCommit: () -> Unit,
 ) {
+    val density = LocalDensity.current
+    val fallbackRowHeight = with(density) { 72.dp.toPx() }
+    var rowHeightPx by remember(day.id) { mutableFloatStateOf(fallbackRowHeight) }
+    var draggingId by remember(day.id) { mutableStateOf<String?>(null) }
+    var draggingIndex by remember(day.id) { mutableIntStateOf(-1) }
+    var dragOffset by remember(day.id) { mutableFloatStateOf(0f) }
+
     Column(verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x1)) {
         Row(
             modifier = Modifier
@@ -291,13 +313,40 @@ private fun FilledDaySection(
             contentPadding = PaddingValues(0.dp)
         ) {
             day.activities.forEachIndexed { index, activity ->
+                val isDragging = draggingId == activity.id
                 ActivityRow(
                     activity = activity,
                     isReordering = isReordering,
-                    canMoveUp = index > 0,
-                    canMoveDown = index < day.activities.lastIndex,
-                    onMoveUp = { onMoveActivity(activity.id, MoveDirection.Up) },
-                    onMoveDown = { onMoveActivity(activity.id, MoveDirection.Down) },
+                    isDragging = isDragging,
+                    dragOffset = if (isDragging) dragOffset else 0f,
+                    onMeasure = { height ->
+                        if (height > 0) rowHeightPx = height.toFloat()
+                    },
+                    onDragStart = {
+                        draggingId = activity.id
+                        draggingIndex = index
+                        dragOffset = 0f
+                    },
+                    onDrag = { delta ->
+                        if (draggingIndex == -1) return@ActivityRow
+                        dragOffset += delta
+                        val step = rowHeightPx.takeIf { it > 0f } ?: fallbackRowHeight
+                        val shift = (dragOffset / step).toInt()
+                        val target = (draggingIndex + shift).coerceIn(0, day.activities.lastIndex)
+                        if (target != draggingIndex) {
+                            onReorderMove(draggingIndex, target)
+                            dragOffset -= (target - draggingIndex) * step
+                            draggingIndex = target
+                        }
+                    },
+                    onDragEnd = {
+                        if (draggingId != null) {
+                            draggingId = null
+                            draggingIndex = -1
+                            dragOffset = 0f
+                            onReorderCommit()
+                        }
+                    },
                     onClick = { onActivityClick(activity.id) },
                 )
                 if (index != day.activities.lastIndex) {
@@ -367,10 +416,12 @@ private fun EmptyDayCard(
 private fun ActivityRow(
     activity: ItineraryActivityUi,
     isReordering: Boolean,
-    canMoveUp: Boolean,
-    canMoveDown: Boolean,
-    onMoveUp: () -> Unit,
-    onMoveDown: () -> Unit,
+    isDragging: Boolean,
+    dragOffset: Float,
+    onMeasure: (height: Int) -> Unit,
+    onDragStart: () -> Unit,
+    onDrag: (delta: Float) -> Unit,
+    onDragEnd: () -> Unit,
     onClick: () -> Unit,
 ) {
     val rowModifier = if (isReordering) {
@@ -380,7 +431,23 @@ private fun ActivityRow(
     }
 
     Row(
-        modifier = rowModifier.padding(
+        modifier = rowModifier
+            .graphicsLayer { translationY = dragOffset }
+            .zIndex(if (isDragging) 1f else 0f)
+            .pointerInput(isReordering) {
+                if (!isReordering) return@pointerInput
+                detectDragGesturesAfterLongPress(
+                    onDragStart = { onDragStart() },
+                    onDragEnd = { onDragEnd() },
+                    onDragCancel = { onDragEnd() },
+                    onDrag = { change, dragAmount ->
+                        change.consume()
+                        onDrag(dragAmount.y)
+                    }
+                )
+            }
+            .onSizeChanged { onMeasure(it.height) }
+            .padding(
                 horizontal = CoTripTokens.spacing.x2,
                 vertical = CoTripTokens.spacing.x1_5
             ),
@@ -437,23 +504,14 @@ private fun ActivityRow(
 
         if (isReordering) {
             Spacer(Modifier.width(CoTripTokens.spacing.x1))
-            Column(
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                CoTripIconButton(
-                    icon = CoTripIcons.ArrowUp,
-                    contentDescription = stringResource(R.string.itinerary_move_up),
-                    onClick = onMoveUp,
-                    enabled = canMoveUp
-                )
-                CoTripIconButton(
-                    icon = CoTripIcons.ArrowDown,
-                    contentDescription = stringResource(R.string.itinerary_move_down),
-                    onClick = onMoveDown,
-                    enabled = canMoveDown
-                )
-            }
+            Icon(
+                imageVector = CoTripIcons.Reorder,
+                contentDescription = null,
+                tint = TextSecondary,
+                modifier = Modifier
+                    .size(20.dp)
+                    .align(Alignment.CenterVertically)
+            )
         }
     }
 }

@@ -7,6 +7,12 @@ import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 import nvk.cotrip.data.cache.TripsCacheStore
 import nvk.cotrip.data.cache.TripsCacheStoreImpl
+import nvk.cotrip.data.cache.IdeasCacheStore
+import nvk.cotrip.data.cache.IdeasCacheStoreImpl
+import nvk.cotrip.data.cache.ExpensesCacheStore
+import nvk.cotrip.data.cache.ExpensesCacheStoreImpl
+import nvk.cotrip.data.cache.ItineraryCacheStore
+import nvk.cotrip.data.cache.ItineraryCacheStoreImpl
 import nvk.cotrip.data.cache.UserCacheStore
 import nvk.cotrip.data.cache.UserCacheStoreImpl
 import nvk.cotrip.data.repository.AuthRepository
@@ -38,6 +44,24 @@ abstract class RepositoryModule {
     abstract fun bindUserCacheStore(
         impl: UserCacheStoreImpl
     ): UserCacheStore
+
+    @Binds
+    @Singleton
+    abstract fun bindIdeasCacheStore(
+        impl: IdeasCacheStoreImpl
+    ): IdeasCacheStore
+
+    @Binds
+    @Singleton
+    abstract fun bindExpensesCacheStore(
+        impl: ExpensesCacheStoreImpl
+    ): ExpensesCacheStore
+
+    @Binds
+    @Singleton
+    abstract fun bindItineraryCacheStore(
+        impl: ItineraryCacheStoreImpl
+    ): ItineraryCacheStore
 
     @Binds
     @Singleton

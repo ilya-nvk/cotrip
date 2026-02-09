@@ -7,8 +7,10 @@ import nvk.cotrip.data.network.dto.MoveActivityRequest
 import nvk.cotrip.data.network.dto.TrimOutOfRangeRequest
 import nvk.cotrip.data.network.dto.UpdateActivityRequest
 import nvk.cotrip.data.network.dto.UpdateDayRequest
+import kotlinx.coroutines.flow.Flow
 
 interface ItineraryRepository {
+    fun observeItinerary(tripId: String): Flow<List<ItineraryDayDto>>
     suspend fun getItinerary(tripId: String): List<ItineraryDayDto>
     suspend fun refreshItinerary(tripId: String): List<ItineraryDayDto>
     suspend fun updateDay(dayId: String, request: UpdateDayRequest)

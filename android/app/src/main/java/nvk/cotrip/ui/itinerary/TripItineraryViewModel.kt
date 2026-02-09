@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -56,13 +57,14 @@ class TripItineraryViewModel @Inject constructor(
     val effects = _effects.asSharedFlow()
 
     init {
-        loadItinerary()
+        observeData()
+        refreshItinerary()
     }
 
     fun onEvent(event: TripItineraryEvent) {
         when (event) {
             TripItineraryEvent.OnBackClick -> appNavigator.popBackStack()
-            TripItineraryEvent.OnRefresh -> loadItinerary()
+            TripItineraryEvent.OnRefresh -> refreshItinerary()
             TripItineraryEvent.OnToggleReorder -> toggleReorder()
             TripItineraryEvent.OnAddActivityClick -> appNavigator.navigate(
                 Destination.CreateActivity(tripId)
@@ -76,33 +78,46 @@ class TripItineraryViewModel @Inject constructor(
             is TripItineraryEvent.OnChooseCityClick -> openCityPicker(event.dayId)
             is TripItineraryEvent.OnCityQueryChange -> updateCityQuery(event.value)
             is TripItineraryEvent.OnCitySelected -> selectCity(event.city)
-            is TripItineraryEvent.OnMoveActivity ->
-                moveActivity(event.dayId, event.activityId, event.direction)
+            is TripItineraryEvent.OnReorderMove ->
+                reorderInState(event.dayId, event.fromIndex, event.toIndex)
+            is TripItineraryEvent.OnReorderCommit ->
+                commitReorder(event.dayId)
         }
     }
 
-    private fun loadItinerary() {
+    private fun observeData() {
+        viewModelScope.launch {
+            combine(
+                tripRepository.observeTrip(tripId),
+                itineraryRepository.observeItinerary(tripId)
+            ) { trip, itinerary -> Pair(trip, itinerary) }
+                .collect { (trip, itinerary) ->
+                    if (trip != null) {
+                        currencySymbol = currencySymbolFor(trip.currencyCode)
+                    }
+                    allCities =
+                        itinerary.mapNotNull { it.city?.takeIf(String::isNotBlank) }.distinct()
+
+                    val dayUis = itinerary.map { it.toUi(currencySymbol) }
+                    val dateRange = trip?.let { formatRange(it.startDate, it.endDate) }
+                        ?: _state.value.dateRange
+                    _state.update {
+                        it.copy(
+                            dateRange = dateRange,
+                            mode = if (dayUis.isEmpty()) ItineraryMode.Empty else ItineraryMode.Filled,
+                            days = dayUis
+                        )
+                    }
+                }
+        }
+    }
+
+    private fun refreshItinerary() {
         viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
-                    val trip = tripRepository.getTrip(tripId)
-                    val itinerary = itineraryRepository.getItinerary(tripId)
-                    currencySymbol = currencySymbolFor(trip.currencyCode)
-                    allCities =
-                        itinerary.mapNotNull { it.city?.takeIf(String::isNotBlank) }.distinct()
-                    ItineraryPayload(
-                        dateRange = formatRange(trip.startDate, trip.endDate),
-                        days = itinerary
-                    )
-                }
-            }.onSuccess { payload ->
-                val dayUis = payload.days.map { it.toUi(currencySymbol) }
-                _state.update {
-                    it.copy(
-                        dateRange = payload.dateRange,
-                        mode = if (dayUis.isEmpty()) ItineraryMode.Empty else ItineraryMode.Filled,
-                        days = dayUis
-                    )
+                    tripRepository.getTrip(tripId)
+                    itineraryRepository.refreshItinerary(tripId)
                 }
             }.onFailure {
                 emitToast(R.string.common_error_message)
@@ -128,20 +143,15 @@ class TripItineraryViewModel @Inject constructor(
         _state.update { it.copy(isReordering = !it.isReordering) }
     }
 
-    private fun moveActivity(dayId: String, activityId: String, direction: MoveDirection) {
+    private fun reorderInState(dayId: String, fromIndex: Int, toIndex: Int) {
         val current = _state.value
         val dayIndex = current.days.indexOfFirst { it.id == dayId }
         if (dayIndex == -1) return
         val day = current.days[dayIndex]
-        val activities = day.activities.toMutableList()
-        val fromIndex = activities.indexOfFirst { it.id == activityId }
-        if (fromIndex == -1) return
-        val targetIndex = when (direction) {
-            MoveDirection.Up -> fromIndex - 1
-            MoveDirection.Down -> fromIndex + 1
-        }
-        if (targetIndex !in activities.indices) return
-        val moved = activities.toMutableList().apply {
+        if (fromIndex !in day.activities.indices) return
+        val targetIndex = toIndex.coerceIn(0, day.activities.lastIndex)
+        if (targetIndex == fromIndex) return
+        val moved = day.activities.toMutableList().apply {
             add(targetIndex, removeAt(fromIndex))
         }
 
@@ -149,18 +159,21 @@ class TripItineraryViewModel @Inject constructor(
             set(dayIndex, day.copy(activities = moved))
         }
         _state.update { it.copy(days = updatedDays) }
+    }
 
+    private fun commitReorder(dayId: String) {
+        val day = _state.value.days.firstOrNull { it.id == dayId } ?: return
         viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
                     itineraryRepository.reorderActivities(
                         dayId = dayId,
-                        orderedIds = moved.map { it.id }
+                        orderedIds = day.activities.map { it.id }
                     )
                 }
             }.onFailure {
                 emitToast(R.string.common_error_message)
-                loadItinerary()
+                refreshItinerary()
             }
         }
     }
@@ -204,11 +217,6 @@ class TripItineraryViewModel @Inject constructor(
     private fun emitToast(resId: Int) {
         viewModelScope.launch { _effects.emit(TripItineraryEffect.ShowToastRes(resId)) }
     }
-
-    private data class ItineraryPayload(
-        val dateRange: String,
-        val days: List<ItineraryDayDto>,
-    )
 }
 
 private fun ItineraryDayDto.toUi(currencySymbol: String): ItineraryDayUi {
