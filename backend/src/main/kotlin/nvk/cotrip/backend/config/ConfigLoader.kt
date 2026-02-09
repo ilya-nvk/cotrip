@@ -3,6 +3,13 @@ package nvk.cotrip.backend.config
 import io.ktor.server.config.ApplicationConfig
 
 fun loadConfig(config: ApplicationConfig): AppConfig {
+    fun requireSetting(envName: String, configKey: String): String {
+        val value = System.getenv(envName)
+            ?: config.propertyOrNull(configKey)?.getString()
+        return value?.takeIf { it.isNotBlank() }
+            ?: error("Missing required config: $envName (or $configKey)")
+    }
+
     val jwt = JwtConfig(
         issuer = config.propertyOrNull("ktor.jwt.issuer")?.getString() ?: "cotrip",
         audience = config.propertyOrNull("ktor.jwt.audience")?.getString() ?: "cotrip",
@@ -11,10 +18,9 @@ fun loadConfig(config: ApplicationConfig): AppConfig {
     )
 
     val db = DbConfig(
-        url = config.propertyOrNull("ktor.db.url")?.getString()
-            ?: "jdbc:postgresql://localhost:5432/cotrip",
-        user = config.propertyOrNull("ktor.db.user")?.getString() ?: "cotrip",
-        password = config.propertyOrNull("ktor.db.password")?.getString() ?: "cotrip",
+        url = requireSetting("DATABASE_URL", "ktor.db.url"),
+        user = requireSetting("DATABASE_USER", "ktor.db.user"),
+        password = requireSetting("DATABASE_PASSWORD", "ktor.db.password"),
         poolSize = config.propertyOrNull("ktor.db.poolSize")?.getString()?.toInt() ?: 10,
     )
 
