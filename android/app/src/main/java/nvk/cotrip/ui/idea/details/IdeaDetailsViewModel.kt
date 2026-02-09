@@ -97,6 +97,7 @@ class IdeaDetailsViewModel @Inject constructor(
     fun onEvent(event: IdeaDetailsEvent) {
         when (event) {
             IdeaDetailsEvent.OnBackClick -> appNavigator.popBackStack()
+            IdeaDetailsEvent.OnRefresh -> loadDetails()
             IdeaDetailsEvent.OnEditClick -> appNavigator.navigate(
                 Destination.EditIdea(tripId, ideaId)
             )

@@ -4,6 +4,7 @@ import nvk.cotrip.ui.idea.common.IdeaDayOptionUi
 
 sealed interface IdeaDetailsEvent {
     data object OnBackClick : IdeaDetailsEvent
+    data object OnRefresh : IdeaDetailsEvent
     data object OnEditClick : IdeaDetailsEvent
     data object OnAddToItineraryClick : IdeaDetailsEvent
     data object OnDeleteClick : IdeaDetailsEvent

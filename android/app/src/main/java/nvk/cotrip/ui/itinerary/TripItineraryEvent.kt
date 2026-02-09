@@ -2,6 +2,7 @@ package nvk.cotrip.ui.itinerary
 
 sealed interface TripItineraryEvent {
     data object OnBackClick : TripItineraryEvent
+    data object OnRefresh : TripItineraryEvent
     data object OnDismissCityPicker : TripItineraryEvent
     data object OnAddActivityClick : TripItineraryEvent
     data class OnActivityClick(val activityId: String) : TripItineraryEvent

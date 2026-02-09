@@ -59,6 +59,7 @@ class TripItineraryViewModel @Inject constructor(
     fun onEvent(event: TripItineraryEvent) {
         when (event) {
             TripItineraryEvent.OnBackClick -> appNavigator.popBackStack()
+            TripItineraryEvent.OnRefresh -> loadItinerary()
             TripItineraryEvent.OnAddActivityClick -> appNavigator.navigate(
                 Destination.CreateActivity(tripId)
             )

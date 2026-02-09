@@ -66,6 +66,7 @@ class ExpenseDetailsViewModel @Inject constructor(
     fun onEvent(event: ExpenseDetailsEvent) {
         when (event) {
             ExpenseDetailsEvent.OnBackClick -> appNavigator.popBackStack()
+            ExpenseDetailsEvent.OnRefresh -> loadExpense()
             ExpenseDetailsEvent.OnEditClick -> appNavigator.navigate(
                 Destination.EditExpense(
                     tripId = tripId,

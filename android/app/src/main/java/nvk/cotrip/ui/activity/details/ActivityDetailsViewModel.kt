@@ -60,6 +60,7 @@ class ActivityDetailsViewModel @Inject constructor(
     fun onEvent(event: ActivityDetailsEvent) {
         when (event) {
             ActivityDetailsEvent.OnBackClick -> appNavigator.popBackStack()
+            ActivityDetailsEvent.OnRefresh -> loadActivity()
             ActivityDetailsEvent.OnEditClick -> appNavigator.navigate(
                 Destination.EditActivity(activityId)
             )

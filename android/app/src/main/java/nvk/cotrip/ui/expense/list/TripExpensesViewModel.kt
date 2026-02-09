@@ -53,6 +53,7 @@ class TripExpensesViewModel @Inject constructor(
     fun onEvent(event: TripExpensesEvent) {
         when (event) {
             TripExpensesEvent.OnBackClick -> appNavigator.popBackStack()
+            TripExpensesEvent.OnRefresh -> loadExpenses()
             TripExpensesEvent.OnAddExpenseClick -> appNavigator.navigate(
                 Destination.CreateExpense(tripId)
             )
