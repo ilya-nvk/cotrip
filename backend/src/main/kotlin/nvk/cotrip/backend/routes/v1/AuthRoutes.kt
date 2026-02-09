@@ -46,7 +46,7 @@ fun Route.authRoutes(appConfig: AppConfig) {
         val user = UserRepository.findByGoogleIdAny(googleId)
             ?.let { existing ->
                 if (existing.deletedAt != null) {
-                    UserRepository.hardDelete(existing.id)
+                    UserRepository.deleteUserAndData(existing.id)
                     null
                 } else if (existing.name != name || existing.photoUrl != photoUrl) {
                     UserRepository.updateUser(existing.id, name, photoUrl) ?: existing
@@ -74,7 +74,7 @@ fun Route.authRoutes(appConfig: AppConfig) {
         val user = UserRepository.findByGoogleIdAny(googleId)
             ?.let { existing ->
                 if (existing.deletedAt != null) {
-                    UserRepository.hardDelete(existing.id)
+                    UserRepository.deleteUserAndData(existing.id)
                     null
                 } else if (existing.name != name || existing.photoUrl != photoUrl) {
                     UserRepository.updateUser(existing.id, name, photoUrl) ?: existing

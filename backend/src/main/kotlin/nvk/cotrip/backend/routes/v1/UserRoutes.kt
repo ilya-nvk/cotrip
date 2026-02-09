@@ -73,7 +73,7 @@ fun Route.userRoutes() {
                 return@delete
             }
 
-            val deleted = UserRepository.hardDelete(userId)
+            val deleted = UserRepository.deleteUserAndData(userId)
             if (!deleted) {
                 call.respond(HttpStatusCode.NotFound)
                 return@delete
