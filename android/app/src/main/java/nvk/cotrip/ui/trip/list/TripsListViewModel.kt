@@ -35,13 +35,15 @@ class TripsListViewModel @Inject constructor(
     val effects: SharedFlow<TripsListEffect> = _effects.asSharedFlow()
 
     init {
-        loadTrips()
+        loadTrips(isRefresh = false)
     }
 
     fun onEvent(event: TripsListEvent) {
         when (event) {
             TripsListEvent.OnSettingsClick -> appNavigator.navigate(Destination.Settings)
             TripsListEvent.OnCreateTripClick -> appNavigator.navigate(Destination.CreateTrip)
+            TripsListEvent.OnJoinTripClick -> appNavigator.navigate(Destination.JoinTrip)
+            TripsListEvent.OnRefresh -> loadTrips(isRefresh = true)
             is TripsListEvent.OnTripClick -> appNavigator.navigate(Destination.TripDetails(event.id))
             TripsListEvent.OnTogglePast -> _state.update {
                 (it as? TripsListUiState.Content)?.copy(showPastTrips = !it.showPastTrips) ?: it
@@ -49,25 +51,36 @@ class TripsListViewModel @Inject constructor(
         }
     }
 
-    private fun loadTrips() {
+    private fun loadTrips(isRefresh: Boolean) {
         viewModelScope.launch {
+            val current = _state.value
+            val currentContent = current as? TripsListUiState.Content
+            if (isRefresh && currentContent != null) {
+                _state.update { currentContent.copy(isRefreshing = true) }
+            } else if (!isRefresh) {
+                _state.value = TripsListUiState.Loading
+            }
+
             runCatching {
                 withContext(Dispatchers.IO) {
                     val allTrips = api.listTrips().items
                     buildBuckets(allTrips)
                 }
             }.onSuccess { buckets ->
-                _state.update {
-                    TripsListUiState.Content(
-                        activeTrips = buckets.active.map { it.toCard() },
-                        upcomingTrips = buckets.upcoming.map { it.toCard() },
-                        pastTrips = buckets.past.map { it.toCard() },
-                    )
-                }
+                val showPast = currentContent?.showPastTrips ?: false
+                _state.value = TripsListUiState.Content(
+                    activeTrips = buckets.active.map { it.toCard() },
+                    upcomingTrips = buckets.upcoming.map { it.toCard() },
+                    pastTrips = buckets.past.map { it.toCard() },
+                    showPastTrips = showPast,
+                    isRefreshing = false,
+                )
             }.onFailure {
                 _effects.tryEmit(TripsListEffect.ShowToast("Failed to load trips."))
-                _state.update {
-                    TripsListUiState.Content()
+                if (currentContent != null) {
+                    _state.update { currentContent.copy(isRefreshing = false) }
+                } else {
+                    _state.update { TripsListUiState.Content() }
                 }
             }
         }

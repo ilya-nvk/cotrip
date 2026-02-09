@@ -8,6 +8,8 @@ sealed interface IdeaDetailsEvent {
     data object OnEditClick : IdeaDetailsEvent
     data object OnAddToItineraryClick : IdeaDetailsEvent
     data object OnDeleteClick : IdeaDetailsEvent
+    data object OnApproveClick : IdeaDetailsEvent
+    data object OnRejectClick : IdeaDetailsEvent
     data object OnDismissDayPicker : IdeaDetailsEvent
     data class OnDaySelected(val day: IdeaDayOptionUi) : IdeaDetailsEvent
     data class OnTabSelected(val tab: IdeaDetailsTab) : IdeaDetailsEvent

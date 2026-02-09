@@ -59,6 +59,9 @@ class TripDetailsViewModel @Inject constructor(
                     tripId
                 )
             )
+            TripDetailsEvent.OnMembersClick -> appNavigator.navigate(
+                Destination.TripMembers(tripId)
+            )
 
             TripDetailsEvent.OnWeatherCityClick -> emitToast(R.string.trip_details_city_picker_stub)
             TripDetailsEvent.OnViewForecastClick -> appNavigator.navigate(

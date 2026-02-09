@@ -31,9 +31,9 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -116,6 +116,14 @@ fun SettingsScreen(
                         color = TextPrimary
                     )
                 },
+                actions = {
+                    TextButton(
+                        onClick = { viewModel.onEvent(SettingsEvent.OnSaveClick) },
+                        enabled = state.canSave && !state.isSaving
+                    ) {
+                        Text(text = stringResource(R.string.settings_save))
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors().copy(
                     containerColor = MaterialTheme.colorScheme.background,
                     scrolledContainerColor = MaterialTheme.colorScheme.background,
@@ -133,6 +141,7 @@ fun SettingsScreen(
             item(key = KEY_PROFILE) {
                 ProfileSection(
                     profile = state.profile,
+                    enabled = !state.isLoading && !state.isSaving,
                     onNameChange = { viewModel.onEvent(SettingsEvent.OnNameChange(it)) },
                     onChangePhoto = { viewModel.onEvent(SettingsEvent.OnChangePhotoClick) },
                     onRemovePhoto = { viewModel.onEvent(SettingsEvent.OnRemovePhotoClick) }
@@ -175,6 +184,7 @@ fun SettingsScreen(
 @Composable
 private fun ProfileSection(
     profile: SettingsProfileUi,
+    enabled: Boolean,
     onNameChange: (String) -> Unit,
     onChangePhoto: () -> Unit,
     onRemovePhoto: () -> Unit,
@@ -221,7 +231,8 @@ private fun ProfileSection(
             value = profile.name,
             onValueChange = onNameChange,
             modifier = Modifier.fillMaxWidth(),
-            label = stringResource(R.string.settings_name_label)
+            label = stringResource(R.string.settings_name_label),
+            enabled = enabled
         )
 
         Text(

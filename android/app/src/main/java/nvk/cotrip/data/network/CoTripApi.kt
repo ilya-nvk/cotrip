@@ -131,6 +131,12 @@ interface CoTripApi {
         @Body request: ConvertIdeaRequest,
     ): Unit
 
+    @POST("v1/ideas/{ideaId}/approve")
+    suspend fun approveIdea(@Path("ideaId") ideaId: String): IdeaDto
+
+    @POST("v1/ideas/{ideaId}/reject")
+    suspend fun rejectIdea(@Path("ideaId") ideaId: String): IdeaDto
+
     @GET("v1/ideas/{ideaId}/comments")
     suspend fun listComments(@Path("ideaId") ideaId: String): ApiListResponse<CommentDto>
 

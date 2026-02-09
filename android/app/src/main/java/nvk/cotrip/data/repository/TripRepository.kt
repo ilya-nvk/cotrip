@@ -21,6 +21,10 @@ class TripRepository @Inject constructor(
         return api.listMembers(tripId).items
     }
 
+    suspend fun removeMember(tripId: String, memberId: String) {
+        api.removeMember(tripId, memberId)
+    }
+
     suspend fun getMe(): UserDto {
         return api.getMe()
     }

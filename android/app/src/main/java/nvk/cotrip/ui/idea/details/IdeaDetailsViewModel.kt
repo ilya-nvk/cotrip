@@ -74,7 +74,10 @@ class IdeaDetailsViewModel @Inject constructor(
             cost = "",
             website = "",
             notes = "",
+            status = "pending",
             addedDay = null,
+            isOwner = false,
+            isUpdatingStatus = false,
             selectedTab = IdeaDetailsTab.Details,
             commentsCount = 0,
             discussion = emptyList(),
@@ -108,6 +111,8 @@ class IdeaDetailsViewModel @Inject constructor(
 
             IdeaDetailsEvent.OnAddToItineraryClick -> openDayPicker()
             IdeaDetailsEvent.OnDeleteClick -> deleteIdea()
+            IdeaDetailsEvent.OnApproveClick -> updateStatus(approved = true)
+            IdeaDetailsEvent.OnRejectClick -> updateStatus(approved = false)
             IdeaDetailsEvent.OnDismissDayPicker -> dismissDayPicker()
             is IdeaDetailsEvent.OnDaySelected -> selectDay(event.day)
             is IdeaDetailsEvent.OnTabSelected -> _state.update { it.copy(selectedTab = event.tab) }
@@ -138,10 +143,12 @@ class IdeaDetailsViewModel @Inject constructor(
                     membersById = members.associateBy { it.userId }
                     meId = me.id
                     dayOptions = itinerary.filter { !it.isOutOfRange }.map { it.toDayOption() }
+                    val isOwner = trip.ownerId == me.id
 
                     IdeaDetailsPayload(
                         idea = idea,
-                        comments = comments
+                        comments = comments,
+                        isOwner = isOwner,
                     )
                 }
             }.onSuccess { payload ->
@@ -156,6 +163,8 @@ class IdeaDetailsViewModel @Inject constructor(
                         cost = idea.costAmount?.let { formatCost(it, currencySymbol) }.orEmpty(),
                         website = idea.website.orEmpty(),
                         notes = idea.notes.orEmpty(),
+                        status = idea.status,
+                        isOwner = payload.isOwner,
                         commentsCount = discussion.size,
                         discussion = discussion
                     )
@@ -260,6 +269,33 @@ class IdeaDetailsViewModel @Inject constructor(
         _state.update { it.copy(commentInput = "") }
     }
 
+    private fun updateStatus(approved: Boolean) {
+        if (_state.value.isUpdatingStatus) return
+        _state.update { it.copy(isUpdatingStatus = true) }
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    if (approved) {
+                        ideaRepository.approveIdea(ideaId)
+                    } else {
+                        ideaRepository.rejectIdea(ideaId)
+                    }
+                }
+            }.onSuccess { idea ->
+                _state.update { it.copy(status = idea.status, isUpdatingStatus = false) }
+                val toast = if (approved) {
+                    R.string.idea_details_approved_toast
+                } else {
+                    R.string.idea_details_rejected_toast
+                }
+                emit(IdeaDetailsEffect.ShowToastRes(toast))
+            }.onFailure {
+                _state.update { it.copy(isUpdatingStatus = false) }
+                emit(IdeaDetailsEffect.ShowToastRes(R.string.common_error_message))
+            }
+        }
+    }
+
     private fun deleteIdea() {
         viewModelScope.launch {
             runCatching {
@@ -280,6 +316,7 @@ class IdeaDetailsViewModel @Inject constructor(
     private data class IdeaDetailsPayload(
         val idea: IdeaDto,
         val comments: List<CommentDto>,
+        val isOwner: Boolean,
     )
 }
 

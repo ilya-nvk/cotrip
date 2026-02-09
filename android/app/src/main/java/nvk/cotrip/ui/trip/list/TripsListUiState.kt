@@ -7,5 +7,6 @@ sealed interface TripsListUiState {
         val upcomingTrips: List<TripCardUi> = emptyList(),
         val pastTrips: List<TripCardUi> = emptyList(),
         val showPastTrips: Boolean = false,
+        val isRefreshing: Boolean = false,
     ) : TripsListUiState
 }

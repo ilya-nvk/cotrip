@@ -26,12 +26,18 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -41,12 +47,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import kotlinx.coroutines.flow.collectLatest
 import nvk.cotrip.R
 import nvk.cotrip.ui.components.AvatarsStack
@@ -69,7 +78,7 @@ private const val KEY_UPCOMING_EMPTY_CARD = "upcoming_empty_card"
 private const val KEY_PAST_HEADER = "past_header"
 private const val KEY_SPACER = "spacer"
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class, ExperimentalMaterialApi::class)
 @Composable
 fun TripsListScreen(
     viewModel: TripsListViewModel = hiltViewModel(),
@@ -78,6 +87,7 @@ fun TripsListScreen(
     val context = LocalContext.current
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     val lazyColumnState = rememberLazyListState()
+    val lifecycleOwner = LocalLifecycleOwner.current
 
     LaunchedEffect(viewModel) {
         viewModel.effects.collectLatest { effect ->
@@ -89,6 +99,16 @@ fun TripsListScreen(
                 ).show()
             }
         }
+    }
+
+    DisposableEffect(lifecycleOwner, viewModel) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.onEvent(TripsListEvent.OnRefresh)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     val shouldScrollToPastTrips =
@@ -115,6 +135,11 @@ fun TripsListScreen(
                     )
                 },
                 actions = {
+                    CoTripIconButton(
+                        icon = CoTripIcons.Link,
+                        contentDescription = stringResource(R.string.join_trip),
+                        onClick = { viewModel.onEvent(TripsListEvent.OnJoinTripClick) }
+                    )
                     CoTripIconButton(
                         icon = CoTripIcons.Settings,
                         contentDescription = stringResource(R.string.settings),
@@ -143,75 +168,92 @@ fun TripsListScreen(
             }
 
             is TripsListUiState.Content -> {
-                if (currentState.activeTrips.isEmpty() && currentState.pastTrips.isEmpty() && currentState.upcomingTrips.isEmpty()) {
-                    EmptyTripsState(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(padding)
-                            .padding(horizontal = CoTripTokens.spacing.x3),
-                        onCreateTrip = { viewModel.onEvent(TripsListEvent.OnCreateTripClick) })
-                } else {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(padding),
-                        contentPadding = PaddingValues(
-                            horizontal = CoTripTokens.spacing.x2,
-                            vertical = CoTripTokens.spacing.x1_5
-                        ),
-                        verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x2),
-                        state = lazyColumnState,
-                    ) {
-                        if (currentState.activeTrips.isNotEmpty()) {
-                            item(key = KEY_ACTIVE_HEADER) {
-                                SectionHeader(text = stringResource(R.string.section_active))
-                            }
-                            items(currentState.activeTrips, key = { it.id }) { trip ->
-                                TripCard(
-                                    trip = trip,
-                                    onClick = { viewModel.onEvent(TripsListEvent.OnTripClick(trip.id)) })
-                            }
-                        }
+                val pullRefreshState = rememberPullRefreshState(
+                    refreshing = currentState.isRefreshing,
+                    onRefresh = { viewModel.onEvent(TripsListEvent.OnRefresh) }
+                )
 
-                        item(key = KEY_UPCOMING_HEADER) {
-                            SectionHeader(text = stringResource(R.string.section_upcoming))
-                        }
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .pullRefresh(pullRefreshState)
+                ) {
+                    if (currentState.activeTrips.isEmpty() && currentState.pastTrips.isEmpty() && currentState.upcomingTrips.isEmpty()) {
+                        EmptyTripsState(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = CoTripTokens.spacing.x3),
+                            onCreateTrip = { viewModel.onEvent(TripsListEvent.OnCreateTripClick) },
+                            onJoinTrip = { viewModel.onEvent(TripsListEvent.OnJoinTripClick) }
+                        )
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(
+                                horizontal = CoTripTokens.spacing.x2,
+                                vertical = CoTripTokens.spacing.x1_5
+                            ),
+                            verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x2),
+                            state = lazyColumnState,
+                        ) {
+                            if (currentState.activeTrips.isNotEmpty()) {
+                                item(key = KEY_ACTIVE_HEADER) {
+                                    SectionHeader(text = stringResource(R.string.section_active))
+                                }
+                                items(currentState.activeTrips, key = { it.id }) { trip ->
+                                    TripCard(
+                                        trip = trip,
+                                        onClick = { viewModel.onEvent(TripsListEvent.OnTripClick(trip.id)) })
+                                }
+                            }
 
-                        if (currentState.activeTrips.isEmpty() && currentState.upcomingTrips.isEmpty()) {
-                            item(key = KEY_UPCOMING_EMPTY_CARD) {
-                                UpcomingEmptyCard()
+                            item(key = KEY_UPCOMING_HEADER) {
+                                SectionHeader(text = stringResource(R.string.section_upcoming))
                             }
-                        } else {
-                            items(currentState.upcomingTrips, key = { it.id }) { trip ->
-                                TripCard(
-                                    trip = trip,
-                                    onClick = { viewModel.onEvent(TripsListEvent.OnTripClick(trip.id)) })
-                            }
-                        }
 
-                        if (currentState.pastTrips.isNotEmpty()) {
-                            item(key = KEY_PAST_HEADER) {
-                                PastHeader(
-                                    count = currentState.pastTrips.size,
-                                    expanded = currentState.showPastTrips,
-                                    onToggle = { viewModel.onEvent(TripsListEvent.OnTogglePast) })
+                            if (currentState.activeTrips.isEmpty() && currentState.upcomingTrips.isEmpty()) {
+                                item(key = KEY_UPCOMING_EMPTY_CARD) {
+                                    UpcomingEmptyCard()
+                                }
+                            } else {
+                                items(currentState.upcomingTrips, key = { it.id }) { trip ->
+                                    TripCard(
+                                        trip = trip,
+                                        onClick = { viewModel.onEvent(TripsListEvent.OnTripClick(trip.id)) })
+                                }
                             }
-                            if (currentState.showPastTrips) items(
-                                currentState.pastTrips,
-                                key = { it.id }) { trip ->
-                                TripCard(
-                                    trip = trip, onClick = {
-                                        viewModel.onEvent(
-                                            TripsListEvent.OnTripClick(trip.id)
-                                        )
-                                    })
-                            }
-                        }
 
-                        item(key = KEY_SPACER) {
-                            Spacer(modifier = Modifier.height(62.dp))
+                            if (currentState.pastTrips.isNotEmpty()) {
+                                item(key = KEY_PAST_HEADER) {
+                                    PastHeader(
+                                        count = currentState.pastTrips.size,
+                                        expanded = currentState.showPastTrips,
+                                        onToggle = { viewModel.onEvent(TripsListEvent.OnTogglePast) })
+                                }
+                                if (currentState.showPastTrips) items(
+                                    currentState.pastTrips,
+                                    key = { it.id }) { trip ->
+                                    TripCard(
+                                        trip = trip, onClick = {
+                                            viewModel.onEvent(
+                                                TripsListEvent.OnTripClick(trip.id)
+                                            )
+                                        })
+                                }
+                            }
+
+                            item(key = KEY_SPACER) {
+                                Spacer(modifier = Modifier.height(62.dp))
+                            }
                         }
                     }
+
+                    PullRefreshIndicator(
+                        refreshing = currentState.isRefreshing,
+                        state = pullRefreshState,
+                        modifier = Modifier.align(Alignment.TopCenter)
+                    )
                 }
             }
         }
@@ -397,7 +439,9 @@ private fun UpcomingEmptyCard(
 
 @Composable
 private fun EmptyTripsState(
-    modifier: Modifier = Modifier, onCreateTrip: () -> Unit
+    modifier: Modifier = Modifier,
+    onCreateTrip: () -> Unit,
+    onJoinTrip: () -> Unit,
 ) {
     Column(
         modifier = modifier,
@@ -438,6 +482,13 @@ private fun EmptyTripsState(
         PrimaryButton(
             text = stringResource(R.string.create_trip), onClick = onCreateTrip
         )
+        Spacer(Modifier.height(CoTripTokens.spacing.x1))
+        OutlinedButton(
+            onClick = onJoinTrip,
+            border = BorderStroke(1.dp, Border),
+        ) {
+            Text(text = stringResource(R.string.join_trip))
+        }
     }
 }
 

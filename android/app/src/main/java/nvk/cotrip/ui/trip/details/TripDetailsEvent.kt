@@ -4,6 +4,7 @@ sealed interface TripDetailsEvent {
     data object OnBackClick : TripDetailsEvent
     data object OnEditClick : TripDetailsEvent
     data object OnInviteTravelersClick : TripDetailsEvent
+    data object OnMembersClick : TripDetailsEvent
     data object OnWeatherCityClick : TripDetailsEvent
     data object OnViewForecastClick : TripDetailsEvent
     data object OnViewItineraryClick : TripDetailsEvent

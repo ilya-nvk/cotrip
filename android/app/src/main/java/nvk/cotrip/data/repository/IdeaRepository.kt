@@ -51,6 +51,14 @@ class IdeaRepository @Inject constructor(
         api.convertIdeaToActivity(ideaId, request)
     }
 
+    suspend fun approveIdea(ideaId: String): IdeaDto {
+        return api.approveIdea(ideaId)
+    }
+
+    suspend fun rejectIdea(ideaId: String): IdeaDto {
+        return api.rejectIdea(ideaId)
+    }
+
     suspend fun refreshIdeas(tripId: String): List<IdeaDto> = listIdeas(tripId)
 
     suspend fun refreshComments(ideaId: String): List<CommentDto> = listComments(ideaId)
