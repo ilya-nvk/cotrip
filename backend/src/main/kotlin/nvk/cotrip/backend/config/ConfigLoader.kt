@@ -25,7 +25,8 @@ fun loadConfig(config: ApplicationConfig): AppConfig {
     )
 
     val invite = InviteConfig(
-        baseUrl = config.propertyOrNull("ktor.invite.baseUrl")?.getString()
+        baseUrl = System.getenv("INVITE_BASE_URL")
+            ?: config.propertyOrNull("ktor.invite.baseUrl")?.getString()
             ?: "http://localhost:8080/invite",
     )
 
