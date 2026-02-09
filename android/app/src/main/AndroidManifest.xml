@@ -41,16 +41,6 @@
                     android:scheme="http"
                     android:host="api.cotrip.site"
                     android:pathPrefix="/invite" />
-                <data
-                    android:scheme="http"
-                    android:host="localhost"
-                    android:port="8080"
-                    android:pathPrefix="/invite" />
-                <data
-                    android:scheme="http"
-                    android:host="10.0.2.2"
-                    android:port="8080"
-                    android:pathPrefix="/invite" />
             </intent-filter>
         </activity>
     </application>

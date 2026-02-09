@@ -71,8 +71,6 @@ fun AppNavHost(
             deepLinks = listOf(
                 navDeepLink { uriPattern = "https://api.cotrip.site/invite/{${Destination.JoinTrip.ARG_INVITE_TOKEN}}" },
                 navDeepLink { uriPattern = "http://api.cotrip.site/invite/{${Destination.JoinTrip.ARG_INVITE_TOKEN}}" },
-                navDeepLink { uriPattern = "http://localhost:8080/invite/{${Destination.JoinTrip.ARG_INVITE_TOKEN}}" },
-                navDeepLink { uriPattern = "http://10.0.2.2:8080/invite/{${Destination.JoinTrip.ARG_INVITE_TOKEN}}" },
             )
         ) {
             JoinTripScreen()
