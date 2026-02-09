@@ -13,12 +13,12 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nvk.cotrip.R
-import nvk.cotrip.data.network.CoTripApi
 import nvk.cotrip.data.network.dto.ExpenseDto
 import nvk.cotrip.data.network.dto.ExpenseParticipantInput
 import nvk.cotrip.data.network.dto.ExpenseUpdateRequest
 import nvk.cotrip.data.network.dto.MemberDto
 import nvk.cotrip.data.repository.ExpenseRepository
+import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import nvk.cotrip.ui.trip.form.TripCurrency
@@ -31,7 +31,7 @@ import javax.inject.Inject
 class EditExpenseViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val appNavigator: AppNavigator,
-    private val api: CoTripApi,
+    private val tripRepository: TripRepository,
     private val expenseRepository: ExpenseRepository,
 ) : ViewModel(), ExpenseFormContract {
 
@@ -118,9 +118,9 @@ class EditExpenseViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
-                    val expense = api.getExpense(expenseId)
-                    val trip = api.getTrip(tripId)
-                    val members = api.listMembers(tripId).items
+                    val expense = expenseRepository.getExpense(expenseId)
+                    val trip = tripRepository.getTrip(tripId)
+                    val members = tripRepository.listMembers(tripId)
                     ExpensePayload(
                         expense = expense,
                         members = members,
