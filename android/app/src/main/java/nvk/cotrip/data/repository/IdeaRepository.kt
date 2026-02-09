@@ -1,15 +1,19 @@
 package nvk.cotrip.data.repository
 
+import java.io.IOException
 import nvk.cotrip.data.network.CoTripApi
 import nvk.cotrip.data.network.dto.CommentDto
 import nvk.cotrip.data.network.dto.ConvertIdeaRequest
 import nvk.cotrip.data.network.dto.CreateIdeaRequest
 import nvk.cotrip.data.network.dto.IdeaDto
 import nvk.cotrip.data.network.dto.UpdateIdeaRequest
+import nvk.cotrip.data.sync.SyncEntities
+import nvk.cotrip.data.sync.SyncQueueRepository
 import javax.inject.Inject
 
 class IdeaRepository @Inject constructor(
     private val api: CoTripApi,
+    private val syncQueueRepository: SyncQueueRepository,
 ) {
     suspend fun listIdeas(tripId: String): List<IdeaDto> {
         return api.listIdeas(tripId).items
@@ -27,12 +31,20 @@ class IdeaRepository @Inject constructor(
         return api.createIdea(tripId, request)
     }
 
-    suspend fun updateIdea(ideaId: String, request: UpdateIdeaRequest): IdeaDto {
-        return api.updateIdea(ideaId, request)
+    suspend fun updateIdea(ideaId: String, request: UpdateIdeaRequest) {
+        try {
+            api.updateIdea(ideaId, request)
+        } catch (e: IOException) {
+            syncQueueRepository.enqueueUpsert(SyncEntities.IDEA, ideaId, request)
+        }
     }
 
     suspend fun deleteIdea(ideaId: String) {
-        api.deleteIdea(ideaId)
+        try {
+            api.deleteIdea(ideaId)
+        } catch (e: IOException) {
+            syncQueueRepository.enqueueDelete(SyncEntities.IDEA, ideaId)
+        }
     }
 
     suspend fun convertIdeaToActivity(ideaId: String, request: ConvertIdeaRequest) {

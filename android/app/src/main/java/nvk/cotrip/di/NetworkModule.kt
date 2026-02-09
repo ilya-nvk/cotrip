@@ -19,9 +19,11 @@ import nvk.cotrip.data.network.CoTripApi
 import nvk.cotrip.data.network.KotlinxSerializationConverterFactory
 import nvk.cotrip.data.network.NetworkStateProvider
 import nvk.cotrip.data.network.OfflineCacheInterceptor
+import nvk.cotrip.data.sync.CoTripDatabase
 import okhttp3.Cache
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
+import androidx.room.Room
 import retrofit2.Retrofit
 import java.io.File
 import java.util.concurrent.TimeUnit
@@ -54,6 +56,14 @@ object NetworkModule {
         @ApplicationContext context: Context,
     ): NetworkStateProvider {
         return NetworkStateProvider(context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideDatabase(
+        @ApplicationContext context: Context,
+    ): CoTripDatabase {
+        return Room.databaseBuilder(context, CoTripDatabase::class.java, "cotrip.db").build()
     }
 
     @Provides

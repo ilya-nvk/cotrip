@@ -18,6 +18,7 @@ import nvk.cotrip.data.network.dto.ExpenseDto
 import nvk.cotrip.data.network.dto.ExpenseParticipantInput
 import nvk.cotrip.data.network.dto.ExpenseUpdateRequest
 import nvk.cotrip.data.network.dto.MemberDto
+import nvk.cotrip.data.repository.ExpenseRepository
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import nvk.cotrip.ui.trip.form.TripCurrency
@@ -31,6 +32,7 @@ class EditExpenseViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val appNavigator: AppNavigator,
     private val api: CoTripApi,
+    private val expenseRepository: ExpenseRepository,
 ) : ViewModel(), ExpenseFormContract {
 
     private val tripId: String =
@@ -196,7 +198,7 @@ class EditExpenseViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
-                    api.updateExpense(
+                    expenseRepository.updateExpense(
                         expenseId = expenseId,
                         request = ExpenseUpdateRequest(
                             title = snapshot.title.trim(),
@@ -223,7 +225,7 @@ class EditExpenseViewModel @Inject constructor(
     private fun deleteExpense() {
         viewModelScope.launch {
             runCatching {
-                withContext(Dispatchers.IO) { api.deleteExpense(expenseId) }
+                withContext(Dispatchers.IO) { expenseRepository.deleteExpense(expenseId) }
             }.onSuccess {
                 emit(ExpenseFormEffect.ShowToastRes(R.string.expense_form_deleted_toast))
                 appNavigator.popBackStack()

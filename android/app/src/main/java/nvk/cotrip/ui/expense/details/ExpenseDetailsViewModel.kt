@@ -17,6 +17,7 @@ import nvk.cotrip.data.network.dto.ExpenseParticipantInput
 import nvk.cotrip.data.network.dto.ExpenseUpdateRequest
 import nvk.cotrip.data.network.dto.MemberDto
 import nvk.cotrip.data.network.dto.TripDto
+import nvk.cotrip.data.repository.ExpenseRepository
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import nvk.cotrip.ui.trip.form.TripCurrency
@@ -30,6 +31,7 @@ class ExpenseDetailsViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val appNavigator: AppNavigator,
     private val api: CoTripApi,
+    private val expenseRepository: ExpenseRepository,
 ) : ViewModel() {
 
     private val tripId: String =
@@ -145,7 +147,7 @@ class ExpenseDetailsViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
-                    api.updateExpense(expenseId, request)
+                    expenseRepository.updateExpense(expenseId, request)
                 }
             }.onSuccess {
                 loadExpense()
