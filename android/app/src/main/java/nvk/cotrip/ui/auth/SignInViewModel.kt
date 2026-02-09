@@ -39,7 +39,10 @@ class SignInViewModel @Inject constructor(
 
     init {
         if (!sessionStore.getAccessToken().isNullOrBlank()) {
-            navigator.navigate(Destination.Trips)
+            navigator.navigate(Destination.Trips) {
+                popUpTo(Destination.SignIn.route) { inclusive = true }
+                launchSingleTop = true
+            }
         }
     }
 
@@ -69,7 +72,10 @@ class SignInViewModel @Inject constructor(
             result.onSuccess { response ->
                 Log.d(TAG, "sign in success")
                 sessionStore.setAccessToken(response.accessToken)
-                navigator.navigate(Destination.Trips)
+                navigator.navigate(Destination.Trips) {
+                    popUpTo(Destination.SignIn.route) { inclusive = true }
+                    launchSingleTop = true
+                }
             }.onFailure {
                 Log.e(TAG, "sign in error", it)
                 _effects.tryEmit(SignInEffect.ShowToast("Sign-in failed. Please try again."))
