@@ -51,3 +51,8 @@ kotlin {
 tasks.test {
     useJUnitPlatform()
 }
+
+tasks.withType<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>().configureEach {
+    // Required for ServiceLoader-based libraries (Flyway) inside the fat jar.
+    mergeServiceFiles()
+}
