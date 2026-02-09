@@ -60,6 +60,10 @@ class ExpensesCacheStoreImpl @Inject constructor(
         }
     }
 
+    override suspend fun clearAll() {
+        updateCache { cache -> cache.copy(byTrip = emptyMap()) }
+    }
+
     private suspend fun updateCache(transform: (ExpensesCache) -> ExpensesCache) {
         dataStore.edit { prefs ->
             val current = decodeCache(prefs[EXPENSES_KEY])

@@ -10,4 +10,5 @@ interface ExpensesCacheStore {
     suspend fun upsertExpense(tripId: String, expense: ExpenseDto)
     suspend fun removeExpense(tripId: String, expenseId: String)
     suspend fun clearTrip(tripId: String)
+    suspend fun clearAll()
 }

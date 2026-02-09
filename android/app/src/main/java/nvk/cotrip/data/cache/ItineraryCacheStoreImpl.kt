@@ -56,6 +56,10 @@ class ItineraryCacheStoreImpl @Inject constructor(
         }
     }
 
+    override suspend fun clearAll() {
+        updateCache { cache -> cache.copy(byTrip = emptyMap()) }
+    }
+
     private suspend fun updateCache(transform: (ItineraryCache) -> ItineraryCache) {
         dataStore.edit { prefs ->
             val current = decodeCache(prefs[ITINERARY_KEY])

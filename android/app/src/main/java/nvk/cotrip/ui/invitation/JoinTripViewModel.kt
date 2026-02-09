@@ -75,7 +75,7 @@ class JoinTripViewModel @Inject constructor(
     }
 
     private fun parseToken(raw: String): String? {
-        val trimmed = raw.trim()
+        val trimmed = raw.trim().trimEnd('/')
         if (trimmed.isBlank()) return null
         val candidate = trimmed.substringAfterLast('/')
             .substringBefore('?')

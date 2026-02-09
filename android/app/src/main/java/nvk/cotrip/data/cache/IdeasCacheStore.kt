@@ -10,4 +10,5 @@ interface IdeasCacheStore {
     suspend fun upsertIdea(tripId: String, idea: IdeaDto)
     suspend fun removeIdea(tripId: String, ideaId: String)
     suspend fun clearTrip(tripId: String)
+    suspend fun clearAll()
 }

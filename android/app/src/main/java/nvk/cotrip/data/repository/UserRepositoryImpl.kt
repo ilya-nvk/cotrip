@@ -2,6 +2,10 @@ package nvk.cotrip.data.repository
 
 import kotlinx.coroutines.flow.Flow
 import nvk.cotrip.data.auth.SessionStore
+import nvk.cotrip.data.cache.ExpensesCacheStore
+import nvk.cotrip.data.cache.IdeasCacheStore
+import nvk.cotrip.data.cache.ItineraryCacheStore
+import nvk.cotrip.data.cache.TripsCacheStore
 import nvk.cotrip.data.cache.UserCacheStore
 import nvk.cotrip.data.network.CoTripApi
 import nvk.cotrip.data.network.dto.UpdateUserRequest
@@ -13,6 +17,10 @@ class UserRepositoryImpl @Inject constructor(
     private val api: CoTripApi,
     private val sessionStore: SessionStore,
     private val userCacheStore: UserCacheStore,
+    private val tripsCacheStore: TripsCacheStore,
+    private val ideasCacheStore: IdeasCacheStore,
+    private val expensesCacheStore: ExpensesCacheStore,
+    private val itineraryCacheStore: ItineraryCacheStore,
 ) : UserRepository {
 
     override val me: Flow<UserDto?> = userCacheStore.user
@@ -38,13 +46,21 @@ class UserRepositoryImpl @Inject constructor(
 
     override suspend fun deleteMe() {
         api.deleteMe()
-        userCacheStore.clear()
+        clearAllCaches()
     }
 
     override fun clearSession() {
         sessionStore.clear()
         runCatching {
-            runBlocking { userCacheStore.clear() }
+            runBlocking { clearAllCaches() }
         }
+    }
+
+    private suspend fun clearAllCaches() {
+        userCacheStore.clear()
+        tripsCacheStore.clear()
+        ideasCacheStore.clearAll()
+        expensesCacheStore.clearAll()
+        itineraryCacheStore.clearAll()
     }
 }

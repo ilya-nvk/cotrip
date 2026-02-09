@@ -10,4 +10,5 @@ interface ItineraryCacheStore {
     suspend fun setItinerary(tripId: String, days: List<ItineraryDayDto>)
     suspend fun updateItinerary(tripId: String, transform: (List<ItineraryDayDto>) -> List<ItineraryDayDto>)
     suspend fun clearTrip(tripId: String)
+    suspend fun clearAll()
 }
