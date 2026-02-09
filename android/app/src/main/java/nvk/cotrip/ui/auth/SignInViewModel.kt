@@ -1,8 +1,12 @@
 package nvk.cotrip.ui.auth
 
+import android.app.Activity
+import android.content.Intent
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.common.api.ApiException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -49,11 +53,39 @@ class SignInViewModel @Inject constructor(
     fun onEvent(event: SignInEvent) {
         when (event) {
             SignInEvent.StartGoogleSignIn -> startGoogleSignIn()
+            is SignInEvent.OnGoogleSignInResult -> handleGoogleResult(event.resultCode, event.data)
             is SignInEvent.OnGoogleIdToken -> signInWithGoogle(event.idToken)
             is SignInEvent.OnGoogleSignInFailed -> {
                 _uiState.update { it.copy(isLoading = false) }
                 _effects.tryEmit(SignInEffect.ShowToast(event.message))
             }
+        }
+    }
+
+    private fun handleGoogleResult(resultCode: Int, data: Intent?) {
+        if (resultCode != Activity.RESULT_OK) {
+            onEvent(SignInEvent.OnGoogleSignInFailed("Sign-in canceled (code $resultCode)."))
+            return
+        }
+        val task = GoogleSignIn.getSignedInAccountFromIntent(data)
+        runCatching {
+            task.getResult(ApiException::class.java)
+        }.onSuccess { account ->
+            val token = account.idToken
+            if (token.isNullOrBlank()) {
+                onEvent(SignInEvent.OnGoogleSignInFailed("Missing idToken."))
+            } else {
+                onEvent(SignInEvent.OnGoogleIdToken(token))
+            }
+        }.onFailure {
+            val apiException = it as? ApiException
+            val code = apiException?.statusCode
+            val message = apiException?.localizedMessage ?: it.localizedMessage ?: "Google sign-in failed."
+            onEvent(
+                SignInEvent.OnGoogleSignInFailed(
+                    if (code != null) "Google sign-in failed ($code): $message" else message
+                )
+            )
         }
     }
 
@@ -63,9 +95,7 @@ class SignInViewModel @Inject constructor(
     }
 
     private fun signInWithGoogle(idToken: String) {
-        if (_uiState.value.isLoading.not()) {
-            _uiState.update { it.copy(isLoading = true) }
-        }
+        _uiState.update { it.copy(isLoading = true) }
 
         viewModelScope.launch {
             val result = runCatching {

@@ -1,6 +1,5 @@
 package nvk.cotrip.ui.auth
 
-import android.app.Activity
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -31,7 +30,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
-import com.google.android.gms.common.api.ApiException
 import kotlinx.coroutines.flow.collectLatest
 import nvk.cotrip.BuildConfig
 import nvk.cotrip.R
@@ -59,23 +57,7 @@ fun SignInScreen(
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
-        if (result.resultCode != Activity.RESULT_OK) {
-            viewModel.onEvent(SignInEvent.OnGoogleSignInFailed("Sign-in canceled."))
-            return@rememberLauncherForActivityResult
-        }
-        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
-        runCatching {
-            task.getResult(ApiException::class.java)
-        }.onSuccess { account ->
-            val token = account.idToken
-            if (token.isNullOrBlank()) {
-                viewModel.onEvent(SignInEvent.OnGoogleSignInFailed("Missing idToken."))
-            } else {
-                viewModel.onEvent(SignInEvent.OnGoogleIdToken(token))
-            }
-        }.onFailure {
-            viewModel.onEvent(SignInEvent.OnGoogleSignInFailed("Google sign-in failed."))
-        }
+        viewModel.onEvent(SignInEvent.OnGoogleSignInResult(result.resultCode, result.data))
     }
 
     LaunchedEffect(viewModel) {

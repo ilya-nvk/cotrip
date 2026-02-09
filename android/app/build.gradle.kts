@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.kotlinAndroid)
@@ -6,11 +8,22 @@ plugins {
     alias(libs.plugins.hilt)
 }
 
+val localProps = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) {
+        file.inputStream().use { stream ->
+            load(stream)
+        }
+    }
+}
 val apiBaseUrl = (project.findProperty("API_BASE_URL") as String?)
     ?.takeIf { it.isNotBlank() }
+    ?: (localProps.getProperty("API_BASE_URL")?.takeIf { it.isNotBlank() })
     ?: "http://10.0.2.2:8081/"
 val googleServerClientId = (project.findProperty("GOOGLE_SERVER_CLIENT_ID") as String?)
     ?.takeIf { it.isNotBlank() }
+    ?: (localProps.getProperty("GOOGLE_SERVER_CLIENT_ID")?.takeIf { it.isNotBlank() })
+    ?: (System.getenv("GOOGLE_SERVER_CLIENT_ID")?.takeIf { it.isNotBlank() })
     ?: ""
 
 android {
