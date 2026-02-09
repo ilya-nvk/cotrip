@@ -12,6 +12,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nvk.cotrip.R
+import nvk.cotrip.data.network.ApiCaller
+import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.network.dto.ExpenseDto
 import nvk.cotrip.data.network.dto.IdeaDto
 import nvk.cotrip.data.network.dto.MemberDto
@@ -19,14 +21,10 @@ import nvk.cotrip.data.network.dto.TripDto
 import nvk.cotrip.data.repository.ExpenseRepository
 import nvk.cotrip.data.repository.IdeaRepository
 import nvk.cotrip.data.repository.TripRepository
+import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import nvk.cotrip.ui.trip.form.TripCurrency
-import nvk.cotrip.ui.theme.CoTripIcons
-import nvk.cotrip.ui.theme.Info
-import nvk.cotrip.ui.theme.Success
-import nvk.cotrip.ui.theme.TextSecondary
-import nvk.cotrip.ui.theme.Warning
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -39,6 +37,8 @@ class TripDetailsViewModel @Inject constructor(
     private val tripRepository: TripRepository,
     private val ideaRepository: IdeaRepository,
     private val expenseRepository: ExpenseRepository,
+    private val apiCaller: ApiCaller,
+    private val uiErrorMapper: UiErrorMapper,
 ) : ViewModel() {
 
     private val tripId: String = checkNotNull(savedStateHandle["tripId"])
@@ -129,7 +129,7 @@ class TripDetailsViewModel @Inject constructor(
 
     private fun loadTrip() {
         viewModelScope.launch {
-            val result = runCatching {
+            val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
                     val trip = tripRepository.getTrip(tripId)
                     val members = tripRepository.listMembers(tripId)
@@ -139,11 +139,15 @@ class TripDetailsViewModel @Inject constructor(
                 }
             }
 
-            result.onSuccess { loaded ->
-                _state.value = buildState(loaded)
-            }.onFailure {
-                emitToast(R.string.common_error_message)
-                appNavigator.popBackStack()
+            when (result) {
+                is ApiResult.Success -> {
+                    _state.value = buildState(result.data)
+                }
+
+                is ApiResult.Failure -> {
+                    emitToast(uiErrorMapper.messageRes(result))
+                    appNavigator.popBackStack()
+                }
             }
         }
     }

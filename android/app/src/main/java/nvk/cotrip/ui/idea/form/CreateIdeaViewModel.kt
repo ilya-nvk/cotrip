@@ -13,10 +13,13 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nvk.cotrip.R
+import nvk.cotrip.data.network.ApiCaller
+import nvk.cotrip.data.network.ApiResult
+import nvk.cotrip.data.network.dto.CreateIdeaRequest
 import nvk.cotrip.data.repository.IdeaRepository
 import nvk.cotrip.data.repository.ItineraryRepository
 import nvk.cotrip.data.repository.TripRepository
-import nvk.cotrip.data.network.dto.CreateIdeaRequest
+import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import nvk.cotrip.ui.trip.form.TripCurrency
@@ -29,6 +32,8 @@ class CreateIdeaViewModel @Inject constructor(
     private val tripRepository: TripRepository,
     private val itineraryRepository: ItineraryRepository,
     private val ideaRepository: IdeaRepository,
+    private val apiCaller: ApiCaller,
+    private val uiErrorMapper: UiErrorMapper,
 ) : ViewModel(), IdeaFormContract {
 
     private val tripId: String =
@@ -85,7 +90,7 @@ class CreateIdeaViewModel @Inject constructor(
 
     private fun loadTripMeta() {
         viewModelScope.launch {
-            runCatching {
+            when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
                     val trip = tripRepository.getTrip(tripId)
                     val itinerary = itineraryRepository.getItinerary(tripId)
@@ -97,9 +102,20 @@ class CreateIdeaViewModel @Inject constructor(
                         cities = cities
                     )
                 }
-            }.onSuccess { meta ->
-                availableCities = meta.cities
-                _state.update { it.copy(currencySymbol = meta.currencySymbol) }
+            }) {
+                is ApiResult.Success -> {
+                    val meta = result.data
+                    availableCities = meta.cities
+                    _state.update { it.copy(currencySymbol = meta.currencySymbol) }
+                }
+
+                is ApiResult.Failure -> emit(
+                    IdeaFormEffect.ShowToastRes(
+                        uiErrorMapper.messageRes(
+                            result
+                        )
+                    )
+                )
             }
         }
     }
@@ -114,7 +130,7 @@ class CreateIdeaViewModel @Inject constructor(
         if (snapshot.title.isBlank()) return
         _state.update { it.copy(isSaving = true) }
         viewModelScope.launch {
-            runCatching {
+            when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
                     ideaRepository.createIdea(
                         tripId = tripId,
@@ -128,12 +144,16 @@ class CreateIdeaViewModel @Inject constructor(
                         )
                     )
                 }
-            }.onSuccess {
-                emit(IdeaFormEffect.ShowToastRes(R.string.idea_form_created_toast))
-                appNavigator.popBackStack()
-            }.onFailure {
-                emit(IdeaFormEffect.ShowToastRes(R.string.common_error_message))
-                _state.update { it.copy(isSaving = false) }
+            }) {
+                is ApiResult.Success -> {
+                    emit(IdeaFormEffect.ShowToastRes(R.string.idea_form_created_toast))
+                    appNavigator.popBackStack()
+                }
+
+                is ApiResult.Failure -> {
+                    emit(IdeaFormEffect.ShowToastRes(uiErrorMapper.messageRes(result)))
+                    _state.update { it.copy(isSaving = false) }
+                }
             }
         }
     }

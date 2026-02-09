@@ -12,10 +12,13 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nvk.cotrip.R
-import nvk.cotrip.data.repository.ItineraryRepository
-import nvk.cotrip.data.repository.TripRepository
+import nvk.cotrip.data.network.ApiCaller
+import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.network.dto.ItineraryDayDto
 import nvk.cotrip.data.network.dto.TrimOutOfRangeRequest
+import nvk.cotrip.data.repository.ItineraryRepository
+import nvk.cotrip.data.repository.TripRepository
+import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import java.time.LocalDate
@@ -29,6 +32,8 @@ class OutOfRangeDaysViewModel @Inject constructor(
     private val appNavigator: AppNavigator,
     private val tripRepository: TripRepository,
     private val itineraryRepository: ItineraryRepository,
+    private val apiCaller: ApiCaller,
+    private val uiErrorMapper: UiErrorMapper,
 ) : ViewModel() {
 
     private val tripId: String =
@@ -65,7 +70,7 @@ class OutOfRangeDaysViewModel @Inject constructor(
 
     private fun loadOutOfRangeDays() {
         viewModelScope.launch {
-            val result = runCatching {
+            when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
                     val trip = tripRepository.getTrip(tripId)
                     val itinerary = itineraryRepository.getItinerary(tripId)
@@ -75,23 +80,26 @@ class OutOfRangeDaysViewModel @Inject constructor(
                         days = itinerary
                     )
                 }
-            }
+            }) {
+                is ApiResult.Success -> {
+                    val loaded = result.data
+                    val outOfRange = loaded.days.filter { day ->
+                        val date = LocalDate.parse(day.date)
+                        date.isBefore(loaded.tripStart) || date.isAfter(loaded.tripEnd)
+                    }
 
-            result.onSuccess { loaded ->
-                val outOfRange = loaded.days.filter { day ->
-                    val date = LocalDate.parse(day.date)
-                    date.isBefore(loaded.tripStart) || date.isAfter(loaded.tripEnd)
+                    val rangeText = formatRange(loaded.tripStart, loaded.tripEnd)
+                    _state.value = OutOfRangeDaysState(
+                        tripId = tripId,
+                        dateRangeText = rangeText,
+                        days = outOfRange.map { it.toUi() }
+                    )
                 }
 
-                val rangeText = formatRange(loaded.tripStart, loaded.tripEnd)
-                _state.value = OutOfRangeDaysState(
-                    tripId = tripId,
-                    dateRangeText = rangeText,
-                    days = outOfRange.map { it.toUi() }
-                )
-            }.onFailure {
-                emitToast(R.string.common_error_message)
-                appNavigator.popBackStack()
+                is ApiResult.Failure -> {
+                    emitToast(uiErrorMapper.messageRes(result))
+                    appNavigator.popBackStack()
+                }
             }
         }
     }
@@ -104,7 +112,7 @@ class OutOfRangeDaysViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            val result = runCatching {
+            when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
                     itineraryRepository.trimOutOfRange(
                         tripId = tripId,
@@ -114,18 +122,18 @@ class OutOfRangeDaysViewModel @Inject constructor(
                         )
                     )
                 }
-            }
-
-            result.onSuccess {
-                val toast = if (action == "keep") {
-                    R.string.out_of_range_days_kept_toast
-                } else {
-                    R.string.out_of_range_days_removed_toast
+            }) {
+                is ApiResult.Success -> {
+                    val toast = if (action == "keep") {
+                        R.string.out_of_range_days_kept_toast
+                    } else {
+                        R.string.out_of_range_days_removed_toast
+                    }
+                    emitToast(toast)
+                    appNavigator.popBackStack()
                 }
-                emitToast(toast)
-                appNavigator.popBackStack()
-            }.onFailure {
-                emitToast(R.string.common_error_message)
+
+                is ApiResult.Failure -> emitToast(uiErrorMapper.messageRes(result))
             }
         }
     }

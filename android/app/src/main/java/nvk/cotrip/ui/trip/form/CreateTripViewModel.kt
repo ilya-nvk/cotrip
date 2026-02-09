@@ -12,8 +12,11 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nvk.cotrip.R
+import nvk.cotrip.data.network.ApiCaller
+import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.network.dto.CreateTripRequest
 import nvk.cotrip.data.repository.TripRepository
+import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import javax.inject.Inject
@@ -22,6 +25,8 @@ import javax.inject.Inject
 class CreateTripViewModel @Inject constructor(
     private val appNavigator: AppNavigator,
     private val tripRepository: TripRepository,
+    private val apiCaller: ApiCaller,
+    private val uiErrorMapper: UiErrorMapper,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(TripFormState())
@@ -93,7 +98,7 @@ class CreateTripViewModel @Inject constructor(
             val endDate = s.endDate ?: return@launch
             _state.update { it.copy(isLoading = true) }
 
-            val result = runCatching {
+            val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
                     tripRepository.createTrip(
                         CreateTripRequest(
@@ -109,11 +114,15 @@ class CreateTripViewModel @Inject constructor(
                 }
             }
 
-            result.onSuccess { trip ->
-                emitToastRes(R.string.create_trip_created_toast)
-                appNavigator.navigate(Destination.TripDetails(trip.id))
-            }.onFailure {
-                emitToastRes(R.string.common_error_message)
+            when (result) {
+                is ApiResult.Success -> {
+                    emitToastRes(R.string.create_trip_created_toast)
+                    appNavigator.navigate(Destination.TripDetails(result.data.id))
+                }
+
+                is ApiResult.Failure -> {
+                    emitToastRes(uiErrorMapper.messageRes(result))
+                }
             }
 
             _state.update { it.copy(isLoading = false) }

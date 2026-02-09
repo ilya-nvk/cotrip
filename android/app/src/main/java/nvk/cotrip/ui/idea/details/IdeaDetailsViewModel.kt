@@ -17,10 +17,8 @@ import kotlinx.serialization.json.Json
 import nvk.cotrip.BuildConfig
 import nvk.cotrip.R
 import nvk.cotrip.data.auth.SessionStore
-import nvk.cotrip.data.repository.IdeaRepository
-import nvk.cotrip.data.repository.ItineraryRepository
-import nvk.cotrip.data.repository.TripRepository
-import nvk.cotrip.data.repository.UserRepository
+import nvk.cotrip.data.network.ApiCaller
+import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.network.dto.CommentDto
 import nvk.cotrip.data.network.dto.ConvertIdeaRequest
 import nvk.cotrip.data.network.dto.IdeaDto
@@ -29,6 +27,11 @@ import nvk.cotrip.data.network.dto.MemberDto
 import nvk.cotrip.data.network.ws.CommentCreatedPayload
 import nvk.cotrip.data.network.ws.CommentWsEvent
 import nvk.cotrip.data.network.ws.CommentsWebSocket
+import nvk.cotrip.data.repository.IdeaRepository
+import nvk.cotrip.data.repository.ItineraryRepository
+import nvk.cotrip.data.repository.TripRepository
+import nvk.cotrip.data.repository.UserRepository
+import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.idea.common.IdeaDayOptionUi
 import nvk.cotrip.ui.idea.common.IdeaDayPickerState
 import nvk.cotrip.ui.navigation.AppNavigator
@@ -54,6 +57,8 @@ class IdeaDetailsViewModel @Inject constructor(
     private val sessionStore: SessionStore,
     private val okHttpClient: okhttp3.OkHttpClient,
     private val json: Json,
+    private val apiCaller: ApiCaller,
+    private val uiErrorMapper: UiErrorMapper,
 ) : ViewModel() {
 
     private val tripId: String =
@@ -125,7 +130,7 @@ class IdeaDetailsViewModel @Inject constructor(
 
     private fun loadDetails() {
         viewModelScope.launch {
-            runCatching {
+            when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
                     val ideaDeferred = async { ideaRepository.getIdea(ideaId) }
                     val tripDeferred = async { tripRepository.getTrip(tripId) }
@@ -153,26 +158,32 @@ class IdeaDetailsViewModel @Inject constructor(
                         isOwner = isOwner,
                     )
                 }
-            }.onSuccess { payload ->
-                val idea = payload.idea
-                val discussion = payload.comments
-                    .sortedBy { parseTimestamp(it.createdAt)?.toEpochMilli() ?: 0L }
-                    .map { it.toDiscussion(meId, membersById) }
-                _state.update { current ->
-                    current.copy(
-                        title = idea.title,
-                        city = idea.city.orEmpty(),
-                        cost = idea.costAmount?.let { formatCost(it, currencySymbol) }.orEmpty(),
-                        website = idea.website.orEmpty(),
-                        notes = idea.notes.orEmpty(),
-                        status = idea.status,
-                        isOwner = payload.isOwner,
-                        commentsCount = discussion.size,
-                        discussion = discussion
-                    )
+            }) {
+                is ApiResult.Success -> {
+                    val payload = result.data
+                    val idea = payload.idea
+                    val discussion = payload.comments
+                        .sortedBy { parseTimestamp(it.createdAt)?.toEpochMilli() ?: 0L }
+                        .map { it.toDiscussion(meId, membersById) }
+                    _state.update { current ->
+                        current.copy(
+                            title = idea.title,
+                            city = idea.city.orEmpty(),
+                            cost = idea.costAmount?.let { formatCost(it, currencySymbol) }
+                                .orEmpty(),
+                            website = idea.website.orEmpty(),
+                            notes = idea.notes.orEmpty(),
+                            status = idea.status,
+                            isOwner = payload.isOwner,
+                            commentsCount = discussion.size,
+                            discussion = discussion
+                        )
+                    }
                 }
-            }.onFailure {
-                emit(IdeaDetailsEffect.ShowToastRes(R.string.common_error_message))
+
+                is ApiResult.Failure -> {
+                    emit(IdeaDetailsEffect.ShowToastRes(uiErrorMapper.messageRes(result)))
+                }
             }
         }
     }
@@ -246,15 +257,19 @@ class IdeaDetailsViewModel @Inject constructor(
     private fun selectDay(day: IdeaDayOptionUi) {
         _state.update { it.copy(dayPicker = null) }
         viewModelScope.launch {
-            runCatching {
+            when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
                     ideaRepository.convertIdeaToActivity(ideaId, ConvertIdeaRequest(dayId = day.id))
                 }
-            }.onSuccess {
-                _state.update { it.copy(addedDay = day.dayNumber) }
-                emit(IdeaDetailsEffect.ShowToastRes(R.string.idea_details_added_toast))
-            }.onFailure {
-                emit(IdeaDetailsEffect.ShowToastRes(R.string.common_error_message))
+            }) {
+                is ApiResult.Success -> {
+                    _state.update { it.copy(addedDay = day.dayNumber) }
+                    emit(IdeaDetailsEffect.ShowToastRes(R.string.idea_details_added_toast))
+                }
+
+                is ApiResult.Failure -> {
+                    emit(IdeaDetailsEffect.ShowToastRes(uiErrorMapper.messageRes(result)))
+                }
             }
         }
     }
@@ -275,7 +290,7 @@ class IdeaDetailsViewModel @Inject constructor(
         if (_state.value.isUpdatingStatus) return
         _state.update { it.copy(isUpdatingStatus = true) }
         viewModelScope.launch {
-            runCatching {
+            when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
                     if (approved) {
                         ideaRepository.approveIdea(ideaId)
@@ -283,30 +298,39 @@ class IdeaDetailsViewModel @Inject constructor(
                         ideaRepository.rejectIdea(ideaId)
                     }
                 }
-            }.onSuccess { idea ->
-                _state.update { it.copy(status = idea.status, isUpdatingStatus = false) }
-                val toast = if (approved) {
-                    R.string.idea_details_approved_toast
-                } else {
-                    R.string.idea_details_rejected_toast
+            }) {
+                is ApiResult.Success -> {
+                    val idea = result.data
+                    _state.update { it.copy(status = idea.status, isUpdatingStatus = false) }
+                    val toast = if (approved) {
+                        R.string.idea_details_approved_toast
+                    } else {
+                        R.string.idea_details_rejected_toast
+                    }
+                    emit(IdeaDetailsEffect.ShowToastRes(toast))
                 }
-                emit(IdeaDetailsEffect.ShowToastRes(toast))
-            }.onFailure {
-                _state.update { it.copy(isUpdatingStatus = false) }
-                emit(IdeaDetailsEffect.ShowToastRes(R.string.common_error_message))
+
+                is ApiResult.Failure -> {
+                    _state.update { it.copy(isUpdatingStatus = false) }
+                    emit(IdeaDetailsEffect.ShowToastRes(uiErrorMapper.messageRes(result)))
+                }
             }
         }
     }
 
     private fun deleteIdea() {
         viewModelScope.launch {
-            runCatching {
+            when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) { ideaRepository.deleteIdea(ideaId) }
-            }.onSuccess {
-                emit(IdeaDetailsEffect.ShowToastRes(R.string.idea_details_deleted_toast))
-                appNavigator.popBackStack()
-            }.onFailure {
-                emit(IdeaDetailsEffect.ShowToastRes(R.string.common_error_message))
+            }) {
+                is ApiResult.Success -> {
+                    emit(IdeaDetailsEffect.ShowToastRes(R.string.idea_details_deleted_toast))
+                    appNavigator.popBackStack()
+                }
+
+                is ApiResult.Failure -> {
+                    emit(IdeaDetailsEffect.ShowToastRes(uiErrorMapper.messageRes(result)))
+                }
             }
         }
     }

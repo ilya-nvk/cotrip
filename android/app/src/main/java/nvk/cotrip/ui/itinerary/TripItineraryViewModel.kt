@@ -13,12 +13,14 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import nvk.cotrip.R
-import nvk.cotrip.data.repository.ItineraryRepository
-import nvk.cotrip.data.repository.TripRepository
+import nvk.cotrip.data.network.ApiCaller
+import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.network.dto.ActivityDto
 import nvk.cotrip.data.network.dto.ItineraryDayDto
 import nvk.cotrip.data.network.dto.UpdateDayRequest
+import nvk.cotrip.data.repository.ItineraryRepository
+import nvk.cotrip.data.repository.TripRepository
+import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import nvk.cotrip.ui.trip.form.TripCurrency
@@ -33,6 +35,8 @@ class TripItineraryViewModel @Inject constructor(
     private val appNavigator: AppNavigator,
     private val tripRepository: TripRepository,
     private val itineraryRepository: ItineraryRepository,
+    private val apiCaller: ApiCaller,
+    private val uiErrorMapper: UiErrorMapper,
 ) : ViewModel() {
 
     private val tripId: String =
@@ -114,13 +118,14 @@ class TripItineraryViewModel @Inject constructor(
 
     private fun refreshItinerary() {
         viewModelScope.launch {
-            runCatching {
+            when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
                     tripRepository.getTrip(tripId)
                     itineraryRepository.refreshItinerary(tripId)
                 }
-            }.onFailure {
-                emitToast(R.string.common_error_message)
+            }) {
+                is ApiResult.Success -> Unit
+                is ApiResult.Failure -> emitToast(uiErrorMapper.messageRes(result))
             }
         }
     }
@@ -164,16 +169,19 @@ class TripItineraryViewModel @Inject constructor(
     private fun commitReorder(dayId: String) {
         val day = _state.value.days.firstOrNull { it.id == dayId } ?: return
         viewModelScope.launch {
-            runCatching {
+            when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
                     itineraryRepository.reorderActivities(
                         dayId = dayId,
                         orderedIds = day.activities.map { it.id }
                     )
                 }
-            }.onFailure {
-                emitToast(R.string.common_error_message)
-                refreshItinerary()
+            }) {
+                is ApiResult.Success -> Unit
+                is ApiResult.Failure -> {
+                    emitToast(uiErrorMapper.messageRes(result))
+                    refreshItinerary()
+                }
             }
         }
     }
@@ -194,22 +202,24 @@ class TripItineraryViewModel @Inject constructor(
         val picker = _state.value.cityPicker ?: return
         _state.update { it.copy(cityPicker = null) }
         viewModelScope.launch {
-            runCatching {
+            when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
                     itineraryRepository.updateDay(
                         dayId = picker.dayId,
                         request = UpdateDayRequest(city = city)
                     )
                 }
-            }.onSuccess {
-                _state.update { st ->
-                    val days = st.days.map { d ->
-                        if (d.id == picker.dayId) d.copy(city = city) else d
+            }) {
+                is ApiResult.Success -> {
+                    _state.update { st ->
+                        val days = st.days.map { d ->
+                            if (d.id == picker.dayId) d.copy(city = city) else d
+                        }
+                        st.copy(days = days)
                     }
-                    st.copy(days = days)
                 }
-            }.onFailure {
-                emitToast(R.string.common_error_message)
+
+                is ApiResult.Failure -> emitToast(uiErrorMapper.messageRes(result))
             }
         }
     }

@@ -18,7 +18,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import nvk.cotrip.data.network.ApiCaller
+import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.repository.AuthRepository
+import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import javax.inject.Inject
@@ -27,6 +30,8 @@ import javax.inject.Inject
 class SignInViewModel @Inject constructor(
     private val navigator: AppNavigator,
     private val authRepository: AuthRepository,
+    private val apiCaller: ApiCaller,
+    private val uiErrorMapper: UiErrorMapper,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SignInUiState())
@@ -95,22 +100,24 @@ class SignInViewModel @Inject constructor(
         _uiState.update { it.copy(isLoading = true) }
 
         viewModelScope.launch {
-            val result = runCatching {
+            when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
                     authRepository.signInWithGoogle(idToken)
                 }
-            }
-
-            result.onSuccess { _ ->
-                Log.d(TAG, "sign in success")
-                navigator.navigate(Destination.Trips) {
-                    popUpTo(Destination.SignIn.route) { inclusive = true }
-                    launchSingleTop = true
+            }) {
+                is ApiResult.Success -> {
+                    Log.d(TAG, "sign in success")
+                    navigator.navigate(Destination.Trips) {
+                        popUpTo(Destination.SignIn.route) { inclusive = true }
+                        launchSingleTop = true
+                    }
                 }
-            }.onFailure {
-                Log.e(TAG, "sign in error", it)
-                _effects.tryEmit(SignInEffect.ShowToast("Sign-in failed. Please try again."))
-                _uiState.update { it.copy(isLoading = false) }
+
+                is ApiResult.Failure -> {
+                    Log.e(TAG, "sign in error", result.cause)
+                    _effects.tryEmit(SignInEffect.ShowToastRes(uiErrorMapper.messageRes(result)))
+                    _uiState.update { it.copy(isLoading = false) }
+                }
             }
         }
     }

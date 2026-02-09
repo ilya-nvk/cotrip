@@ -65,6 +65,9 @@ fun SignInScreen(
             when (effect) {
                 is SignInEffect.ShowToast ->
                     Toast.makeText(context, effect.message, Toast.LENGTH_SHORT).show()
+                is SignInEffect.ShowToastRes ->
+                    Toast.makeText(context, context.getString(effect.resId), Toast.LENGTH_SHORT)
+                        .show()
             }
         }
     }

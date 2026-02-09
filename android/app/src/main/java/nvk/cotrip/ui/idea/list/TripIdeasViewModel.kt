@@ -17,16 +17,19 @@ import kotlinx.serialization.json.Json
 import nvk.cotrip.BuildConfig
 import nvk.cotrip.R
 import nvk.cotrip.data.auth.SessionStore
-import nvk.cotrip.data.repository.IdeaRepository
-import nvk.cotrip.data.repository.ItineraryRepository
-import nvk.cotrip.data.repository.TripRepository
+import nvk.cotrip.data.network.ApiCaller
+import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.network.dto.ConvertIdeaRequest
 import nvk.cotrip.data.network.dto.IdeaDto
 import nvk.cotrip.data.network.dto.ItineraryDayDto
+import nvk.cotrip.data.network.ws.CommentCreatedPayload
 import nvk.cotrip.data.network.ws.CommentDeletedPayload
 import nvk.cotrip.data.network.ws.CommentWsEvent
-import nvk.cotrip.data.network.ws.CommentCreatedPayload
 import nvk.cotrip.data.network.ws.CommentsWebSocket
+import nvk.cotrip.data.repository.IdeaRepository
+import nvk.cotrip.data.repository.ItineraryRepository
+import nvk.cotrip.data.repository.TripRepository
+import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.idea.common.IdeaDayOptionUi
 import nvk.cotrip.ui.idea.common.IdeaDayPickerState
 import nvk.cotrip.ui.navigation.AppNavigator
@@ -48,6 +51,8 @@ class TripIdeasViewModel @Inject constructor(
     private val sessionStore: SessionStore,
     private val okHttpClient: OkHttpClient,
     private val json: Json,
+    private val apiCaller: ApiCaller,
+    private val uiErrorMapper: UiErrorMapper,
 ) : ViewModel() {
 
     private val tripId: String =
@@ -131,14 +136,21 @@ class TripIdeasViewModel @Inject constructor(
 
     private fun refreshIdeas() {
         viewModelScope.launch {
-            runCatching {
+            when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
                     tripRepository.getTrip(tripId)
                     ideaRepository.refreshIdeas(tripId)
                     itineraryRepository.refreshItinerary(tripId)
                 }
-            }.onFailure {
-                emit(TripIdeasEffect.ShowToastRes(R.string.common_error_message))
+            }) {
+                is ApiResult.Success -> Unit
+                is ApiResult.Failure -> emit(
+                    TripIdeasEffect.ShowToastRes(
+                        uiErrorMapper.messageRes(
+                            result
+                        )
+                    )
+                )
             }
         }
     }
@@ -161,25 +173,31 @@ class TripIdeasViewModel @Inject constructor(
         val ideaId = _state.value.dayPicker?.ideaId ?: return
         _state.update { it.copy(dayPicker = null) }
         viewModelScope.launch {
-            runCatching {
+            when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
                     ideaRepository.convertIdeaToActivity(
                         ideaId,
                         ConvertIdeaRequest(dayId = day.id)
                     )
                 }
-            }.onSuccess {
-                addedDays[ideaId] = day.dayNumber
-                _state.update { current ->
-                    current.copy(
-                        ideas = current.ideas.map { idea ->
-                            if (idea.id == ideaId) idea.copy(addedDay = day.dayNumber) else idea
-                        }
-                    )
+            }) {
+                is ApiResult.Success -> {
+                    addedDays[ideaId] = day.dayNumber
+                    _state.update { current ->
+                        current.copy(
+                            ideas = current.ideas.map { idea ->
+                                if (idea.id == ideaId) idea.copy(addedDay = day.dayNumber) else idea
+                            }
+                        )
+                    }
+                    emit(TripIdeasEffect.ShowToastRes(R.string.ideas_added_to_itinerary_toast))
                 }
-                emit(TripIdeasEffect.ShowToastRes(R.string.ideas_added_to_itinerary_toast))
-            }.onFailure {
-                emit(TripIdeasEffect.ShowToastRes(R.string.common_error_message))
+
+                is ApiResult.Failure -> emit(
+                    TripIdeasEffect.ShowToastRes(
+                        uiErrorMapper.messageRes(result)
+                    )
+                )
             }
         }
     }

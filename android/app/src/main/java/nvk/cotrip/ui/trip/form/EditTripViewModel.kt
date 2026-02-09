@@ -13,8 +13,11 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nvk.cotrip.R
+import nvk.cotrip.data.network.ApiCaller
+import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.network.dto.UpdateTripRequest
 import nvk.cotrip.data.repository.TripRepository
+import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import java.time.LocalDate
@@ -25,6 +28,8 @@ class EditTripViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val appNavigator: AppNavigator,
     private val tripRepository: TripRepository,
+    private val apiCaller: ApiCaller,
+    private val uiErrorMapper: UiErrorMapper,
 ) : ViewModel() {
 
     private val tripId: String = checkNotNull(savedStateHandle["tripId"])
@@ -88,26 +93,31 @@ class EditTripViewModel @Inject constructor(
     private fun loadTrip(id: String) {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
-            val result = runCatching {
+            val result = apiCaller.call {
                 withContext(Dispatchers.IO) { tripRepository.getTrip(id) }
             }
-            result.onSuccess { trip ->
-                _state.update {
-                    it.copy(
-                        isLoading = false,
-                        coverUri = trip.coverUrl,
-                        name = trip.title,
-                        startDate = LocalDate.parse(trip.startDate),
-                        endDate = LocalDate.parse(trip.endDate),
-                        description = trip.description.orEmpty(),
-                        currency = trip.currencyCode.toCurrency(),
-                    )
+            when (result) {
+                is ApiResult.Success -> {
+                    val trip = result.data
+                    _state.update {
+                        it.copy(
+                            isLoading = false,
+                            coverUri = trip.coverUrl,
+                            name = trip.title,
+                            startDate = LocalDate.parse(trip.startDate),
+                            endDate = LocalDate.parse(trip.endDate),
+                            description = trip.description.orEmpty(),
+                            currency = trip.currencyCode.toCurrency(),
+                        )
+                    }
+                    recomputeCanSubmit()
                 }
-                recomputeCanSubmit()
-            }.onFailure {
-                _state.update { it.copy(isLoading = false) }
-                emitToastRes(R.string.common_error_message)
-                closeScreen()
+
+                is ApiResult.Failure -> {
+                    _state.update { it.copy(isLoading = false) }
+                    emitToastRes(uiErrorMapper.messageRes(result))
+                    closeScreen()
+                }
             }
         }
     }
@@ -136,7 +146,7 @@ class EditTripViewModel @Inject constructor(
             val endDate = s.endDate ?: return@launch
             _state.update { it.copy(isLoading = true) }
 
-            val result = runCatching {
+            val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
                     tripRepository.updateTrip(
                         tripId = tripId,
@@ -153,11 +163,15 @@ class EditTripViewModel @Inject constructor(
                 }
             }
 
-            result.onSuccess {
-                emitToastRes(R.string.edit_trip_saved_toast)
-                appNavigator.navigate(Destination.OutOfRangeDays(tripId))
-            }.onFailure {
-                emitToastRes(R.string.common_error_message)
+            when (result) {
+                is ApiResult.Success -> {
+                    emitToastRes(R.string.edit_trip_saved_toast)
+                    appNavigator.navigate(Destination.OutOfRangeDays(tripId))
+                }
+
+                is ApiResult.Failure -> {
+                    emitToastRes(uiErrorMapper.messageRes(result))
+                }
             }
 
             _state.update { it.copy(isLoading = false) }
@@ -167,14 +181,18 @@ class EditTripViewModel @Inject constructor(
     private fun archiveTrip() {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
-            val result = runCatching {
+            val result = apiCaller.call {
                 withContext(Dispatchers.IO) { tripRepository.archiveTrip(tripId) }
             }
-            result.onSuccess {
-                emitToastRes(R.string.edit_trip_archived_toast)
-                closeScreen()
-            }.onFailure {
-                emitToastRes(R.string.common_error_message)
+            when (result) {
+                is ApiResult.Success -> {
+                    emitToastRes(R.string.edit_trip_archived_toast)
+                    closeScreen()
+                }
+
+                is ApiResult.Failure -> {
+                    emitToastRes(uiErrorMapper.messageRes(result))
+                }
             }
             _state.update { it.copy(isLoading = false) }
         }
@@ -183,14 +201,18 @@ class EditTripViewModel @Inject constructor(
     private fun deleteTrip() {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
-            val result = runCatching {
+            val result = apiCaller.call {
                 withContext(Dispatchers.IO) { tripRepository.deleteTrip(tripId) }
             }
-            result.onSuccess {
-                emitToastRes(R.string.edit_trip_deleted_toast)
-                closeScreen()
-            }.onFailure {
-                emitToastRes(R.string.common_error_message)
+            when (result) {
+                is ApiResult.Success -> {
+                    emitToastRes(R.string.edit_trip_deleted_toast)
+                    closeScreen()
+                }
+
+                is ApiResult.Failure -> {
+                    emitToastRes(uiErrorMapper.messageRes(result))
+                }
             }
             _state.update { it.copy(isLoading = false) }
         }

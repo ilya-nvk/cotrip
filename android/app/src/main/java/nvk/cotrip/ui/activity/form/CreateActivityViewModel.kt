@@ -13,10 +13,13 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nvk.cotrip.R
-import nvk.cotrip.data.repository.ItineraryRepository
-import nvk.cotrip.data.repository.TripRepository
+import nvk.cotrip.data.network.ApiCaller
+import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.network.dto.CreateActivityRequest
 import nvk.cotrip.data.network.dto.ItineraryDayDto
+import nvk.cotrip.data.repository.ItineraryRepository
+import nvk.cotrip.data.repository.TripRepository
+import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import nvk.cotrip.ui.trip.form.TripCurrency
@@ -32,6 +35,8 @@ class CreateActivityViewModel @Inject constructor(
     private val appNavigator: AppNavigator,
     private val tripRepository: TripRepository,
     private val itineraryRepository: ItineraryRepository,
+    private val apiCaller: ApiCaller,
+    private val uiErrorMapper: UiErrorMapper,
 ) : ViewModel(), ActivityFormContract {
 
     private val tripId: String =
@@ -94,7 +99,7 @@ class CreateActivityViewModel @Inject constructor(
 
     private fun loadTripMeta() {
         viewModelScope.launch {
-            runCatching {
+            when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
                     val trip = tripRepository.getTrip(tripId)
                     val itinerary = itineraryRepository.getItinerary(tripId)
@@ -107,19 +112,26 @@ class CreateActivityViewModel @Inject constructor(
                         dayByDate = dayMap
                     )
                 }
-            }.onSuccess { meta ->
-                dayByDate = meta.dayByDate
-                selectedDayId = meta.firstDay?.id
-                _state.update {
-                    it.copy(
-                        currencySymbol = meta.currencySymbol,
-                        dateText = meta.firstDay?.let { day -> formatDate(LocalDate.parse(day.date)) }
-                            .orEmpty(),
-                        headerText = meta.firstDay?.let { day -> headerFor(day) }
-                    )
+            }) {
+                is ApiResult.Success -> {
+                    val meta = result.data
+                    dayByDate = meta.dayByDate
+                    selectedDayId = meta.firstDay?.id
+                    _state.update {
+                        it.copy(
+                            currencySymbol = meta.currencySymbol,
+                            dateText = meta.firstDay?.let { day -> formatDate(LocalDate.parse(day.date)) }
+                                .orEmpty(),
+                            headerText = meta.firstDay?.let { day -> headerFor(day) }
+                        )
+                    }
                 }
-            }.onFailure {
-                emit(ActivityFormEffect.ShowToastRes(R.string.common_error_message))
+
+                is ApiResult.Failure -> emit(
+                    ActivityFormEffect.ShowToastRes(
+                        uiErrorMapper.messageRes(result)
+                    )
+                )
             }
         }
     }
@@ -151,7 +163,7 @@ class CreateActivityViewModel @Inject constructor(
         }
         _state.update { it.copy(isSaving = true) }
         viewModelScope.launch {
-            runCatching {
+            when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
                     itineraryRepository.createActivity(
                         dayId = dayId,
@@ -167,12 +179,16 @@ class CreateActivityViewModel @Inject constructor(
                         )
                     )
                 }
-            }.onSuccess {
-                emit(ActivityFormEffect.ShowToastRes(R.string.activity_form_created_toast))
-                appNavigator.popBackStack()
-            }.onFailure {
-                emit(ActivityFormEffect.ShowToastRes(R.string.common_error_message))
-                _state.update { it.copy(isSaving = false) }
+            }) {
+                is ApiResult.Success -> {
+                    emit(ActivityFormEffect.ShowToastRes(R.string.activity_form_created_toast))
+                    appNavigator.popBackStack()
+                }
+
+                is ApiResult.Failure -> {
+                    emit(ActivityFormEffect.ShowToastRes(uiErrorMapper.messageRes(result)))
+                    _state.update { it.copy(isSaving = false) }
+                }
             }
         }
     }

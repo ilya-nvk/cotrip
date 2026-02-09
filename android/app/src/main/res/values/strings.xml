@@ -35,6 +35,10 @@
     <!--Trip Form-->
     <string name="common_cancel">Cancel</string>
     <string name="common_error_message">Something went wrong. Try again.</string>
+    <string name="common_error_network">No internet connection. Check your network and try again.</string>
+    <string name="common_error_unauthorized">Session expired. Please sign in again.</string>
+    <string name="common_error_forbidden">You don\'t have permission for this action.</string>
+    <string name="common_error_not_found">Requested item was not found.</string>
     <string name="create_trip_title">Create trip</string>
     <string name="create_trip_primary_button">Create trip</string>
     <string name="create_trip_created_toast">Trip created</string>

@@ -13,10 +13,13 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nvk.cotrip.R
+import nvk.cotrip.data.network.ApiCaller
+import nvk.cotrip.data.network.ApiResult
+import nvk.cotrip.data.network.dto.UpdateIdeaRequest
 import nvk.cotrip.data.repository.IdeaRepository
 import nvk.cotrip.data.repository.ItineraryRepository
 import nvk.cotrip.data.repository.TripRepository
-import nvk.cotrip.data.network.dto.UpdateIdeaRequest
+import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import nvk.cotrip.ui.trip.form.TripCurrency
@@ -29,6 +32,8 @@ class EditIdeaViewModel @Inject constructor(
     private val tripRepository: TripRepository,
     private val itineraryRepository: ItineraryRepository,
     private val ideaRepository: IdeaRepository,
+    private val apiCaller: ApiCaller,
+    private val uiErrorMapper: UiErrorMapper,
 ) : ViewModel(), IdeaFormContract {
 
     private val tripId: String =
@@ -89,7 +94,7 @@ class EditIdeaViewModel @Inject constructor(
 
     private fun loadIdea() {
         viewModelScope.launch {
-            runCatching {
+            when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
                     val idea = ideaRepository.getIdea(ideaId)
                     val trip = tripRepository.getTrip(tripId)
@@ -108,21 +113,30 @@ class EditIdeaViewModel @Inject constructor(
                         cities = cities,
                     )
                 }
-            }.onSuccess { loaded ->
-                availableCities = loaded.cities
-                _state.update {
-                    it.copy(
-                        title = loaded.title,
-                        city = loaded.city,
-                        costAmount = loaded.costAmount,
-                        costType = loaded.costType,
-                        website = loaded.website,
-                        notes = loaded.notes,
-                        currencySymbol = loaded.currencySymbol,
-                    )
+            }) {
+                is ApiResult.Success -> {
+                    val loaded = result.data
+                    availableCities = loaded.cities
+                    _state.update {
+                        it.copy(
+                            title = loaded.title,
+                            city = loaded.city,
+                            costAmount = loaded.costAmount,
+                            costType = loaded.costType,
+                            website = loaded.website,
+                            notes = loaded.notes,
+                            currencySymbol = loaded.currencySymbol,
+                        )
+                    }
                 }
-            }.onFailure {
-                emit(IdeaFormEffect.ShowToastRes(R.string.common_error_message))
+
+                is ApiResult.Failure -> emit(
+                    IdeaFormEffect.ShowToastRes(
+                        uiErrorMapper.messageRes(
+                            result
+                        )
+                    )
+                )
             }
         }
     }
@@ -137,7 +151,7 @@ class EditIdeaViewModel @Inject constructor(
         if (snapshot.title.isBlank()) return
         _state.update { it.copy(isSaving = true) }
         viewModelScope.launch {
-            runCatching {
+            when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
                     ideaRepository.updateIdea(
                         ideaId = ideaId,
@@ -151,25 +165,33 @@ class EditIdeaViewModel @Inject constructor(
                         )
                     )
                 }
-            }.onSuccess {
-                emit(IdeaFormEffect.ShowToastRes(R.string.idea_form_saved_toast))
-                appNavigator.popBackStack()
-            }.onFailure {
-                emit(IdeaFormEffect.ShowToastRes(R.string.common_error_message))
-                _state.update { it.copy(isSaving = false) }
+            }) {
+                is ApiResult.Success -> {
+                    emit(IdeaFormEffect.ShowToastRes(R.string.idea_form_saved_toast))
+                    appNavigator.popBackStack()
+                }
+
+                is ApiResult.Failure -> {
+                    emit(IdeaFormEffect.ShowToastRes(uiErrorMapper.messageRes(result)))
+                    _state.update { it.copy(isSaving = false) }
+                }
             }
         }
     }
 
     private fun deleteIdea() {
         viewModelScope.launch {
-            runCatching {
+            when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) { ideaRepository.deleteIdea(ideaId) }
-            }.onSuccess {
-                emit(IdeaFormEffect.ShowToastRes(R.string.idea_form_deleted_toast))
-                appNavigator.popBackStack()
-            }.onFailure {
-                emit(IdeaFormEffect.ShowToastRes(R.string.common_error_message))
+            }) {
+                is ApiResult.Success -> {
+                    emit(IdeaFormEffect.ShowToastRes(R.string.idea_form_deleted_toast))
+                    appNavigator.popBackStack()
+                }
+
+                is ApiResult.Failure -> {
+                    emit(IdeaFormEffect.ShowToastRes(uiErrorMapper.messageRes(result)))
+                }
             }
         }
     }

@@ -1,8 +1,5 @@
 package nvk.cotrip.data.sync
 
-import java.time.OffsetDateTime
-import javax.inject.Inject
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNull
 import nvk.cotrip.data.cache.ExpensesCacheStore
@@ -16,6 +13,8 @@ import nvk.cotrip.data.network.dto.IdeaDto
 import nvk.cotrip.data.network.dto.ItineraryDayDto
 import nvk.cotrip.data.network.dto.SyncChangeDto
 import nvk.cotrip.data.network.dto.TripDto
+import java.time.OffsetDateTime
+import javax.inject.Inject
 
 class SyncPullRepository @Inject constructor(
     private val api: CoTripApi,
@@ -45,6 +44,7 @@ class SyncPullRepository @Inject constructor(
                 "trip" -> applyTrip(change)
                 "idea" -> applyIdea(change)
                 "expense" -> applyExpense(change)
+                "day",
                 "itinerary_day" -> applyItineraryDay(change)
                 "activity" -> applyActivity(change)
             }
