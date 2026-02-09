@@ -10,13 +10,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import nvk.cotrip.data.network.CoTripApi
 import nvk.cotrip.data.network.dto.ExpenseDto
 import nvk.cotrip.data.network.dto.ExpenseParticipantDto
 import nvk.cotrip.data.network.dto.ExpenseParticipantInput
 import nvk.cotrip.data.network.dto.ExpenseUpdateRequest
 import nvk.cotrip.data.network.dto.MemberDto
 import nvk.cotrip.data.network.dto.TripDto
+import nvk.cotrip.data.repository.ExpenseRepository
+import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import nvk.cotrip.ui.trip.form.TripCurrency
@@ -29,7 +30,8 @@ import javax.inject.Inject
 class ExpenseDetailsViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val appNavigator: AppNavigator,
-    private val api: CoTripApi,
+    private val tripRepository: TripRepository,
+    private val expenseRepository: ExpenseRepository,
 ) : ViewModel() {
 
     private val tripId: String =
@@ -66,6 +68,7 @@ class ExpenseDetailsViewModel @Inject constructor(
     fun onEvent(event: ExpenseDetailsEvent) {
         when (event) {
             ExpenseDetailsEvent.OnBackClick -> appNavigator.popBackStack()
+            ExpenseDetailsEvent.OnRefresh -> loadExpense()
             ExpenseDetailsEvent.OnEditClick -> appNavigator.navigate(
                 Destination.EditExpense(
                     tripId = tripId,
@@ -83,10 +86,10 @@ class ExpenseDetailsViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
-                    val expense = api.getExpense(expenseId)
-                    val trip = api.getTrip(tripId)
-                    val members = api.listMembers(tripId).items
-                    val me = api.getMe()
+                    val expense = expenseRepository.getExpense(expenseId)
+                    val trip = tripRepository.getTrip(tripId)
+                    val members = tripRepository.listMembers(tripId)
+                    val me = tripRepository.getMe()
                     ExpensePayload(expense, trip, members, me.id)
                 }
             }.onSuccess { payload ->
@@ -144,7 +147,7 @@ class ExpenseDetailsViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
-                    api.updateExpense(expenseId, request)
+                    expenseRepository.updateExpense(expenseId, request)
                 }
             }.onSuccess {
                 loadExpense()

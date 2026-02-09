@@ -27,6 +27,8 @@ import nvk.cotrip.data.network.dto.UpdateIdeaRequest
 import nvk.cotrip.data.network.dto.UpdateTripRequest
 import nvk.cotrip.data.network.dto.UpdateUserRequest
 import nvk.cotrip.data.network.dto.UserDto
+import nvk.cotrip.data.network.dto.SyncChangesRequest
+import nvk.cotrip.data.network.dto.SyncChangesResponse
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
@@ -195,4 +197,7 @@ interface CoTripApi {
         @Path("tripId") tripId: String,
         @Body request: TrimOutOfRangeRequest,
     ): Unit
+
+    @POST("v1/sync/changes")
+    suspend fun postSyncChanges(@Body request: SyncChangesRequest): SyncChangesResponse
 }

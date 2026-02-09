@@ -17,7 +17,9 @@ import kotlinx.serialization.json.Json
 import nvk.cotrip.BuildConfig
 import nvk.cotrip.R
 import nvk.cotrip.data.auth.SessionStore
-import nvk.cotrip.data.network.CoTripApi
+import nvk.cotrip.data.repository.IdeaRepository
+import nvk.cotrip.data.repository.ItineraryRepository
+import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.data.network.dto.CommentDto
 import nvk.cotrip.data.network.dto.ConvertIdeaRequest
 import nvk.cotrip.data.network.dto.IdeaDto
@@ -44,7 +46,9 @@ import javax.inject.Inject
 class IdeaDetailsViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val appNavigator: AppNavigator,
-    private val api: CoTripApi,
+    private val tripRepository: TripRepository,
+    private val ideaRepository: IdeaRepository,
+    private val itineraryRepository: ItineraryRepository,
     private val sessionStore: SessionStore,
     private val okHttpClient: okhttp3.OkHttpClient,
     private val json: Json,
@@ -97,6 +101,7 @@ class IdeaDetailsViewModel @Inject constructor(
     fun onEvent(event: IdeaDetailsEvent) {
         when (event) {
             IdeaDetailsEvent.OnBackClick -> appNavigator.popBackStack()
+            IdeaDetailsEvent.OnRefresh -> loadDetails()
             IdeaDetailsEvent.OnEditClick -> appNavigator.navigate(
                 Destination.EditIdea(tripId, ideaId)
             )
@@ -115,19 +120,19 @@ class IdeaDetailsViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
-                    val ideaDeferred = async { api.getIdea(ideaId) }
-                    val tripDeferred = async { api.getTrip(tripId) }
-                    val itineraryDeferred = async { api.getItinerary(tripId) }
-                    val membersDeferred = async { api.listMembers(tripId) }
-                    val meDeferred = async { api.getMe() }
-                    val commentsDeferred = async { api.listComments(ideaId) }
+                    val ideaDeferred = async { ideaRepository.getIdea(ideaId) }
+                    val tripDeferred = async { tripRepository.getTrip(tripId) }
+                    val itineraryDeferred = async { itineraryRepository.getItinerary(tripId) }
+                    val membersDeferred = async { tripRepository.listMembers(tripId) }
+                    val meDeferred = async { tripRepository.getMe() }
+                    val commentsDeferred = async { ideaRepository.listComments(ideaId) }
 
                     val idea = ideaDeferred.await()
                     val trip = tripDeferred.await()
-                    val itinerary = itineraryDeferred.await().items
-                    val members = membersDeferred.await().items
+                    val itinerary = itineraryDeferred.await()
+                    val members = membersDeferred.await()
                     val me = meDeferred.await()
-                    val comments = commentsDeferred.await().items
+                    val comments = commentsDeferred.await()
 
                     currencySymbol = currencySymbolFor(trip.currencyCode)
                     membersById = members.associateBy { it.userId }
@@ -232,7 +237,7 @@ class IdeaDetailsViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
-                    api.convertIdeaToActivity(ideaId, ConvertIdeaRequest(dayId = day.id))
+                    ideaRepository.convertIdeaToActivity(ideaId, ConvertIdeaRequest(dayId = day.id))
                 }
             }.onSuccess {
                 _state.update { it.copy(addedDay = day.dayNumber) }
@@ -258,7 +263,7 @@ class IdeaDetailsViewModel @Inject constructor(
     private fun deleteIdea() {
         viewModelScope.launch {
             runCatching {
-                withContext(Dispatchers.IO) { api.deleteIdea(ideaId) }
+                withContext(Dispatchers.IO) { ideaRepository.deleteIdea(ideaId) }
             }.onSuccess {
                 emit(IdeaDetailsEffect.ShowToastRes(R.string.idea_details_deleted_toast))
                 appNavigator.popBackStack()

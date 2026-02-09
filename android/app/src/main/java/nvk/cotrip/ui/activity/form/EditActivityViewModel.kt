@@ -18,12 +18,13 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nvk.cotrip.R
-import nvk.cotrip.data.network.CoTripApi
 import nvk.cotrip.data.network.dto.ActivityDto
 import nvk.cotrip.data.network.dto.ItineraryDayDto
 import nvk.cotrip.data.network.dto.MoveActivityRequest
 import nvk.cotrip.data.network.dto.TripDto
 import nvk.cotrip.data.network.dto.UpdateActivityRequest
+import nvk.cotrip.data.repository.ItineraryRepository
+import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import nvk.cotrip.ui.trip.form.TripCurrency
@@ -32,7 +33,8 @@ import nvk.cotrip.ui.trip.form.TripCurrency
 class EditActivityViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val appNavigator: AppNavigator,
-    private val api: CoTripApi,
+    private val tripRepository: TripRepository,
+    private val itineraryRepository: ItineraryRepository,
 ) : ViewModel(), ActivityFormContract {
 
     private val activityId: String =
@@ -147,12 +149,12 @@ class EditActivityViewModel @Inject constructor(
                     val targetDayId = selectedDayId
                     val original = originalDayId
                     if (!targetDayId.isNullOrBlank() && targetDayId != original) {
-                        api.moveActivity(
+                        itineraryRepository.moveActivity(
                             activityId = activityId,
                             request = MoveActivityRequest(dayId = targetDayId)
                         )
                     }
-                    api.updateActivity(
+                    itineraryRepository.updateActivity(
                         activityId = activityId,
                         request = UpdateActivityRequest(
                             title = snapshot.title.trim(),
@@ -179,7 +181,7 @@ class EditActivityViewModel @Inject constructor(
     private fun deleteActivity() {
         viewModelScope.launch {
             runCatching {
-                withContext(Dispatchers.IO) { api.deleteActivity(activityId) }
+                withContext(Dispatchers.IO) { itineraryRepository.deleteActivity(activityId) }
             }.onSuccess {
                 emit(ActivityFormEffect.ShowToastRes(R.string.activity_form_deleted_toast))
                 appNavigator.popBackStack()
@@ -194,9 +196,9 @@ class EditActivityViewModel @Inject constructor(
     }
 
     private suspend fun findActivity(activityId: String): ActivityLookup {
-        val trips = api.listTrips().items
+        val trips = tripRepository.listTrips()
         trips.forEach { trip ->
-            val itinerary = api.getItinerary(trip.id).items
+            val itinerary = itineraryRepository.getItinerary(trip.id)
             itinerary.forEach { day ->
                 val match = day.activities.firstOrNull { it.id == activityId }
                 if (match != null) {

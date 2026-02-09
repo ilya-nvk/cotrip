@@ -13,10 +13,11 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nvk.cotrip.R
-import nvk.cotrip.data.network.CoTripApi
 import nvk.cotrip.data.network.dto.ExpenseCreateRequest
 import nvk.cotrip.data.network.dto.ExpenseParticipantInput
 import nvk.cotrip.data.network.dto.MemberDto
+import nvk.cotrip.data.repository.ExpenseRepository
+import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import nvk.cotrip.ui.trip.form.TripCurrency
@@ -29,7 +30,8 @@ import javax.inject.Inject
 class CreateExpenseViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val appNavigator: AppNavigator,
-    private val api: CoTripApi,
+    private val tripRepository: TripRepository,
+    private val expenseRepository: ExpenseRepository,
 ) : ViewModel(), ExpenseFormContract {
 
     private val tripId: String =
@@ -114,9 +116,9 @@ class CreateExpenseViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
-                    val trip = api.getTrip(tripId)
-                    val members = api.listMembers(tripId).items
-                    val me = api.getMe()
+                    val trip = tripRepository.getTrip(tripId)
+                    val members = tripRepository.listMembers(tripId)
+                    val me = tripRepository.getMe()
                     MembersPayload(
                         members = members,
                         currencyCode = trip.currencyCode,
@@ -192,7 +194,7 @@ class CreateExpenseViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
-                    api.createExpense(
+                    expenseRepository.createExpense(
                         tripId = tripId,
                         request = ExpenseCreateRequest(
                             title = snapshot.title.trim(),

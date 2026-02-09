@@ -10,10 +10,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import nvk.cotrip.data.network.CoTripApi
 import nvk.cotrip.data.network.dto.ExpenseDto
 import nvk.cotrip.data.network.dto.MemberDto
 import nvk.cotrip.data.network.dto.TripDto
+import nvk.cotrip.data.repository.ExpenseRepository
+import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import nvk.cotrip.ui.trip.form.TripCurrency
@@ -25,7 +26,8 @@ import kotlin.math.abs
 class TripExpensesViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val appNavigator: AppNavigator,
-    private val api: CoTripApi,
+    private val tripRepository: TripRepository,
+    private val expenseRepository: ExpenseRepository,
 ) : ViewModel() {
 
     private val tripId: String =
@@ -53,6 +55,7 @@ class TripExpensesViewModel @Inject constructor(
     fun onEvent(event: TripExpensesEvent) {
         when (event) {
             TripExpensesEvent.OnBackClick -> appNavigator.popBackStack()
+            TripExpensesEvent.OnRefresh -> loadExpenses()
             TripExpensesEvent.OnAddExpenseClick -> appNavigator.navigate(
                 Destination.CreateExpense(tripId)
             )
@@ -70,10 +73,10 @@ class TripExpensesViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
-                    val trip = api.getTrip(tripId)
-                    val expenses = api.listExpenses(tripId).items
-                    val members = api.listMembers(tripId).items
-                    val me = api.getMe()
+                    val trip = tripRepository.getTrip(tripId)
+                    val expenses = expenseRepository.listExpenses(tripId)
+                    val members = tripRepository.listMembers(tripId)
+                    val me = tripRepository.getMe()
                     ExpensesPayload(
                         trip = trip,
                         expenses = expenses,

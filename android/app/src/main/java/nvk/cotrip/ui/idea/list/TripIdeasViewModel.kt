@@ -4,10 +4,6 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
-import java.util.Locale
-import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,22 +12,41 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
+import nvk.cotrip.BuildConfig
 import nvk.cotrip.R
-import nvk.cotrip.data.network.CoTripApi
+import nvk.cotrip.data.auth.SessionStore
+import nvk.cotrip.data.repository.IdeaRepository
+import nvk.cotrip.data.repository.ItineraryRepository
+import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.data.network.dto.ConvertIdeaRequest
 import nvk.cotrip.data.network.dto.IdeaDto
 import nvk.cotrip.data.network.dto.ItineraryDayDto
+import nvk.cotrip.data.network.ws.CommentDeletedPayload
+import nvk.cotrip.data.network.ws.CommentWsEvent
+import nvk.cotrip.data.network.ws.CommentCreatedPayload
+import nvk.cotrip.data.network.ws.CommentsWebSocket
 import nvk.cotrip.ui.idea.common.IdeaDayOptionUi
 import nvk.cotrip.ui.idea.common.IdeaDayPickerState
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import nvk.cotrip.ui.trip.form.TripCurrency
+import okhttp3.OkHttpClient
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
+import javax.inject.Inject
 
 @HiltViewModel
 class TripIdeasViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val appNavigator: AppNavigator,
-    private val api: CoTripApi,
+    private val tripRepository: TripRepository,
+    private val ideaRepository: IdeaRepository,
+    private val itineraryRepository: ItineraryRepository,
+    private val sessionStore: SessionStore,
+    private val okHttpClient: OkHttpClient,
+    private val json: Json,
 ) : ViewModel() {
 
     private val tripId: String =
@@ -40,6 +55,7 @@ class TripIdeasViewModel @Inject constructor(
     private var dayOptions: List<IdeaDayOptionUi> = emptyList()
     private var currencySymbol: String = "€"
     private val addedDays = mutableMapOf<String, Int>()
+    private val commentsSocket = CommentsWebSocket(okHttpClient, json)
 
     private val _state = MutableStateFlow(
         TripIdeasState(
@@ -54,12 +70,20 @@ class TripIdeasViewModel @Inject constructor(
     val effects = _effects.asSharedFlow()
 
     init {
+        observeSocket()
+        connectSocket()
         loadIdeas()
+    }
+
+    override fun onCleared() {
+        commentsSocket.disconnect()
+        super.onCleared()
     }
 
     fun onEvent(event: TripIdeasEvent) {
         when (event) {
             TripIdeasEvent.OnBackClick -> appNavigator.popBackStack()
+            TripIdeasEvent.OnRefresh -> loadIdeas()
             TripIdeasEvent.OnAddIdeaClick -> appNavigator.navigate(
                 Destination.CreateIdea(tripId)
             )
@@ -78,9 +102,9 @@ class TripIdeasViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
-                    val trip = api.getTrip(tripId)
-                    val ideas = api.listIdeas(tripId).items
-                    val itinerary = api.getItinerary(tripId).items
+                    val trip = tripRepository.getTrip(tripId)
+                    val ideas = ideaRepository.listIdeas(tripId)
+                    val itinerary = itineraryRepository.getItinerary(tripId)
                     currencySymbol = currencySymbolFor(trip.currencyCode)
                     dayOptions = itinerary
                         .filter { !it.isOutOfRange }
@@ -122,7 +146,10 @@ class TripIdeasViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
-                    api.convertIdeaToActivity(ideaId, ConvertIdeaRequest(dayId = day.id))
+                    ideaRepository.convertIdeaToActivity(
+                        ideaId,
+                        ConvertIdeaRequest(dayId = day.id)
+                    )
                 }
             }.onSuccess {
                 addedDays[ideaId] = day.dayNumber
@@ -137,6 +164,54 @@ class TripIdeasViewModel @Inject constructor(
             }.onFailure {
                 emit(TripIdeasEffect.ShowToastRes(R.string.common_error_message))
             }
+        }
+    }
+
+    private fun connectSocket() {
+        val token = sessionStore.getAccessToken().orEmpty()
+        if (token.isBlank()) return
+        commentsSocket.connect(BuildConfig.API_BASE_URL, tripId, token)
+    }
+
+    private fun observeSocket() {
+        viewModelScope.launch {
+            commentsSocket.events.collect { event ->
+                when (event) {
+                    is CommentWsEvent.CommentCreated -> handleCommentCreated(event.payload)
+                    is CommentWsEvent.CommentDeleted -> handleCommentDeleted(event.payload)
+                    is CommentWsEvent.Error -> Unit
+                }
+            }
+        }
+    }
+
+    private fun handleCommentCreated(payload: CommentCreatedPayload) {
+        _state.update { current ->
+            var changed = false
+            val updated = current.ideas.map { idea ->
+                if (idea.id == payload.ideaId) {
+                    changed = true
+                    idea.copy(commentsCount = idea.commentsCount + 1)
+                } else {
+                    idea
+                }
+            }
+            if (!changed) current else current.copy(ideas = updated)
+        }
+    }
+
+    private fun handleCommentDeleted(payload: CommentDeletedPayload) {
+        _state.update { current ->
+            var changed = false
+            val updated = current.ideas.map { idea ->
+                if (idea.id == payload.ideaId) {
+                    changed = true
+                    idea.copy(commentsCount = (idea.commentsCount - 1).coerceAtLeast(0))
+                } else {
+                    idea
+                }
+            }
+            if (!changed) current else current.copy(ideas = updated)
         }
     }
 
