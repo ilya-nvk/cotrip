@@ -53,10 +53,8 @@ class TripsListViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
-                    val active = api.listTrips(status = "active").items
-                    val upcoming = api.listTrips(status = "upcoming").items
-                    val past = api.listTrips(status = "past").items
-                    TripBuckets(active, upcoming, past)
+                    val allTrips = api.listTrips().items
+                    buildBuckets(allTrips)
                 }
             }.onSuccess { buckets ->
                 _state.update {
@@ -80,6 +78,32 @@ class TripsListViewModel @Inject constructor(
         val upcoming: List<TripDto>,
         val past: List<TripDto>,
     )
+
+    private fun buildBuckets(trips: List<TripDto>): TripBuckets {
+        val today = LocalDate.now()
+        val nonArchived = trips.filter { it.status != "archived" }
+        val active = mutableListOf<TripDto>()
+        val upcoming = mutableListOf<TripDto>()
+        val past = mutableListOf<TripDto>()
+
+        nonArchived.forEach { trip ->
+            val start = runCatching { LocalDate.parse(trip.startDate) }.getOrNull()
+            val end = runCatching { LocalDate.parse(trip.endDate) }.getOrNull()
+            if (start == null || end == null) return@forEach
+
+            when {
+                end.isBefore(today) -> past += trip
+                start.isAfter(today) -> upcoming += trip
+                else -> active += trip
+            }
+        }
+
+        return TripBuckets(
+            active = active,
+            upcoming = upcoming,
+            past = past,
+        )
+    }
 }
 
 private fun TripDto.toCard(): TripCardUi {
