@@ -17,6 +17,7 @@ import nvk.cotrip.R
 import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.repository.TripRepository
+import nvk.cotrip.data.repository.UserRepository
 import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
@@ -26,6 +27,7 @@ class TripMembersViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val appNavigator: AppNavigator,
     private val tripRepository: TripRepository,
+    private val userRepository: UserRepository,
     private val apiCaller: ApiCaller,
     private val uiErrorMapper: UiErrorMapper,
 ) : ViewModel() {
@@ -67,7 +69,7 @@ class TripMembersViewModel @Inject constructor(
                 withContext(Dispatchers.IO) {
                     val trip = tripRepository.getTrip(tripId)
                     val members = tripRepository.listMembers(tripId)
-                    val me = tripRepository.getMe()
+                    val me = userRepository.getMe()
                     MembersPayload(
                         title = trip.title,
                         members = members.map {

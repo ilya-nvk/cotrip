@@ -13,8 +13,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nvk.cotrip.R
-import nvk.cotrip.data.network.CoTripApi
 import nvk.cotrip.data.network.dto.UpdateTripRequest
+import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import java.time.LocalDate
@@ -24,7 +24,7 @@ import javax.inject.Inject
 class EditTripViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val appNavigator: AppNavigator,
-    private val api: CoTripApi,
+    private val tripRepository: TripRepository,
 ) : ViewModel() {
 
     private val tripId: String = checkNotNull(savedStateHandle["tripId"])
@@ -89,7 +89,7 @@ class EditTripViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
             val result = runCatching {
-                withContext(Dispatchers.IO) { api.getTrip(id) }
+                withContext(Dispatchers.IO) { tripRepository.getTrip(id) }
             }
             result.onSuccess { trip ->
                 _state.update {
@@ -138,7 +138,7 @@ class EditTripViewModel @Inject constructor(
 
             val result = runCatching {
                 withContext(Dispatchers.IO) {
-                    api.updateTrip(
+                    tripRepository.updateTrip(
                         tripId = tripId,
                         request = UpdateTripRequest(
                             title = s.name,
@@ -168,7 +168,7 @@ class EditTripViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
             val result = runCatching {
-                withContext(Dispatchers.IO) { api.archiveTrip(tripId) }
+                withContext(Dispatchers.IO) { tripRepository.archiveTrip(tripId) }
             }
             result.onSuccess {
                 emitToastRes(R.string.edit_trip_archived_toast)
@@ -184,7 +184,7 @@ class EditTripViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
             val result = runCatching {
-                withContext(Dispatchers.IO) { api.deleteTrip(tripId) }
+                withContext(Dispatchers.IO) { tripRepository.deleteTrip(tripId) }
             }
             result.onSuccess {
                 emitToastRes(R.string.edit_trip_deleted_toast)

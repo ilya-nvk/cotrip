@@ -3,18 +3,17 @@ package nvk.cotrip.ui.trip.list
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import nvk.cotrip.data.network.CoTripApi
 import nvk.cotrip.data.network.dto.TripDto
+import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import java.time.LocalDate
@@ -25,7 +24,7 @@ import javax.inject.Inject
 @HiltViewModel
 class TripsListViewModel @Inject constructor(
     private val appNavigator: AppNavigator,
-    private val api: CoTripApi,
+    private val tripRepository: TripRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<TripsListUiState>(TripsListUiState.Loading)
@@ -34,8 +33,12 @@ class TripsListViewModel @Inject constructor(
     private val _effects = MutableSharedFlow<TripsListEffect>(replay = 0, extraBufferCapacity = 1)
     val effects: SharedFlow<TripsListEffect> = _effects.asSharedFlow()
 
+    private val showPastTrips = MutableStateFlow(false)
+    private val isRefreshing = MutableStateFlow(false)
+
     init {
-        loadTrips(isRefresh = false)
+        observeTrips()
+        refreshTrips(isRefresh = false)
     }
 
     fun onEvent(event: TripsListEvent) {
@@ -43,46 +46,51 @@ class TripsListViewModel @Inject constructor(
             TripsListEvent.OnSettingsClick -> appNavigator.navigate(Destination.Settings)
             TripsListEvent.OnCreateTripClick -> appNavigator.navigate(Destination.CreateTrip)
             TripsListEvent.OnJoinTripClick -> appNavigator.navigate(Destination.JoinTrip)
-            TripsListEvent.OnRefresh -> loadTrips(isRefresh = true)
+            TripsListEvent.OnRefresh -> refreshTrips(isRefresh = true)
             is TripsListEvent.OnTripClick -> appNavigator.navigate(Destination.TripDetails(event.id))
             TripsListEvent.OnTogglePast -> _state.update {
-                (it as? TripsListUiState.Content)?.copy(showPastTrips = !it.showPastTrips) ?: it
+                val current = it as? TripsListUiState.Content ?: return@update it
+                showPastTrips.value = !current.showPastTrips
+                current.copy(showPastTrips = showPastTrips.value)
             }
         }
     }
 
-    private fun loadTrips(isRefresh: Boolean) {
+    private fun observeTrips() {
         viewModelScope.launch {
-            val current = _state.value
-            val currentContent = current as? TripsListUiState.Content
-            if (isRefresh && currentContent != null) {
-                _state.update { currentContent.copy(isRefreshing = true) }
-            } else if (!isRefresh) {
-                _state.value = TripsListUiState.Loading
-            }
-
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    val allTrips = api.listTrips().items
-                    buildBuckets(allTrips)
-                }
-            }.onSuccess { buckets ->
-                val showPast = currentContent?.showPastTrips ?: false
-                _state.value = TripsListUiState.Content(
+            combine(
+                tripRepository.trips,
+                showPastTrips,
+                isRefreshing
+            ) { trips, showPast, refreshing ->
+                val buckets = buildBuckets(trips)
+                TripsListUiState.Content(
                     activeTrips = buckets.active.map { it.toCard() },
                     upcomingTrips = buckets.upcoming.map { it.toCard() },
                     pastTrips = buckets.past.map { it.toCard() },
                     showPastTrips = showPast,
-                    isRefreshing = false,
+                    isRefreshing = refreshing,
                 )
-            }.onFailure {
-                _effects.tryEmit(TripsListEffect.ShowToast("Failed to load trips."))
-                if (currentContent != null) {
-                    _state.update { currentContent.copy(isRefreshing = false) }
-                } else {
-                    _state.update { TripsListUiState.Content() }
-                }
+            }.collect { content ->
+                _state.value = content
             }
+        }
+    }
+
+    private fun refreshTrips(isRefresh: Boolean) {
+        viewModelScope.launch {
+            val currentContent = _state.value as? TripsListUiState.Content
+            if (isRefresh) {
+                isRefreshing.value = true
+            } else if (currentContent == null) {
+                _state.value = TripsListUiState.Loading
+            }
+
+            val result = tripRepository.refreshTrips()
+            if (result.isFailure) {
+                _effects.tryEmit(TripsListEffect.ShowToast("Failed to load trips."))
+            }
+            isRefreshing.value = false
         }
     }
 

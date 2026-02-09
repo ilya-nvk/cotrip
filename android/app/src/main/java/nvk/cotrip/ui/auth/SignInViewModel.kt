@@ -18,9 +18,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import nvk.cotrip.data.auth.SessionStore
-import nvk.cotrip.data.network.CoTripApi
-import nvk.cotrip.data.network.dto.AuthGoogleRequest
+import nvk.cotrip.data.repository.AuthRepository
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import javax.inject.Inject
@@ -28,8 +26,7 @@ import javax.inject.Inject
 @HiltViewModel
 class SignInViewModel @Inject constructor(
     private val navigator: AppNavigator,
-    private val api: CoTripApi,
-    private val sessionStore: SessionStore,
+    private val authRepository: AuthRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SignInUiState())
@@ -42,7 +39,7 @@ class SignInViewModel @Inject constructor(
     val effects: SharedFlow<SignInEffect> = _effects.asSharedFlow()
 
     init {
-        if (!sessionStore.getAccessToken().isNullOrBlank()) {
+        if (authRepository.hasSession()) {
             navigator.navigate(Destination.Trips) {
                 popUpTo(Destination.SignIn.route) { inclusive = true }
                 launchSingleTop = true
@@ -100,13 +97,12 @@ class SignInViewModel @Inject constructor(
         viewModelScope.launch {
             val result = runCatching {
                 withContext(Dispatchers.IO) {
-                    api.googleAuth(AuthGoogleRequest(idToken))
+                    authRepository.signInWithGoogle(idToken)
                 }
             }
 
-            result.onSuccess { response ->
+            result.onSuccess { _ ->
                 Log.d(TAG, "sign in success")
-                sessionStore.setAccessToken(response.accessToken)
                 navigator.navigate(Destination.Trips) {
                     popUpTo(Destination.SignIn.route) { inclusive = true }
                     launchSingleTop = true

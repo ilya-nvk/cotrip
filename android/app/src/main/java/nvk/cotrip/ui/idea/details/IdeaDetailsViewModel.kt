@@ -20,6 +20,7 @@ import nvk.cotrip.data.auth.SessionStore
 import nvk.cotrip.data.repository.IdeaRepository
 import nvk.cotrip.data.repository.ItineraryRepository
 import nvk.cotrip.data.repository.TripRepository
+import nvk.cotrip.data.repository.UserRepository
 import nvk.cotrip.data.network.dto.CommentDto
 import nvk.cotrip.data.network.dto.ConvertIdeaRequest
 import nvk.cotrip.data.network.dto.IdeaDto
@@ -49,6 +50,7 @@ class IdeaDetailsViewModel @Inject constructor(
     private val tripRepository: TripRepository,
     private val ideaRepository: IdeaRepository,
     private val itineraryRepository: ItineraryRepository,
+    private val userRepository: UserRepository,
     private val sessionStore: SessionStore,
     private val okHttpClient: okhttp3.OkHttpClient,
     private val json: Json,
@@ -129,7 +131,7 @@ class IdeaDetailsViewModel @Inject constructor(
                     val tripDeferred = async { tripRepository.getTrip(tripId) }
                     val itineraryDeferred = async { itineraryRepository.getItinerary(tripId) }
                     val membersDeferred = async { tripRepository.listMembers(tripId) }
-                    val meDeferred = async { tripRepository.getMe() }
+                    val meDeferred = async { userRepository.getMe() }
                     val commentsDeferred = async { ideaRepository.listComments(ideaId) }
 
                     val idea = ideaDeferred.await()

@@ -18,6 +18,7 @@ import nvk.cotrip.data.network.dto.MemberDto
 import nvk.cotrip.data.network.dto.TripDto
 import nvk.cotrip.data.repository.ExpenseRepository
 import nvk.cotrip.data.repository.TripRepository
+import nvk.cotrip.data.repository.UserRepository
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import nvk.cotrip.ui.trip.form.TripCurrency
@@ -32,6 +33,7 @@ class ExpenseDetailsViewModel @Inject constructor(
     private val appNavigator: AppNavigator,
     private val tripRepository: TripRepository,
     private val expenseRepository: ExpenseRepository,
+    private val userRepository: UserRepository,
 ) : ViewModel() {
 
     private val tripId: String =
@@ -89,7 +91,7 @@ class ExpenseDetailsViewModel @Inject constructor(
                     val expense = expenseRepository.getExpense(expenseId)
                     val trip = tripRepository.getTrip(tripId)
                     val members = tripRepository.listMembers(tripId)
-                    val me = tripRepository.getMe()
+                    val me = userRepository.getMe()
                     ExpensePayload(expense, trip, members, me.id)
                 }
             }.onSuccess { payload ->
