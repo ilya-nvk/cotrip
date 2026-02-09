@@ -6,6 +6,10 @@ plugins {
     alias(libs.plugins.hilt)
 }
 
+val apiBaseUrl = (project.findProperty("API_BASE_URL") as String?)
+    ?.takeIf { it.isNotBlank() }
+    ?: "http://10.0.2.2:8081/"
+
 android {
     namespace = "nvk.cotrip"
     compileSdk = 34
@@ -21,6 +25,7 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+        buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
     }
 
     buildTypes {
@@ -41,6 +46,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.8"
@@ -74,9 +80,9 @@ dependencies {
     kapt(libs.androidx.hilt.compiler)
 
     implementation(libs.retrofit)
-    implementation(libs.retrofit.kotlin.serialization)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.okhttp)
+    implementation(libs.androidx.datastore.preferences)
 
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)

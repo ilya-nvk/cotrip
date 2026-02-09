@@ -4,20 +4,29 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import nvk.cotrip.R
+import nvk.cotrip.data.network.CoTripApi
+import nvk.cotrip.data.network.dto.ItineraryDayDto
+import nvk.cotrip.data.network.dto.TrimOutOfRangeRequest
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import javax.inject.Inject
 
 @HiltViewModel
 class OutOfRangeDaysViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val appNavigator: AppNavigator,
+    private val api: CoTripApi,
 ) : ViewModel() {
 
     private val tripId: String =
@@ -26,42 +35,8 @@ class OutOfRangeDaysViewModel @Inject constructor(
     private val _state = MutableStateFlow(
         OutOfRangeDaysState(
             tripId = tripId,
-            dateRangeText = "Invalid Date – Invalid Date",
-            days = listOf(
-                OutOfRangeDayUi(
-                    id = "13",
-                    dayTitle = "Day 13",
-                    dateText = "Fri, Jul 27",
-                    city = "Nice",
-                    activitiesTitle = "4 activities",
-                    activitiesPreview = listOf(
-                        "Morning beach walk",
-                        "Visit Promenade des Anglais",
-                        "and 2 more…"
-                    )
-                ),
-                OutOfRangeDayUi(
-                    id = "14",
-                    dayTitle = "Day 14",
-                    dateText = "Sat, Jul 28",
-                    city = "Nice",
-                    activitiesTitle = "2 activities",
-                    activitiesPreview = listOf(
-                        "Day trip to Monaco",
-                        "Return to Paris"
-                    )
-                ),
-                OutOfRangeDayUi(
-                    id = "15",
-                    dayTitle = "Day 15",
-                    dateText = "Sun, Jul 29",
-                    city = null,
-                    activitiesTitle = "1 activity",
-                    activitiesPreview = listOf(
-                        "Flight home"
-                    )
-                ),
-            )
+            dateRangeText = "",
+            days = emptyList(),
         )
     )
     val state = _state.asStateFlow()
@@ -69,17 +44,86 @@ class OutOfRangeDaysViewModel @Inject constructor(
     private val _effects = MutableSharedFlow<OutOfRangeDaysEffect>()
     val effects = _effects.asSharedFlow()
 
+    init {
+        loadOutOfRangeDays()
+    }
+
     fun onEvent(event: OutOfRangeDaysEvent) {
         when (event) {
             OutOfRangeDaysEvent.OnBackClick -> appNavigator.popBackStack()
             OutOfRangeDaysEvent.OnKeepClick -> {
-                emitToast(R.string.out_of_range_days_kept_toast)
-                appNavigator.popBackStack()
+                trimOutOfRange(action = "keep")
             }
 
             OutOfRangeDaysEvent.OnRemoveClick -> {
-                emitToast(R.string.out_of_range_days_removed_toast)
+                trimOutOfRange(action = "remove")
+            }
+        }
+    }
+
+    private fun loadOutOfRangeDays() {
+        viewModelScope.launch {
+            val result = runCatching {
+                withContext(Dispatchers.IO) {
+                    val trip = api.getTrip(tripId)
+                    val itinerary = api.getItinerary(tripId).items
+                    LoadedOutOfRange(
+                        tripStart = LocalDate.parse(trip.startDate),
+                        tripEnd = LocalDate.parse(trip.endDate),
+                        days = itinerary
+                    )
+                }
+            }
+
+            result.onSuccess { loaded ->
+                val outOfRange = loaded.days.filter { day ->
+                    val date = LocalDate.parse(day.date)
+                    date.isBefore(loaded.tripStart) || date.isAfter(loaded.tripEnd)
+                }
+
+                val rangeText = formatRange(loaded.tripStart, loaded.tripEnd)
+                _state.value = OutOfRangeDaysState(
+                    tripId = tripId,
+                    dateRangeText = rangeText,
+                    days = outOfRange.map { it.toUi() }
+                )
+            }.onFailure {
+                emitToast(R.string.common_error_message)
                 appNavigator.popBackStack()
+            }
+        }
+    }
+
+    private fun trimOutOfRange(action: String) {
+        val ids = state.value.days.map { it.id }
+        if (ids.isEmpty()) {
+            appNavigator.popBackStack()
+            return
+        }
+
+        viewModelScope.launch {
+            val result = runCatching {
+                withContext(Dispatchers.IO) {
+                    api.trimOutOfRangeDays(
+                        tripId = tripId,
+                        request = TrimOutOfRangeRequest(
+                            action = action,
+                            dayIds = ids,
+                        )
+                    )
+                }
+            }
+
+            result.onSuccess {
+                val toast = if (action == "keep") {
+                    R.string.out_of_range_days_kept_toast
+                } else {
+                    R.string.out_of_range_days_removed_toast
+                }
+                emitToast(toast)
+                appNavigator.popBackStack()
+            }.onFailure {
+                emitToast(R.string.common_error_message)
             }
         }
     }
@@ -87,4 +131,41 @@ class OutOfRangeDaysViewModel @Inject constructor(
     private fun emitToast(resId: Int) {
         viewModelScope.launch { _effects.emit(OutOfRangeDaysEffect.ShowToastRes(resId)) }
     }
+}
+
+private data class LoadedOutOfRange(
+    val tripStart: LocalDate,
+    val tripEnd: LocalDate,
+    val days: List<ItineraryDayDto>,
+)
+
+private fun ItineraryDayDto.toUi(): OutOfRangeDayUi {
+    val date = LocalDate.parse(date)
+    val dateText = date.format(DateTimeFormatter.ofPattern("EEE, MMM d", Locale.getDefault()))
+    val activities = activities.sortedBy { it.orderIndex }
+    val preview = activities.take(2).map { it.title }.toMutableList()
+    if (activities.size > 2) {
+        preview += "and ${activities.size - 2} more…"
+    }
+    val activitiesTitle = when (activities.size) {
+        0 -> "No activities"
+        1 -> "1 activity"
+        else -> "${activities.size} activities"
+    }
+
+    return OutOfRangeDayUi(
+        id = id,
+        dayTitle = "Day $dayNumber",
+        dateText = dateText,
+        city = city,
+        activitiesTitle = activitiesTitle,
+        activitiesPreview = preview,
+    )
+}
+
+private fun formatRange(start: LocalDate, end: LocalDate): String {
+    val locale = Locale.getDefault()
+    val startText = start.format(DateTimeFormatter.ofPattern("MMM d, yyyy", locale))
+    val endText = end.format(DateTimeFormatter.ofPattern("MMM d, yyyy", locale))
+    return "$startText – $endText"
 }

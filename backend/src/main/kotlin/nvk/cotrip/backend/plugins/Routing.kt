@@ -7,20 +7,38 @@ import io.ktor.server.routing.routing
 import nvk.cotrip.backend.config.AppConfig
 import nvk.cotrip.backend.routes.healthRoutes
 import nvk.cotrip.backend.routes.v1.authRoutes
+import nvk.cotrip.backend.routes.v1.aiRoutes
+import nvk.cotrip.backend.routes.v1.commentRoutes
+import nvk.cotrip.backend.routes.v1.expenseRoutes
+import nvk.cotrip.backend.routes.v1.ideaRoutes
 import nvk.cotrip.backend.routes.v1.inviteRoutes
+import nvk.cotrip.backend.routes.v1.itineraryRoutes
+import nvk.cotrip.backend.routes.v1.memberRoutes
+import nvk.cotrip.backend.routes.v1.notificationRoutes
 import nvk.cotrip.backend.routes.v1.notImplementedRoutes
+import nvk.cotrip.backend.routes.v1.syncRoutes
 import nvk.cotrip.backend.routes.v1.tripRoutes
 import nvk.cotrip.backend.routes.v1.userRoutes
+import nvk.cotrip.backend.routes.v1.weatherRoutes
 import nvk.cotrip.backend.ws.commentsWebSocket
 
 fun Application.configureRouting(appConfig: AppConfig) {
     install(Routing)
     routing {
         healthRoutes()
-        authRoutes()
+        authRoutes(appConfig)
         userRoutes()
         tripRoutes()
+        memberRoutes()
+        commentRoutes()
+        ideaRoutes()
+        itineraryRoutes()
         inviteRoutes(appConfig)
+        expenseRoutes()
+        weatherRoutes()
+        aiRoutes()
+        notificationRoutes()
+        syncRoutes()
         notImplementedRoutes()
         commentsWebSocket()
     }

@@ -1,6 +1,7 @@
 package nvk.cotrip.ui.trip.form
 
 import android.widget.Toast
+import android.app.DatePickerDialog
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -75,12 +76,35 @@ fun TripFormHost(
         }
     }
 
+    fun showDatePicker(initialDate: LocalDate, onSelected: (LocalDate) -> Unit) {
+        DatePickerDialog(
+            context,
+            { _, year, month, dayOfMonth ->
+                onSelected(LocalDate.of(year, month + 1, dayOfMonth))
+            },
+            initialDate.year,
+            initialDate.monthValue - 1,
+            initialDate.dayOfMonth
+        ).show()
+    }
+
     TripFormScreen(
         title = stringResource(titleRes),
         primaryButtonText = stringResource(primaryButtonRes),
         showAdvanced = showAdvanced,
         state = state,
         onEvent = onEvent,
+        onStartDateClick = {
+            showDatePicker(state.startDate ?: LocalDate.now()) { date ->
+                onEvent(TripFormEvent.OnStartDateSelected(date))
+            }
+        },
+        onEndDateClick = {
+            val fallback = state.startDate ?: LocalDate.now()
+            showDatePicker(state.endDate ?: fallback) { date ->
+                onEvent(TripFormEvent.OnEndDateSelected(date))
+            }
+        },
     )
 }
 
@@ -92,6 +116,8 @@ private fun TripFormScreen(
     showAdvanced: Boolean,
     state: TripFormState,
     onEvent: (TripFormEvent) -> Unit,
+    onStartDateClick: () -> Unit,
+    onEndDateClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Scaffold(
@@ -193,13 +219,13 @@ private fun TripFormScreen(
                     DateField(
                         label = stringResource(R.string.trip_form_start_date_label),
                         valueText = formatDateOrPlaceholder(state.startDate),
-                        onClick = { onEvent(TripFormEvent.OnStartDateClick) },
+                        onClick = onStartDateClick,
                         modifier = Modifier.weight(1f)
                     )
                     DateField(
                         label = stringResource(R.string.trip_form_end_date_label),
                         valueText = formatDateOrPlaceholder(state.endDate),
-                        onClick = { onEvent(TripFormEvent.OnEndDateClick) },
+                        onClick = onEndDateClick,
                         modifier = Modifier.weight(1f)
                     )
                 }

@@ -195,7 +195,7 @@ private fun IdeaFormScreen(
                 onValueChange = { viewModel.onEvent(IdeaFormEvent.OnCityChange(it)) },
                 placeholder = stringResource(R.string.idea_form_city_placeholder),
                 singleLine = true,
-                readOnly = true,
+                readOnly = false,
                 trailingIcon = {
                     CoTripIconButton(
                         icon = CoTripIcons.ExpandMore,

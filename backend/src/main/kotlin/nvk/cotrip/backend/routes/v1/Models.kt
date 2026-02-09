@@ -1,6 +1,7 @@
 package nvk.cotrip.backend.routes.v1
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 import nvk.cotrip.backend.db.TripRow
 import nvk.cotrip.backend.db.UserRow
 import java.time.format.DateTimeFormatter
@@ -45,6 +46,140 @@ data class InviteInfoDto(
     val endDate: String,
     val locationLine: String? = null,
     val expiresAt: String,
+)
+
+@Serializable
+data class CommentDto(
+    val id: String,
+    val ideaId: String,
+    val authorId: String,
+    val body: String,
+    val createdAt: String,
+)
+
+@Serializable
+data class MemberDto(
+    val userId: String,
+    val name: String,
+    val photoUrl: String? = null,
+    val initials: String,
+    val role: String,
+    val status: String,
+)
+
+@Serializable
+data class IdeaDto(
+    val id: String,
+    val tripId: String,
+    val authorId: String,
+    val title: String,
+    val city: String? = null,
+    val costAmount: Double? = null,
+    val costType: String? = null,
+    val website: String? = null,
+    val notes: String? = null,
+    val status: String,
+    val updatedAt: String,
+    val commentsCount: Int = 0,
+)
+
+@Serializable
+data class ActivityDto(
+    val id: String,
+    val dayId: String,
+    val title: String,
+    val timeText: String? = null,
+    val locationName: String? = null,
+    val locationLink: String? = null,
+    val costAmount: Double? = null,
+    val costType: String? = null,
+    val website: String? = null,
+    val notes: String? = null,
+    val orderIndex: Int,
+)
+
+@Serializable
+data class ItineraryDayDto(
+    val id: String,
+    val tripId: String,
+    val date: String,
+    val dayNumber: Int,
+    val city: String? = null,
+    val isOutOfRange: Boolean,
+    val activities: List<ActivityDto> = emptyList(),
+)
+
+@Serializable
+data class ExpenseParticipantDto(
+    val userId: String,
+    val shareAmount: Double? = null,
+    val isIncluded: Boolean,
+    val isPaid: Boolean,
+)
+
+@Serializable
+data class ExpenseDto(
+    val id: String,
+    val tripId: String,
+    val title: String,
+    val amount: Double,
+    val currencyCode: String,
+    val status: String,
+    val paidById: String? = null,
+    val date: String? = null,
+    val splitType: String,
+    val note: String? = null,
+    val participants: List<ExpenseParticipantDto> = emptyList(),
+)
+
+@Serializable
+data class WeatherForecastDto(
+    val id: String,
+    val tripId: String,
+    val city: String,
+    val date: String,
+    val tempMin: Double? = null,
+    val tempMax: Double? = null,
+    val description: String? = null,
+    val iconCode: String? = null,
+    val source: String,
+    val fetchedAt: String,
+)
+
+@Serializable
+data class AiSuggestionDto(
+    val id: String,
+    val title: String,
+    val description: String? = null,
+    val typeLabel: String? = null,
+    val durationLabel: String? = null,
+    val budgetLabel: String? = null,
+    val estimatedCost: Double? = null,
+    val isSaved: Boolean,
+)
+
+@Serializable
+data class NotificationDto(
+    val id: String,
+    val type: String,
+    val payload: JsonElement,
+    val createdAt: String,
+    val readAt: String? = null,
+)
+
+@Serializable
+data class NotificationSettingDto(
+    val key: String,
+    val enabled: Boolean,
+)
+
+@Serializable
+data class SyncChangeDto(
+    val entity: String,
+    val id: String,
+    val updatedAt: String,
+    val deletedAt: String? = null,
+    val payload: JsonElement,
 )
 
 fun UserRow.toDto(): UserDto = UserDto(

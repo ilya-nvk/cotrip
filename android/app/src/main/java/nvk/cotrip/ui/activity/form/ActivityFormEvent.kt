@@ -1,11 +1,16 @@
 package nvk.cotrip.ui.activity.form
 
+import java.time.LocalDate
+import java.time.LocalTime
+
 sealed interface ActivityFormEvent {
     data object OnBackClick : ActivityFormEvent
     data object OnPrimaryClick : ActivityFormEvent
     data object OnDeleteClick : ActivityFormEvent
     data object OnPickDateClick : ActivityFormEvent
     data object OnPickTimeClick : ActivityFormEvent
+    data class OnDateSelected(val date: LocalDate) : ActivityFormEvent
+    data class OnTimeSelected(val time: LocalTime) : ActivityFormEvent
 
     data class OnTitleChange(val value: String) : ActivityFormEvent
     data class OnLocationNameChange(val value: String) : ActivityFormEvent

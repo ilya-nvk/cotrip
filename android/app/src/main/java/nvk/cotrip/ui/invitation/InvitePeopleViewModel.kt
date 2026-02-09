@@ -4,20 +4,26 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import nvk.cotrip.R
+import nvk.cotrip.data.network.CoTripApi
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
+import java.time.OffsetDateTime
+import java.time.temporal.ChronoUnit
 import javax.inject.Inject
 
 @HiltViewModel
 class InvitePeopleViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val appNavigator: AppNavigator,
+    private val api: CoTripApi,
 ) : ViewModel() {
 
     private val tripId: String =
@@ -26,14 +32,18 @@ class InvitePeopleViewModel @Inject constructor(
     private val _state = MutableStateFlow(
         InvitePeopleState(
             tripId = tripId,
-            inviteLink = "https://tripapp.com/invite/xyz123abc456",
-            expiresInHours = 12
+            inviteLink = "",
+            expiresInHours = 12,
         )
     )
     val state = _state.asStateFlow()
 
     private val _effects = MutableSharedFlow<InvitePeopleEffect>()
     val effects = _effects.asSharedFlow()
+
+    init {
+        loadInvite()
+    }
 
     fun onEvent(event: InvitePeopleEvent) {
         when (event) {
@@ -42,6 +52,32 @@ class InvitePeopleViewModel @Inject constructor(
             InvitePeopleEvent.OnCopyClick -> emitToast(R.string.invite_people_copied_toast)
 
             InvitePeopleEvent.OnShareClick -> emitToast(R.string.invite_people_share_not_implemented)
+        }
+    }
+
+    private fun loadInvite() {
+        viewModelScope.launch {
+            val result = runCatching {
+                withContext(Dispatchers.IO) {
+                    api.createInvite(tripId)
+                }
+            }
+
+            result.onSuccess { invite ->
+                val expiresAt = runCatching { OffsetDateTime.parse(invite.expiresAt) }.getOrNull()
+                val hoursLeft = expiresAt?.let {
+                    val diff = ChronoUnit.HOURS.between(OffsetDateTime.now(), it)
+                    diff.coerceAtLeast(0)
+                } ?: 12
+
+                _state.value = InvitePeopleState(
+                    tripId = tripId,
+                    inviteLink = invite.url,
+                    expiresInHours = hoursLeft.toInt(),
+                )
+            }.onFailure {
+                emitToast(R.string.common_error_message)
+            }
         }
     }
 

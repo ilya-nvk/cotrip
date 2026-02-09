@@ -63,6 +63,19 @@ object TripRepository {
             stmt.executeUpdate()
         }
 
+        conn.prepareStatement(
+            """
+            INSERT INTO itinerary_days (trip_id, date, day_number)
+            SELECT ?, day::date, ROW_NUMBER() OVER (ORDER BY day)
+            FROM generate_series(?, ?, interval '1 day') AS day
+            """.trimIndent()
+        ).use { stmt ->
+            stmt.setObject(1, UUID.fromString(trip.id))
+            stmt.setObject(2, trip.startDate)
+            stmt.setObject(3, trip.endDate)
+            stmt.executeUpdate()
+        }
+
         trip
     }
 
@@ -297,6 +310,21 @@ object TripRepository {
             """
             SELECT 1 FROM trips
             WHERE id = ? AND owner_id = ? AND deleted_at IS NULL
+            """.trimIndent()
+        ).use { stmt ->
+            stmt.setObject(1, UUID.fromString(tripId))
+            stmt.setObject(2, UUID.fromString(userId))
+            stmt.executeQuery().use { rs ->
+                rs.next()
+            }
+        }
+    }
+
+    fun isMember(tripId: String, userId: String): Boolean = dbQuery { conn ->
+        conn.prepareStatement(
+            """
+            SELECT 1 FROM trip_members
+            WHERE trip_id = ? AND user_id = ? AND status = 'accepted'
             """.trimIndent()
         ).use { stmt ->
             stmt.setObject(1, UUID.fromString(tripId))
