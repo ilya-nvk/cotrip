@@ -12,7 +12,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nvk.cotrip.R
-import nvk.cotrip.data.network.CoTripApi
+import nvk.cotrip.data.repository.ItineraryRepository
+import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.data.network.dto.ItineraryDayDto
 import nvk.cotrip.data.network.dto.TrimOutOfRangeRequest
 import nvk.cotrip.ui.navigation.AppNavigator
@@ -26,7 +27,8 @@ import javax.inject.Inject
 class OutOfRangeDaysViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val appNavigator: AppNavigator,
-    private val api: CoTripApi,
+    private val tripRepository: TripRepository,
+    private val itineraryRepository: ItineraryRepository,
 ) : ViewModel() {
 
     private val tripId: String =
@@ -65,8 +67,8 @@ class OutOfRangeDaysViewModel @Inject constructor(
         viewModelScope.launch {
             val result = runCatching {
                 withContext(Dispatchers.IO) {
-                    val trip = api.getTrip(tripId)
-                    val itinerary = api.getItinerary(tripId).items
+                    val trip = tripRepository.getTrip(tripId)
+                    val itinerary = itineraryRepository.getItinerary(tripId)
                     LoadedOutOfRange(
                         tripStart = LocalDate.parse(trip.startDate),
                         tripEnd = LocalDate.parse(trip.endDate),
@@ -104,7 +106,7 @@ class OutOfRangeDaysViewModel @Inject constructor(
         viewModelScope.launch {
             val result = runCatching {
                 withContext(Dispatchers.IO) {
-                    api.trimOutOfRangeDays(
+                    itineraryRepository.trimOutOfRange(
                         tripId = tripId,
                         request = TrimOutOfRangeRequest(
                             action = action,

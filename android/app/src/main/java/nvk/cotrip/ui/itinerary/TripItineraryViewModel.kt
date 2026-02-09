@@ -13,7 +13,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nvk.cotrip.R
-import nvk.cotrip.data.network.CoTripApi
+import nvk.cotrip.data.repository.ItineraryRepository
+import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.data.network.dto.ActivityDto
 import nvk.cotrip.data.network.dto.ItineraryDayDto
 import nvk.cotrip.data.network.dto.UpdateDayRequest
@@ -29,7 +30,8 @@ import javax.inject.Inject
 class TripItineraryViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val appNavigator: AppNavigator,
-    private val api: CoTripApi,
+    private val tripRepository: TripRepository,
+    private val itineraryRepository: ItineraryRepository,
 ) : ViewModel() {
 
     private val tripId: String =
@@ -79,8 +81,8 @@ class TripItineraryViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
-                    val trip = api.getTrip(tripId)
-                    val itinerary = api.getItinerary(tripId).items
+                    val trip = tripRepository.getTrip(tripId)
+                    val itinerary = itineraryRepository.getItinerary(tripId)
                     currencySymbol = currencySymbolFor(trip.currencyCode)
                     allCities =
                         itinerary.mapNotNull { it.city?.takeIf(String::isNotBlank) }.distinct()
@@ -136,7 +138,10 @@ class TripItineraryViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
-                    api.updateDay(picker.dayId, UpdateDayRequest(city = city))
+                    itineraryRepository.updateDay(
+                        dayId = picker.dayId,
+                        request = UpdateDayRequest(city = city)
+                    )
                 }
             }.onSuccess {
                 _state.update { st ->

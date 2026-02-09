@@ -12,10 +12,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nvk.cotrip.R
-import nvk.cotrip.data.network.CoTripApi
 import nvk.cotrip.data.network.dto.ActivityDto
 import nvk.cotrip.data.network.dto.ItineraryDayDto
 import nvk.cotrip.data.network.dto.TripDto
+import nvk.cotrip.data.repository.ItineraryRepository
+import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import nvk.cotrip.ui.trip.form.TripCurrency
@@ -28,7 +29,8 @@ import javax.inject.Inject
 class ActivityDetailsViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val appNavigator: AppNavigator,
-    private val api: CoTripApi,
+    private val tripRepository: TripRepository,
+    private val itineraryRepository: ItineraryRepository,
 ) : ViewModel() {
 
     private val activityId: String =
@@ -52,6 +54,7 @@ class ActivityDetailsViewModel @Inject constructor(
 
     private val _effects = MutableSharedFlow<ActivityDetailsEffect>()
     val effects = _effects.asSharedFlow()
+    private var currentTripId: String? = null
 
     init {
         loadActivity()
@@ -76,6 +79,7 @@ class ActivityDetailsViewModel @Inject constructor(
             runCatching {
                 withContext(Dispatchers.IO) { findActivity(activityId) }
             }.onSuccess { info ->
+                currentTripId = info.trip.id
                 val currencySymbol = currencySymbolFor(info.trip.currencyCode)
                 val dateText = formatDay(info.day.date)
                 val dayAndCity = if (info.day.city.isNullOrBlank()) {
@@ -102,9 +106,12 @@ class ActivityDetailsViewModel @Inject constructor(
     }
 
     private fun deleteActivity() {
+        if (currentTripId == null) return
         viewModelScope.launch {
             runCatching {
-                withContext(Dispatchers.IO) { api.deleteActivity(activityId) }
+                withContext(Dispatchers.IO) {
+                    itineraryRepository.deleteActivity(activityId)
+                }
             }.onSuccess {
                 emitToast(R.string.activity_details_deleted_toast)
                 appNavigator.popBackStack()
@@ -115,9 +122,9 @@ class ActivityDetailsViewModel @Inject constructor(
     }
 
     private suspend fun findActivity(activityId: String): ActivityLookup {
-        val trips = api.listTrips().items
+        val trips = tripRepository.listTrips()
         trips.forEach { trip ->
-            val itinerary = api.getItinerary(trip.id).items
+            val itinerary = itineraryRepository.getItinerary(trip.id)
             itinerary.forEach { day ->
                 val match = day.activities.firstOrNull { it.id == activityId }
                 if (match != null) {

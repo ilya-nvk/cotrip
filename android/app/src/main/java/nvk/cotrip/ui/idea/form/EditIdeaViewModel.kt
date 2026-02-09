@@ -13,7 +13,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nvk.cotrip.R
-import nvk.cotrip.data.network.CoTripApi
+import nvk.cotrip.data.repository.IdeaRepository
+import nvk.cotrip.data.repository.ItineraryRepository
+import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.data.network.dto.UpdateIdeaRequest
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
@@ -24,7 +26,9 @@ import javax.inject.Inject
 class EditIdeaViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val appNavigator: AppNavigator,
-    private val api: CoTripApi,
+    private val tripRepository: TripRepository,
+    private val itineraryRepository: ItineraryRepository,
+    private val ideaRepository: IdeaRepository,
 ) : ViewModel(), IdeaFormContract {
 
     private val tripId: String =
@@ -87,9 +91,9 @@ class EditIdeaViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
-                    val idea = api.getIdea(ideaId)
-                    val trip = api.getTrip(tripId)
-                    val itinerary = api.getItinerary(tripId).items
+                    val idea = ideaRepository.getIdea(ideaId)
+                    val trip = tripRepository.getTrip(tripId)
+                    val itinerary = itineraryRepository.getItinerary(tripId)
                     val cities =
                         itinerary.mapNotNull { it.city?.takeIf { city -> city.isNotBlank() } }
                             .distinct()
@@ -135,7 +139,7 @@ class EditIdeaViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
-                    api.updateIdea(
+                    ideaRepository.updateIdea(
                         ideaId = ideaId,
                         request = UpdateIdeaRequest(
                             title = snapshot.title.trim(),
@@ -160,7 +164,7 @@ class EditIdeaViewModel @Inject constructor(
     private fun deleteIdea() {
         viewModelScope.launch {
             runCatching {
-                withContext(Dispatchers.IO) { api.deleteIdea(ideaId) }
+                withContext(Dispatchers.IO) { ideaRepository.deleteIdea(ideaId) }
             }.onSuccess {
                 emit(IdeaFormEffect.ShowToastRes(R.string.idea_form_deleted_toast))
                 appNavigator.popBackStack()

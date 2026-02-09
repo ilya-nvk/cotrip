@@ -13,7 +13,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nvk.cotrip.R
-import nvk.cotrip.data.network.CoTripApi
+import nvk.cotrip.data.repository.ItineraryRepository
+import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.data.network.dto.CreateActivityRequest
 import nvk.cotrip.data.network.dto.ItineraryDayDto
 import nvk.cotrip.ui.navigation.AppNavigator
@@ -29,7 +30,8 @@ import javax.inject.Inject
 class CreateActivityViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val appNavigator: AppNavigator,
-    private val api: CoTripApi,
+    private val tripRepository: TripRepository,
+    private val itineraryRepository: ItineraryRepository,
 ) : ViewModel(), ActivityFormContract {
 
     private val tripId: String =
@@ -94,8 +96,9 @@ class CreateActivityViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
-                    val trip = api.getTrip(tripId)
-                    val itinerary = api.getItinerary(tripId).items.sortedBy { it.dayNumber }
+                    val trip = tripRepository.getTrip(tripId)
+                    val itinerary = itineraryRepository.getItinerary(tripId)
+                        .sortedBy { it.dayNumber }
                     val firstDay = itinerary.firstOrNull()
                     val dayMap = itinerary.associateBy { LocalDate.parse(it.date) }
                     TripMeta(
@@ -150,7 +153,7 @@ class CreateActivityViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
-                    api.createActivity(
+                    itineraryRepository.createActivity(
                         dayId = dayId,
                         request = CreateActivityRequest(
                             title = snapshot.title.trim(),

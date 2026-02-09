@@ -13,7 +13,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nvk.cotrip.R
-import nvk.cotrip.data.network.CoTripApi
+import nvk.cotrip.data.repository.IdeaRepository
+import nvk.cotrip.data.repository.ItineraryRepository
+import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.data.network.dto.CreateIdeaRequest
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
@@ -24,7 +26,9 @@ import javax.inject.Inject
 class CreateIdeaViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val appNavigator: AppNavigator,
-    private val api: CoTripApi,
+    private val tripRepository: TripRepository,
+    private val itineraryRepository: ItineraryRepository,
+    private val ideaRepository: IdeaRepository,
 ) : ViewModel(), IdeaFormContract {
 
     private val tripId: String =
@@ -83,8 +87,8 @@ class CreateIdeaViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
-                    val trip = api.getTrip(tripId)
-                    val itinerary = api.getItinerary(tripId).items
+                    val trip = tripRepository.getTrip(tripId)
+                    val itinerary = itineraryRepository.getItinerary(tripId)
                     val cities =
                         itinerary.mapNotNull { it.city?.takeIf { city -> city.isNotBlank() } }
                             .distinct()
@@ -112,7 +116,7 @@ class CreateIdeaViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
-                    api.createIdea(
+                    ideaRepository.createIdea(
                         tripId = tripId,
                         request = CreateIdeaRequest(
                             title = snapshot.title.trim(),

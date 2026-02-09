@@ -16,7 +16,9 @@ import kotlinx.serialization.json.Json
 import nvk.cotrip.BuildConfig
 import nvk.cotrip.R
 import nvk.cotrip.data.auth.SessionStore
-import nvk.cotrip.data.network.CoTripApi
+import nvk.cotrip.data.repository.IdeaRepository
+import nvk.cotrip.data.repository.ItineraryRepository
+import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.data.network.dto.ConvertIdeaRequest
 import nvk.cotrip.data.network.dto.IdeaDto
 import nvk.cotrip.data.network.dto.ItineraryDayDto
@@ -39,7 +41,9 @@ import javax.inject.Inject
 class TripIdeasViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val appNavigator: AppNavigator,
-    private val api: CoTripApi,
+    private val tripRepository: TripRepository,
+    private val ideaRepository: IdeaRepository,
+    private val itineraryRepository: ItineraryRepository,
     private val sessionStore: SessionStore,
     private val okHttpClient: OkHttpClient,
     private val json: Json,
@@ -98,9 +102,9 @@ class TripIdeasViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
-                    val trip = api.getTrip(tripId)
-                    val ideas = api.listIdeas(tripId).items
-                    val itinerary = api.getItinerary(tripId).items
+                    val trip = tripRepository.getTrip(tripId)
+                    val ideas = ideaRepository.listIdeas(tripId)
+                    val itinerary = itineraryRepository.getItinerary(tripId)
                     currencySymbol = currencySymbolFor(trip.currencyCode)
                     dayOptions = itinerary
                         .filter { !it.isOutOfRange }
@@ -142,7 +146,10 @@ class TripIdeasViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
-                    api.convertIdeaToActivity(ideaId, ConvertIdeaRequest(dayId = day.id))
+                    ideaRepository.convertIdeaToActivity(
+                        ideaId,
+                        ConvertIdeaRequest(dayId = day.id)
+                    )
                 }
             }.onSuccess {
                 addedDays[ideaId] = day.dayNumber
