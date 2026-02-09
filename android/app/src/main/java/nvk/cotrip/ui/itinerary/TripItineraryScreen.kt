@@ -125,6 +125,21 @@ fun TripItineraryScreen(
                         onClick = { viewModel.onEvent(TripItineraryEvent.OnBackClick) }
                     )
                 },
+                actions = {
+                    val hasReorderable = state.days.any { it.activities.size > 1 }
+                    if (state.mode == ItineraryMode.Filled && hasReorderable) {
+                        CoTripIconButton(
+                            icon = if (state.isReordering) CoTripIcons.CheckCircle else CoTripIcons.Reorder,
+                            contentDescription = stringResource(
+                                if (state.isReordering)
+                                    R.string.itinerary_reorder_done
+                                else
+                                    R.string.itinerary_reorder_start
+                            ),
+                            onClick = { viewModel.onEvent(TripItineraryEvent.OnToggleReorder) }
+                        )
+                    }
+                },
                 title = {
                     Column(verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x0_5)) {
                         Text(
@@ -170,6 +185,7 @@ fun TripItineraryScreen(
                     items(state.days, key = { it.id }) { day ->
                         FilledDaySection(
                             day = day,
+                            isReordering = state.isReordering,
                             onChooseCity = {
                                 viewModel.onEvent(
                                     TripItineraryEvent.OnChooseCityClick(day.id)
@@ -179,7 +195,16 @@ fun TripItineraryScreen(
                                 viewModel.onEvent(
                                     TripItineraryEvent.OnActivityClick(it)
                                 )
-                            }
+                            },
+                            onMoveActivity = { activityId, direction ->
+                                viewModel.onEvent(
+                                    TripItineraryEvent.OnMoveActivity(
+                                        dayId = day.id,
+                                        activityId = activityId,
+                                        direction = direction
+                                    )
+                                )
+                            },
                         )
                     }
                 }
@@ -210,8 +235,10 @@ fun TripItineraryScreen(
 @Composable
 private fun FilledDaySection(
     day: ItineraryDayUi,
+    isReordering: Boolean,
     onChooseCity: () -> Unit,
-    onActivityClick: (String) -> Unit
+    onActivityClick: (String) -> Unit,
+    onMoveActivity: (String, MoveDirection) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x1)) {
         Row(
@@ -266,6 +293,11 @@ private fun FilledDaySection(
             day.activities.forEachIndexed { index, activity ->
                 ActivityRow(
                     activity = activity,
+                    isReordering = isReordering,
+                    canMoveUp = index > 0,
+                    canMoveDown = index < day.activities.lastIndex,
+                    onMoveUp = { onMoveActivity(activity.id, MoveDirection.Up) },
+                    onMoveDown = { onMoveActivity(activity.id, MoveDirection.Down) },
                     onClick = { onActivityClick(activity.id) },
                 )
                 if (index != day.activities.lastIndex) {
@@ -334,13 +366,21 @@ private fun EmptyDayCard(
 @Composable
 private fun ActivityRow(
     activity: ItineraryActivityUi,
+    isReordering: Boolean,
+    canMoveUp: Boolean,
+    canMoveDown: Boolean,
+    onMoveUp: () -> Unit,
+    onMoveDown: () -> Unit,
     onClick: () -> Unit,
 ) {
+    val rowModifier = if (isReordering) {
+        Modifier.fillMaxWidth()
+    } else {
+        Modifier.fillMaxWidth().clickable { onClick() }
+    }
+
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() }
-            .padding(
+        modifier = rowModifier.padding(
                 horizontal = CoTripTokens.spacing.x2,
                 vertical = CoTripTokens.spacing.x1_5
             ),
@@ -393,6 +433,27 @@ private fun ActivityRow(
                 style = MaterialTheme.typography.bodySmall,
                 color = TextSecondary
             )
+        }
+
+        if (isReordering) {
+            Spacer(Modifier.width(CoTripTokens.spacing.x1))
+            Column(
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                CoTripIconButton(
+                    icon = CoTripIcons.ArrowUp,
+                    contentDescription = stringResource(R.string.itinerary_move_up),
+                    onClick = onMoveUp,
+                    enabled = canMoveUp
+                )
+                CoTripIconButton(
+                    icon = CoTripIcons.ArrowDown,
+                    contentDescription = stringResource(R.string.itinerary_move_down),
+                    onClick = onMoveDown,
+                    enabled = canMoveDown
+                )
+            }
         }
     }
 }

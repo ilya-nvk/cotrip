@@ -120,6 +120,10 @@
     <string name="itinerary_choose_city_title">Choose city</string>
     <string name="itinerary_choose_city_placeholder">Search or enter city name</string>
     <string name="itinerary_add_activity_not_implemented">Adding activities is not implemented yet</string>
+    <string name="itinerary_reorder_start">Reorder activities</string>
+    <string name="itinerary_reorder_done">Done</string>
+    <string name="itinerary_move_up">Move up</string>
+    <string name="itinerary_move_down">Move down</string>
 
     <!--Ideas-->
     <string name="ideas_title">Ideas</string>

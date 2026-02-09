@@ -21,6 +21,7 @@ import nvk.cotrip.data.network.dto.TripDto
 import nvk.cotrip.data.network.dto.TransferOwnerRequest
 import nvk.cotrip.data.network.dto.TrimOutOfRangeRequest
 import nvk.cotrip.data.network.dto.MoveActivityRequest
+import nvk.cotrip.data.network.dto.ReorderActivitiesRequest
 import nvk.cotrip.data.network.dto.UpdateActivityRequest
 import nvk.cotrip.data.network.dto.UpdateDayRequest
 import nvk.cotrip.data.network.dto.UpdateIdeaRequest
@@ -197,6 +198,12 @@ interface CoTripApi {
         @Path("activityId") activityId: String,
         @Body request: MoveActivityRequest,
     ): ActivityDto
+
+    @POST("v1/itinerary/days/{dayId}/activities/reorder")
+    suspend fun reorderActivities(
+        @Path("dayId") dayId: String,
+        @Body request: ReorderActivitiesRequest,
+    ): Unit
 
     @POST("v1/trips/{tripId}/itinerary/trim-out-of-range")
     suspend fun trimOutOfRangeDays(

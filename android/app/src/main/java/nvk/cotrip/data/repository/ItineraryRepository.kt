@@ -6,6 +6,7 @@ import nvk.cotrip.data.network.dto.ActivityDto
 import nvk.cotrip.data.network.dto.CreateActivityRequest
 import nvk.cotrip.data.network.dto.ItineraryDayDto
 import nvk.cotrip.data.network.dto.MoveActivityRequest
+import nvk.cotrip.data.network.dto.ReorderActivitiesRequest
 import nvk.cotrip.data.network.dto.TrimOutOfRangeRequest
 import nvk.cotrip.data.network.dto.UpdateActivityRequest
 import nvk.cotrip.data.network.dto.UpdateDayRequest
@@ -59,6 +60,10 @@ class ItineraryRepository @Inject constructor(
         } catch (e: IOException) {
             syncQueueRepository.enqueueDelete(SyncEntities.ACTIVITY, activityId)
         }
+    }
+
+    suspend fun reorderActivities(dayId: String, orderedIds: List<String>) {
+        api.reorderActivities(dayId, ReorderActivitiesRequest(orderedIds))
     }
 
     suspend fun trimOutOfRange(tripId: String, request: TrimOutOfRangeRequest) {
