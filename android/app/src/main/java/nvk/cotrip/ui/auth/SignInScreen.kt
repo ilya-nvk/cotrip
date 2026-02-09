@@ -1,6 +1,9 @@
 package nvk.cotrip.ui.auth
 
+import android.app.Activity
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -17,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -25,7 +29,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
 import kotlinx.coroutines.flow.collectLatest
+import nvk.cotrip.BuildConfig
 import nvk.cotrip.R
 import nvk.cotrip.ui.components.PrimaryButton
 import nvk.cotrip.ui.theme.CoTripTokens
@@ -38,6 +46,37 @@ fun SignInScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    val serverClientId = BuildConfig.GOOGLE_SERVER_CLIENT_ID
+
+    val signInClient = remember(serverClientId) {
+        val options = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken(serverClientId)
+            .requestEmail()
+            .build()
+        GoogleSignIn.getClient(context, options)
+    }
+
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode != Activity.RESULT_OK) {
+            viewModel.onEvent(SignInEvent.OnGoogleSignInFailed("Sign-in canceled."))
+            return@rememberLauncherForActivityResult
+        }
+        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+        runCatching {
+            task.getResult(ApiException::class.java)
+        }.onSuccess { account ->
+            val token = account.idToken
+            if (token.isNullOrBlank()) {
+                viewModel.onEvent(SignInEvent.OnGoogleSignInFailed("Missing idToken."))
+            } else {
+                viewModel.onEvent(SignInEvent.OnGoogleIdToken(token))
+            }
+        }.onFailure {
+            viewModel.onEvent(SignInEvent.OnGoogleSignInFailed("Google sign-in failed."))
+        }
+    }
 
     LaunchedEffect(viewModel) {
         viewModel.effects.collectLatest { effect ->
@@ -84,7 +123,16 @@ fun SignInScreen(
                         stringResource(R.string.signing_in)
                     else
                         stringResource(R.string.continue_with_google),
-                    onClick = { viewModel.onEvent(SignInEvent.SignInWithGoogle) },
+                    onClick = {
+                        if (serverClientId.isBlank()) {
+                            viewModel.onEvent(
+                                SignInEvent.OnGoogleSignInFailed("Missing Google client id.")
+                            )
+                            return@PrimaryButton
+                        }
+                        viewModel.onEvent(SignInEvent.StartGoogleSignIn)
+                        launcher.launch(signInClient.signInIntent)
+                    },
                     enabled = !state.isLoading,
                     modifier = Modifier.fillMaxWidth(),
                     leadingIcon = {

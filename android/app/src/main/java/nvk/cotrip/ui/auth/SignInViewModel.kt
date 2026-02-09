@@ -16,7 +16,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nvk.cotrip.data.auth.SessionStore
 import nvk.cotrip.data.network.CoTripApi
-import nvk.cotrip.data.network.dto.AuthDevRequest
+import nvk.cotrip.data.network.dto.AuthGoogleRequest
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import javax.inject.Inject
@@ -48,24 +48,29 @@ class SignInViewModel @Inject constructor(
 
     fun onEvent(event: SignInEvent) {
         when (event) {
-            is SignInEvent.SignInWithGoogle -> signInWithGoogle()
+            SignInEvent.StartGoogleSignIn -> startGoogleSignIn()
+            is SignInEvent.OnGoogleIdToken -> signInWithGoogle(event.idToken)
+            is SignInEvent.OnGoogleSignInFailed -> {
+                _uiState.update { it.copy(isLoading = false) }
+                _effects.tryEmit(SignInEffect.ShowToast(event.message))
+            }
         }
     }
 
-    private fun signInWithGoogle() {
+    private fun startGoogleSignIn() {
         if (_uiState.value.isLoading) return
+        _uiState.update { it.copy(isLoading = true) }
+    }
+
+    private fun signInWithGoogle(idToken: String) {
+        if (_uiState.value.isLoading.not()) {
+            _uiState.update { it.copy(isLoading = true) }
+        }
 
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
-
             val result = runCatching {
                 withContext(Dispatchers.IO) {
-                    api.devAuth(
-                        AuthDevRequest(
-                            googleId = "android-dev",
-                            name = "Android Dev",
-                        )
-                    )
+                    api.googleAuth(AuthGoogleRequest(idToken))
                 }
             }
 
