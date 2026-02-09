@@ -45,7 +45,7 @@ class TripsListViewModel @Inject constructor(
         when (event) {
             TripsListEvent.OnSettingsClick -> appNavigator.navigate(Destination.Settings)
             TripsListEvent.OnCreateTripClick -> appNavigator.navigate(Destination.CreateTrip)
-            TripsListEvent.OnJoinTripClick -> appNavigator.navigate(Destination.JoinTrip)
+            TripsListEvent.OnJoinTripClick -> appNavigator.navigate(Destination.JoinTrip())
             TripsListEvent.OnRefresh -> refreshTrips(isRefresh = true)
             is TripsListEvent.OnTripClick -> appNavigator.navigate(Destination.TripDetails(event.id))
             TripsListEvent.OnTogglePast -> _state.update {

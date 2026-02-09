@@ -19,8 +19,14 @@ sealed interface Destination {
         override val route = "settings"
     }
 
-    data object JoinTrip : Destination {
-        override val route = "trips/join"
+    data class JoinTrip(val token: String? = null) : Destination {
+        override val route: String =
+            if (token.isNullOrBlank()) "trips/join" else "trips/join?token=$token"
+
+        companion object {
+            const val ARG_INVITE_TOKEN = "inviteToken"
+            const val ROUTE_PATTERN = "trips/join?token={$ARG_INVITE_TOKEN}"
+        }
     }
 
     data class TripDetails(val tripId: String) : Destination {
