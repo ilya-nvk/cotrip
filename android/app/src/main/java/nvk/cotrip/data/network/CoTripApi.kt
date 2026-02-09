@@ -17,6 +17,9 @@ import nvk.cotrip.data.network.dto.ItineraryDayDto
 import nvk.cotrip.data.network.dto.InviteInfoDto
 import nvk.cotrip.data.network.dto.InviteLinkDto
 import nvk.cotrip.data.network.dto.MemberDto
+import nvk.cotrip.data.network.dto.NotificationListResponse
+import nvk.cotrip.data.network.dto.NotificationSettingsResponse
+import nvk.cotrip.data.network.dto.NotificationSettingsUpdateRequest
 import nvk.cotrip.data.network.dto.TripDto
 import nvk.cotrip.data.network.dto.TransferOwnerRequest
 import nvk.cotrip.data.network.dto.TrimOutOfRangeRequest
@@ -30,6 +33,7 @@ import nvk.cotrip.data.network.dto.UpdateUserRequest
 import nvk.cotrip.data.network.dto.UserDto
 import nvk.cotrip.data.network.dto.SyncChangesRequest
 import nvk.cotrip.data.network.dto.SyncChangesResponse
+import nvk.cotrip.data.network.dto.SyncPullResponse
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
@@ -213,4 +217,21 @@ interface CoTripApi {
 
     @POST("v1/sync/changes")
     suspend fun postSyncChanges(@Body request: SyncChangesRequest): SyncChangesResponse
+
+    @GET("v1/sync/changes")
+    suspend fun getSyncChanges(@Query("since") since: String): SyncPullResponse
+
+    @GET("v1/notifications")
+    suspend fun listNotifications(): NotificationListResponse
+
+    @PATCH("v1/notifications/{id}/read")
+    suspend fun markNotificationRead(@Path("id") id: String): Unit
+
+    @GET("v1/users/me/notification-settings")
+    suspend fun getNotificationSettings(): NotificationSettingsResponse
+
+    @PATCH("v1/users/me/notification-settings")
+    suspend fun updateNotificationSettings(
+        @Body request: NotificationSettingsUpdateRequest
+    ): NotificationSettingsResponse
 }

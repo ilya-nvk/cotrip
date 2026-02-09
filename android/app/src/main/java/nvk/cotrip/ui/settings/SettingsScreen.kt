@@ -51,6 +51,7 @@ import kotlinx.coroutines.flow.collectLatest
 import nvk.cotrip.R
 import nvk.cotrip.ui.components.CoTripDivider
 import nvk.cotrip.ui.components.CoTripIconButton
+import nvk.cotrip.ui.components.CoTripListItem
 import nvk.cotrip.ui.components.CoTripTextField
 import nvk.cotrip.ui.theme.Border
 import nvk.cotrip.ui.theme.BorderStrong
@@ -65,6 +66,7 @@ import nvk.cotrip.ui.theme.TextSecondary
 
 private const val KEY_PROFILE = "profile"
 private const val KEY_NOTIFICATION_TITLE = "notifications_title"
+private const val KEY_NOTIFICATION_LIST = "notifications_list"
 private const val KEY_DANGER_ZONE = "danger_zone"
 private const val KEY_BOTTOM = "bottom"
 
@@ -151,6 +153,14 @@ fun SettingsScreen(
             item(key = KEY_NOTIFICATION_TITLE) {
                 SectionHeader(
                     title = stringResource(R.string.settings_notifications),
+                    modifier = Modifier.padding(horizontal = CoTripTokens.spacing.x2)
+                )
+            }
+
+            item(key = KEY_NOTIFICATION_LIST) {
+                CoTripListItem(
+                    title = stringResource(R.string.settings_view_notifications),
+                    onClick = { viewModel.onEvent(SettingsEvent.OnNotificationsClick) },
                     modifier = Modifier.padding(horizontal = CoTripTokens.spacing.x2)
                 )
             }

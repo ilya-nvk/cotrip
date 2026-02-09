@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import nvk.cotrip.data.network.dto.TripDto
 import nvk.cotrip.data.repository.TripRepository
+import nvk.cotrip.data.sync.SyncPullRepository
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import java.time.LocalDate
@@ -25,6 +26,7 @@ import javax.inject.Inject
 class TripsListViewModel @Inject constructor(
     private val appNavigator: AppNavigator,
     private val tripRepository: TripRepository,
+    private val syncPullRepository: SyncPullRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<TripsListUiState>(TripsListUiState.Loading)
@@ -87,8 +89,11 @@ class TripsListViewModel @Inject constructor(
             }
 
             val result = tripRepository.refreshTrips()
+            val syncResult = syncPullRepository.pull()
             if (result.isFailure) {
                 _effects.tryEmit(TripsListEffect.ShowToast("Failed to load trips."))
+            } else if (syncResult.isFailure) {
+                _effects.tryEmit(TripsListEffect.ShowToast("Failed to sync updates."))
             }
             isRefreshing.value = false
         }

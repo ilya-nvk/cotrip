@@ -25,6 +25,7 @@ import nvk.cotrip.ui.idea.list.TripIdeasScreen
 import nvk.cotrip.ui.invitation.InvitePeopleScreen
 import nvk.cotrip.ui.invitation.JoinTripScreen
 import nvk.cotrip.ui.itinerary.TripItineraryScreen
+import nvk.cotrip.ui.notifications.NotificationsScreen
 import nvk.cotrip.ui.outofrangedays.OutOfRangeDaysScreen
 import nvk.cotrip.ui.settings.SettingsScreen
 import nvk.cotrip.ui.trip.details.TripDetailsScreen
@@ -57,6 +58,10 @@ fun AppNavHost(
 
         composable(Destination.Settings.route) {
             SettingsScreen()
+        }
+
+        composable(Destination.Notifications.route) {
+            NotificationsScreen()
         }
 
         composable(

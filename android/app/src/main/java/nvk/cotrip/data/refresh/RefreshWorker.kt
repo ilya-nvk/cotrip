@@ -10,6 +10,7 @@ import nvk.cotrip.data.auth.SessionStore
 import nvk.cotrip.data.network.NetworkStateProvider
 import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.data.repository.UserRepository
+import nvk.cotrip.data.sync.SyncPullRepository
 
 @HiltWorker
 class RefreshWorker @AssistedInject constructor(
@@ -19,6 +20,7 @@ class RefreshWorker @AssistedInject constructor(
     private val networkStateProvider: NetworkStateProvider,
     private val tripRepository: TripRepository,
     private val userRepository: UserRepository,
+    private val syncPullRepository: SyncPullRepository,
 ) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
         if (!networkStateProvider.isOnline()) {
@@ -30,9 +32,10 @@ class RefreshWorker @AssistedInject constructor(
             return Result.success()
         }
 
+        val syncResult = syncPullRepository.pull()
         val tripsResult = tripRepository.refreshTrips()
         val meResult = userRepository.refreshMe()
-        return if (tripsResult.isSuccess && meResult.isSuccess) {
+        return if (syncResult.isSuccess && tripsResult.isSuccess && meResult.isSuccess) {
             Result.success()
         } else {
             Result.retry()

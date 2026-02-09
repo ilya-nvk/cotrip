@@ -204,6 +204,7 @@
     <string name="settings_name_label">Name</string>
     <string name="settings_name_hint">Used as display name in trips, discussions, expenses</string>
     <string name="settings_notifications">NOTIFICATIONS</string>
+    <string name="settings_view_notifications">View notifications</string>
     <string name="settings_danger_zone">DANGER ZONE</string>
     <string name="settings_log_out">Log out</string>
     <string name="settings_delete_profile">Delete profile</string>
@@ -211,6 +212,10 @@
     <string name="settings_delete_dialog_message">All your trips, ideas, expenses, and data will be permanently deleted.</string>
     <string name="settings_photo_changed_toast">Photo updated</string>
     <string name="settings_profile_deleted_toast">Profile deleted</string>
+
+    <!--Notifications-->
+    <string name="notifications_title">Notifications</string>
+    <string name="notifications_empty">No notifications yet</string>
 
     <!--Expenses-->
     <string name="expenses_title">Expenses</string>
