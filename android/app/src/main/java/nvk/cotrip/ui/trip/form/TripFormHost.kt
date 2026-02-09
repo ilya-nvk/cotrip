@@ -28,12 +28,14 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collectLatest
 import nvk.cotrip.R
@@ -364,28 +366,43 @@ private fun DateField(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    OutlinedTextField(
-        value = valueText,
-        onValueChange = {},
-        readOnly = true,
-        label = { Text(label) },
-        trailingIcon = {
-            Icon(
-                imageVector = CoTripIcons.Schedule,
-                contentDescription = null,
-                tint = TextSecondary
-            )
-        },
-        modifier = modifier.clickable(onClick = onClick),
-        shape = RoundedCornerShape(CoTripTokens.radius.medium),
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = BorderStrong,
-            unfocusedBorderColor = BorderStrong,
-            focusedContainerColor = MaterialTheme.colorScheme.surface,
-            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-            disabledContainerColor = MaterialTheme.colorScheme.surface,
+    val interactionSource = remember { MutableInteractionSource() }
+
+    Box(
+        modifier = modifier.clickable(
+            interactionSource = interactionSource,
+            indication = null,
+            onClick = onClick
         )
-    )
+    ) {
+        OutlinedTextField(
+            value = valueText,
+            onValueChange = {},
+            readOnly = true,
+            enabled = false,
+            label = { Text(label) },
+            trailingIcon = {
+                Icon(
+                    imageVector = CoTripIcons.Schedule,
+                    contentDescription = null,
+                    tint = TextSecondary
+                )
+            },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(CoTripTokens.radius.medium),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = BorderStrong,
+                unfocusedBorderColor = BorderStrong,
+                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                disabledContainerColor = MaterialTheme.colorScheme.surface,
+                disabledTextColor = TextPrimary,
+                disabledLabelColor = TextSecondary,
+                disabledTrailingIconColor = TextSecondary,
+                disabledBorderColor = BorderStrong,
+            )
+        )
+    }
 }
 
 @Composable
