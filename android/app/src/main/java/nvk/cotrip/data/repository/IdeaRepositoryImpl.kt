@@ -5,6 +5,7 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import nvk.cotrip.data.cache.IdeasCacheStore
 import nvk.cotrip.data.network.CoTripApi
+import nvk.cotrip.data.network.requireSuccess
 import nvk.cotrip.data.network.dto.CommentDto
 import nvk.cotrip.data.network.dto.ConvertIdeaRequest
 import nvk.cotrip.data.network.dto.CreateIdeaRequest
@@ -68,7 +69,7 @@ class IdeaRepositoryImpl @Inject constructor(
             .onFailure { AppLogger.w(TAG, "deleteIdea prefetch failed for ideaId=$ideaId", it) }
             .getOrNull()
         try {
-            api.deleteIdea(ideaId)
+            api.deleteIdea(ideaId).requireSuccess()
         } catch (e: IOException) {
             syncQueueRepository.enqueueDelete(SyncEntities.IDEA, ideaId)
             return
@@ -84,7 +85,7 @@ class IdeaRepositoryImpl @Inject constructor(
     }
 
     override suspend fun convertIdeaToActivity(ideaId: String, request: ConvertIdeaRequest) {
-        api.convertIdeaToActivity(ideaId, request)
+        api.convertIdeaToActivity(ideaId, request).requireSuccess()
     }
 
     override suspend fun approveIdea(ideaId: String): IdeaDto {

@@ -5,6 +5,7 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import nvk.cotrip.data.cache.ExpensesCacheStore
 import nvk.cotrip.data.network.CoTripApi
+import nvk.cotrip.data.network.requireSuccess
 import nvk.cotrip.data.network.dto.ExpenseCreateRequest
 import nvk.cotrip.data.network.dto.ExpenseDto
 import nvk.cotrip.data.network.dto.ExpenseUpdateRequest
@@ -62,7 +63,7 @@ class ExpenseRepositoryImpl @Inject constructor(
             .onFailure { AppLogger.w(TAG, "deleteExpense prefetch failed for expenseId=$expenseId", it) }
             .getOrNull()
         try {
-            api.deleteExpense(expenseId)
+            api.deleteExpense(expenseId).requireSuccess()
         } catch (e: IOException) {
             syncQueueRepository.enqueueDelete(SyncEntities.EXPENSE, expenseId)
             return

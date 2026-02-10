@@ -2,6 +2,7 @@ package nvk.cotrip.data.repository
 
 import javax.inject.Inject
 import nvk.cotrip.data.network.CoTripApi
+import nvk.cotrip.data.network.requireSuccess
 import nvk.cotrip.data.network.dto.NotificationDto
 import nvk.cotrip.data.network.dto.NotificationSettingDto
 import nvk.cotrip.data.network.dto.NotificationSettingsUpdateRequest
@@ -14,7 +15,7 @@ class NotificationRepositoryImpl @Inject constructor(
     }
 
     override suspend fun markRead(id: String) {
-        api.markNotificationRead(id)
+        api.markNotificationRead(id).requireSuccess()
     }
 
     override suspend fun listSettings(): List<NotificationSettingDto> {

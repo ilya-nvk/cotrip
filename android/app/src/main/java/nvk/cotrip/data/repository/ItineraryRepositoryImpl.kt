@@ -5,6 +5,7 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import nvk.cotrip.data.cache.ItineraryCacheStore
 import nvk.cotrip.data.network.CoTripApi
+import nvk.cotrip.data.network.requireSuccess
 import nvk.cotrip.data.network.dto.ActivityDto
 import nvk.cotrip.data.network.dto.CreateActivityRequest
 import nvk.cotrip.data.network.dto.ItineraryDayDto
@@ -57,7 +58,7 @@ class ItineraryRepositoryImpl @Inject constructor(
 
     override suspend fun updateDay(dayId: String, request: UpdateDayRequest) {
         try {
-            api.updateDay(dayId, request)
+            api.updateDay(dayId, request).requireSuccess()
         } catch (e: IOException) {
             syncQueueRepository.enqueueUpsert(SyncEntities.DAY, dayId, request)
             return
@@ -148,7 +149,7 @@ class ItineraryRepositoryImpl @Inject constructor(
             .onFailure { AppLogger.w(TAG, "deleteActivity lookup failed for activityId=$activityId", it) }
             .getOrNull()
         try {
-            api.deleteActivity(activityId)
+            api.deleteActivity(activityId).requireSuccess()
         } catch (e: IOException) {
             syncQueueRepository.enqueueDelete(SyncEntities.ACTIVITY, activityId)
             return
@@ -172,7 +173,7 @@ class ItineraryRepositoryImpl @Inject constructor(
     }
 
     override suspend fun reorderActivities(dayId: String, orderedIds: List<String>) {
-        api.reorderActivities(dayId, ReorderActivitiesRequest(orderedIds))
+        api.reorderActivities(dayId, ReorderActivitiesRequest(orderedIds)).requireSuccess()
         safeLocalMutation("reorderActivities.updateItinerary(dayId=$dayId)") {
             val tripId = findTripIdForDay(dayId) ?: return@safeLocalMutation
             itineraryCacheStore.updateItinerary(tripId) { days ->
@@ -187,7 +188,7 @@ class ItineraryRepositoryImpl @Inject constructor(
     }
 
     override suspend fun trimOutOfRange(tripId: String, request: TrimOutOfRangeRequest) {
-        api.trimOutOfRangeDays(tripId, request)
+        api.trimOutOfRangeDays(tripId, request).requireSuccess()
         refreshItinerary(tripId)
     }
 

@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import nvk.cotrip.data.cache.TripsCacheStore
 import nvk.cotrip.data.network.CoTripApi
+import nvk.cotrip.data.network.requireSuccess
 import nvk.cotrip.data.network.dto.CreateTripRequest
 import nvk.cotrip.data.network.dto.MemberDto
 import nvk.cotrip.data.network.dto.TripDto
@@ -104,7 +105,7 @@ class TripRepositoryImpl @Inject constructor(
 
     override suspend fun archiveTrip(tripId: String) {
         try {
-            api.archiveTrip(tripId)
+            api.archiveTrip(tripId).requireSuccess()
         } catch (e: IOException) {
             syncQueueRepository.enqueueUpsert(
                 entity = SyncEntities.TRIP,
@@ -128,7 +129,7 @@ class TripRepositoryImpl @Inject constructor(
 
     override suspend fun deleteTrip(tripId: String) {
         try {
-            api.deleteTrip(tripId)
+            api.deleteTrip(tripId).requireSuccess()
         } catch (e: IOException) {
             syncQueueRepository.enqueueDelete(SyncEntities.TRIP, tripId)
         } catch (e: HttpException) {
@@ -145,6 +146,6 @@ class TripRepositoryImpl @Inject constructor(
     }
 
     override suspend fun removeMember(tripId: String, memberId: String) {
-        api.removeMember(tripId, memberId)
+        api.removeMember(tripId, memberId).requireSuccess()
     }
 }
