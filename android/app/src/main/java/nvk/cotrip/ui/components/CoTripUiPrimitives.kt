@@ -16,9 +16,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import coil.compose.AsyncImage
 import nvk.cotrip.ui.theme.Error
 import nvk.cotrip.ui.theme.TextDark
 import nvk.cotrip.ui.theme.TextDisabled
@@ -67,24 +69,44 @@ fun DestructiveIconButton(
 }
 
 @Composable
-fun AvatarsStack(initials: List<String>, size: Dp) {
+fun AvatarsStack(avatars: List<AvatarStackItem>, size: Dp) {
     Row {
-        initials.forEachIndexed { index, it ->
+        avatars.forEachIndexed { index, item ->
             Box(
                 modifier = Modifier
                     .size(size)
                     .offset(x = (-6 * index).dp)
-                    .zIndex((initials.size - index).toFloat())
-                    .clip(CircleShape)
-                    .background(avatarColorFromInitials(it)),
+                    .zIndex((avatars.size - index).toFloat())
+                    .clip(CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = it,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = TextDark
-                )
+                if (!item.photoUrl.isNullOrBlank()) {
+                    AsyncImage(
+                        model = item.photoUrl,
+                        contentDescription = null,
+                        modifier = Modifier.matchParentSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .background(avatarColorFromInitials(item.initials)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = item.initials,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = TextDark
+                        )
+                    }
+                }
             }
         }
     }
 }
+
+data class AvatarStackItem(
+    val initials: String,
+    val photoUrl: String? = null,
+)

@@ -12,7 +12,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import nvk.cotrip.R
 import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.network.dto.ExpenseDto
@@ -24,6 +23,7 @@ import nvk.cotrip.data.repository.IdeaRepository
 import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.data.repository.UserRepository
 import nvk.cotrip.ui.common.UiErrorMapper
+import nvk.cotrip.ui.components.AvatarStackItem
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import nvk.cotrip.ui.trip.form.TripCurrency
@@ -229,7 +229,12 @@ private fun buildState(loaded: LoadedTrip): TripDetailsState {
     val end = LocalDate.parse(trip.endDate)
     val dateRange = formatRange(start, end)
     val peopleCount = loaded.members.size
-    val initials = loaded.members.map { it.initials }
+    val avatars = loaded.members.map { member ->
+        AvatarStackItem(
+            initials = member.initials,
+            photoUrl = member.photoUrl
+        )
+    }
     val ideasCount = loaded.ideas.size
     val totalExpenses = loaded.expenses.sumOf { it.amount }
     val currencySymbol = trip.currencyCode.toCurrency().symbol
@@ -251,7 +256,7 @@ private fun buildState(loaded: LoadedTrip): TripDetailsState {
             locationLine = trip.locationLine.orEmpty(),
             coverUrl = trip.coverUrl,
         ),
-        travelers = initials,
+        travelers = avatars,
         peopleCountText = peopleText,
         weather = WeatherCardUi(
             city = trip.locationLine?.split(",")?.firstOrNull()?.trim().orEmpty(),

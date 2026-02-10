@@ -15,6 +15,7 @@ import kotlinx.coroutines.launch
 import nvk.cotrip.data.network.dto.TripDto
 import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.data.sync.SyncPullRepository
+import nvk.cotrip.ui.components.AvatarStackItem
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import java.time.LocalDate
@@ -37,6 +38,7 @@ class TripsListViewModel @Inject constructor(
 
     private val showPastTrips = MutableStateFlow(false)
     private val isRefreshing = MutableStateFlow(false)
+    private val membersByTrip = MutableStateFlow<Map<String, List<AvatarStackItem>>>(emptyMap())
 
     init {
         observeTrips()
@@ -64,13 +66,14 @@ class TripsListViewModel @Inject constructor(
             combine(
                 tripRepository.trips,
                 showPastTrips,
-                isRefreshing
-            ) { trips, showPast, refreshing ->
+                isRefreshing,
+                membersByTrip
+            ) { trips, showPast, refreshing, members ->
                 val buckets = buildBuckets(trips)
                 TripsListUiState.Content(
-                    activeTrips = buckets.active.map { it.toCard() },
-                    upcomingTrips = buckets.upcoming.map { it.toCard() },
-                    pastTrips = buckets.past.map { it.toCard() },
+                    activeTrips = buckets.active.map { it.toCard(members[it.id].orEmpty()) },
+                    upcomingTrips = buckets.upcoming.map { it.toCard(members[it.id].orEmpty()) },
+                    pastTrips = buckets.past.map { it.toCard(members[it.id].orEmpty()) },
                     showPastTrips = showPast,
                     isRefreshing = refreshing,
                 )
@@ -91,6 +94,9 @@ class TripsListViewModel @Inject constructor(
 
             val result = tripRepository.refreshTrips()
             val syncResult = syncPullRepository.pull()
+            if (result.isSuccess) {
+                refreshTripMembers()
+            }
             if (result.isFailure) {
                 _effects.tryEmit(TripsListEffect.ShowToast("Failed to load trips."))
             } else if (syncResult.isFailure) {
@@ -98,6 +104,26 @@ class TripsListViewModel @Inject constructor(
             }
             isRefreshing.value = false
         }
+    }
+
+    private suspend fun refreshTripMembers() {
+        val trips = runCatching { tripRepository.listTrips() }.getOrDefault(emptyList())
+        if (trips.isEmpty()) {
+            membersByTrip.value = emptyMap()
+            return
+        }
+        val resolved = mutableMapOf<String, List<AvatarStackItem>>()
+        trips.forEach { trip ->
+            val members =
+                runCatching { tripRepository.listMembers(trip.id) }.getOrDefault(emptyList())
+            resolved[trip.id] = members.map { member ->
+                AvatarStackItem(
+                    initials = member.initials,
+                    photoUrl = member.photoUrl
+                )
+            }
+        }
+        membersByTrip.value = resolved
     }
 
     private data class TripBuckets(
@@ -133,7 +159,7 @@ class TripsListViewModel @Inject constructor(
     }
 }
 
-private fun TripDto.toCard(): TripCardUi {
+private fun TripDto.toCard(avatars: List<AvatarStackItem>): TripCardUi {
     val start = LocalDate.parse(startDate)
     val end = LocalDate.parse(endDate)
     val dateRange = formatRange(start, end)
@@ -143,8 +169,8 @@ private fun TripDto.toCard(): TripCardUi {
         title = title,
         dateRange = dateRange,
         locationLine = locationLine.orEmpty(),
-        peopleCountText = "Members",
-        initials = emptyList(),
+        peopleCountText = if (avatars.size == 1) "1 person" else "${avatars.size} people",
+        avatars = avatars,
         isInProgress = isInProgress,
         coverUrl = coverUrl,
     )

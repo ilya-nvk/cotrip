@@ -33,3 +33,9 @@ data class NotificationSettingsResponse(
 data class NotificationSettingsUpdateRequest(
     val items: List<NotificationSettingDto> = emptyList(),
 )
+
+@Serializable
+data class UpsertPushTokenRequest(
+    val token: String,
+    val platform: String = "android",
+)

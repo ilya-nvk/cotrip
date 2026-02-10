@@ -139,6 +139,7 @@ object UserRepository {
         // User-scoped data (any trips).
         exec("DELETE FROM notifications WHERE user_id = ?")
         exec("DELETE FROM notification_settings WHERE user_id = ?")
+        exec("DELETE FROM push_tokens WHERE user_id = ?")
         exec("DELETE FROM trip_invite_links WHERE created_by = ?")
         exec("DELETE FROM trip_members WHERE user_id = ?")
         exec("DELETE FROM expense_splits WHERE user_id = ?")

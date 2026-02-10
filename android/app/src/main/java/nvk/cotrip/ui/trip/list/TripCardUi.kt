@@ -1,6 +1,7 @@
 package nvk.cotrip.ui.trip.list
 
 import androidx.compose.runtime.Immutable
+import nvk.cotrip.ui.components.AvatarStackItem
 
 @Immutable
 data class TripCardUi(
@@ -9,7 +10,7 @@ data class TripCardUi(
     val dateRange: String,
     val locationLine: String,
     val peopleCountText: String,
-    val initials: List<String>,
+    val avatars: List<AvatarStackItem>,
     val isInProgress: Boolean = false,
     val coverUrl: String? = null,
 )

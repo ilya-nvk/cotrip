@@ -48,20 +48,19 @@ fun Route.authRoutes(appConfig: AppConfig) {
 
         val googleId = tokenInfo.sub
         val name = tokenInfo.name ?: tokenInfo.email ?: "User"
-        val photoUrl = tokenInfo.picture
 
         val user = UserRepository.findByGoogleIdAny(googleId)
             ?.let { existing ->
                 if (existing.deletedAt != null) {
                     UserRepository.deleteUserAndData(existing.id)
                     null
-                } else if (existing.name != name || existing.photoUrl != photoUrl) {
-                    UserRepository.updateUser(existing.id, name, photoUrl) ?: existing
+                } else if (existing.name != name) {
+                    UserRepository.updateUser(existing.id, name, existing.photoUrl) ?: existing
                 } else {
                     existing
                 }
             }
-            ?: UserRepository.createUser(googleId, name, photoUrl)
+            ?: UserRepository.createUser(googleId, name, null)
 
         val token = JwtService.createToken(user.id)
         call.respond(AuthResponse(accessToken = token, user = user.toDto()))

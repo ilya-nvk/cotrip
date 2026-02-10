@@ -13,6 +13,8 @@ import nvk.cotrip.backend.auth.JwtService
 import nvk.cotrip.backend.db.CommentRepository
 import nvk.cotrip.backend.db.IdeaRepository
 import nvk.cotrip.backend.db.TripRepository
+import nvk.cotrip.backend.db.UserRepository
+import nvk.cotrip.backend.notifications.NotificationService
 
 fun Route.commentsWebSocket() {
     webSocket("/v1/ws/trips/{tripId}/comments") {
@@ -62,6 +64,14 @@ private suspend fun handleTextFrame(tripId: String, userId: String, text: String
 
             val stored = CommentRepository.create(ideaId, userId, body)
             publishCommentCreated(tripId, stored)
+            val actorName = UserRepository.findById(userId)?.name ?: "Someone"
+            NotificationService.notifyIdeaComment(
+                tripId = tripId,
+                ideaId = stored.ideaId,
+                actorUserId = userId,
+                actorName = actorName,
+                body = stored.body
+            )
         }
         else -> Unit
     }

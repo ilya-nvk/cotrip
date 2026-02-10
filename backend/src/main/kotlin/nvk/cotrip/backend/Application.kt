@@ -11,6 +11,7 @@ import nvk.cotrip.backend.auth.JwtService
 import nvk.cotrip.backend.config.AppConfig
 import nvk.cotrip.backend.config.loadConfig
 import nvk.cotrip.backend.db.DatabaseFactory
+import nvk.cotrip.backend.integrations.FcmPushSender
 import nvk.cotrip.backend.plugins.configureAuth
 import nvk.cotrip.backend.plugins.configureLogging
 import nvk.cotrip.backend.plugins.configureRouting
@@ -30,6 +31,7 @@ fun Application.module() {
 
     DatabaseFactory.init(appConfig.db)
     JwtService.init(appConfig.jwt)
+    FcmPushSender.init(appConfig.push.fcmServerKey)
 
     configureLogging()
     configureSerialization()
