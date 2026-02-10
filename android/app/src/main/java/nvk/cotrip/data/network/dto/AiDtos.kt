@@ -10,6 +10,7 @@ data class AiSuggestionsRequestDto(
     val timeOfDayOptions: List<String> = emptyList(),
     val budgetOptions: List<String> = emptyList(),
     val generationToken: String? = null,
+    val language: String? = null,
 )
 
 @Serializable
