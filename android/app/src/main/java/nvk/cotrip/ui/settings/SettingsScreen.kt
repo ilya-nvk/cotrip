@@ -1,6 +1,8 @@
 package nvk.cotrip.ui.settings
 
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -45,8 +47,10 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
 import kotlinx.coroutines.flow.collectLatest
 import nvk.cotrip.R
 import nvk.cotrip.ui.components.CoTripDivider
@@ -77,6 +81,11 @@ fun SettingsScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        viewModel.onEvent(SettingsEvent.OnPhotoPicked(uri?.toString()))
+    }
 
     LaunchedEffect(viewModel) {
         viewModel.effects.collectLatest { effect ->
@@ -85,6 +94,7 @@ fun SettingsScreen(
                     Toast.makeText(context, context.getString(effect.resId), Toast.LENGTH_SHORT)
                         .show()
                 }
+                SettingsEffect.OpenImagePicker -> photoPickerLauncher.launch("image/*")
             }
         }
     }
@@ -258,6 +268,7 @@ private fun ProfileSection(
 
 @Composable
 private fun ProfileAvatar(profile: SettingsProfileUi) {
+    val photoUrl = profile.photoUrl?.takeIf { it.isNotBlank() }
     val brush = if (profile.hasPhoto) {
         Brush.linearGradient(
             colors = listOf(PrimaryBlue, PrimaryLight)
@@ -275,12 +286,23 @@ private fun ProfileAvatar(profile: SettingsProfileUi) {
             .background(brush),
         contentAlignment = Alignment.Center
     ) {
-        Text(
-            text = profile.initials,
-            style = MaterialTheme.typography.headlineLarge,
-            color = MaterialTheme.colorScheme.onPrimary,
-            fontWeight = FontWeight.SemiBold
-        )
+        if (photoUrl != null) {
+            AsyncImage(
+                model = photoUrl,
+                contentDescription = null,
+                modifier = Modifier
+                    .matchParentSize()
+                    .clip(CircleShape),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            Text(
+                text = profile.initials,
+                style = MaterialTheme.typography.headlineLarge,
+                color = MaterialTheme.colorScheme.onPrimary,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
     }
 }
 

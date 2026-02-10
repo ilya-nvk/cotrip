@@ -54,9 +54,20 @@ class InvitePeopleViewModel @Inject constructor(
         when (event) {
             InvitePeopleEvent.OnCloseClick -> appNavigator.popBackStack()
 
-            InvitePeopleEvent.OnCopyClick -> emitToast(R.string.invite_people_copied_toast)
+            InvitePeopleEvent.OnCopyClick -> {
+                val link = _state.value.inviteLink
+                if (link.isNotBlank()) {
+                    emit(InvitePeopleEffect.CopyToClipboard(link))
+                    emitToast(R.string.invite_people_copied_toast)
+                }
+            }
 
-            InvitePeopleEvent.OnShareClick -> emitToast(R.string.invite_people_share_not_implemented)
+            InvitePeopleEvent.OnShareClick -> {
+                val link = _state.value.inviteLink
+                if (link.isNotBlank()) {
+                    emit(InvitePeopleEffect.ShareText(link))
+                }
+            }
         }
     }
 
@@ -94,5 +105,9 @@ class InvitePeopleViewModel @Inject constructor(
 
     private fun emitToast(resId: Int) {
         viewModelScope.launch { _effects.emit(InvitePeopleEffect.ShowToastRes(resId)) }
+    }
+
+    private fun emit(effect: InvitePeopleEffect) {
+        viewModelScope.launch { _effects.emit(effect) }
     }
 }

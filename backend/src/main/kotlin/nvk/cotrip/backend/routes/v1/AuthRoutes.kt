@@ -2,6 +2,7 @@ package nvk.cotrip.backend.routes.v1
 
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
+import io.ktor.server.auth.authenticate
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
@@ -31,6 +32,12 @@ data class DevAuthRequest(
 )
 
 fun Route.authRoutes(appConfig: AppConfig) {
+    authenticate("auth-jwt") {
+        post("/v1/auth/logout") {
+            call.respond(HttpStatusCode.NoContent)
+        }
+    }
+
     post("/v1/auth/google") {
         val request = call.receive<GoogleAuthRequest>()
         val tokenInfo = GoogleTokenVerifier.verify(request.idToken)

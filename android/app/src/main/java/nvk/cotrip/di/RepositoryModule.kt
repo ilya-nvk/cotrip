@@ -21,6 +21,8 @@ import nvk.cotrip.data.repository.AiSuggestionsRepository
 import nvk.cotrip.data.repository.AiSuggestionsRepositoryImpl
 import nvk.cotrip.data.repository.ExpenseRepository
 import nvk.cotrip.data.repository.ExpenseRepositoryImpl
+import nvk.cotrip.data.repository.ImageUploadRepository
+import nvk.cotrip.data.repository.ImageUploadRepositoryImpl
 import nvk.cotrip.data.repository.IdeaRepository
 import nvk.cotrip.data.repository.IdeaRepositoryImpl
 import nvk.cotrip.data.repository.InviteRepository
@@ -116,6 +118,12 @@ abstract class RepositoryModule {
     abstract fun bindExpenseRepository(
         impl: ExpenseRepositoryImpl
     ): ExpenseRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindImageUploadRepository(
+        impl: ImageUploadRepositoryImpl
+    ): ImageUploadRepository
 
     @Binds
     @Singleton

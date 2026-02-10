@@ -17,6 +17,7 @@ import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.network.dto.UpdateUserRequest
 import nvk.cotrip.data.network.dto.NotificationSettingDto
+import nvk.cotrip.data.repository.ImageUploadRepository
 import nvk.cotrip.data.repository.NotificationRepository
 import nvk.cotrip.data.repository.UserRepository
 import nvk.cotrip.ui.common.UiErrorMapper
@@ -27,19 +28,22 @@ import nvk.cotrip.ui.navigation.Destination
 class SettingsViewModel @Inject constructor(
     private val appNavigator: AppNavigator,
     private val userRepository: UserRepository,
+    private val imageUploadRepository: ImageUploadRepository,
     private val notificationRepository: NotificationRepository,
     private val apiCaller: ApiCaller,
     private val uiErrorMapper: UiErrorMapper,
 ) : ViewModel() {
 
     private var originalName: String = ""
+    private var originalPhotoUrl: String? = null
 
     private val _state = MutableStateFlow(
         SettingsState(
             profile = SettingsProfileUi(
                 name = "",
                 initials = "",
-                hasPhoto = false
+                hasPhoto = false,
+                photoUrl = null,
             ),
             notificationSections = listOf(
                 SettingsNotificationSectionUi(
@@ -113,24 +117,34 @@ class SettingsViewModel @Inject constructor(
         when (event) {
             SettingsEvent.OnBackClick -> appNavigator.popBackStack()
             SettingsEvent.OnSaveClick -> saveProfile()
-            SettingsEvent.OnChangePhotoClick -> {
-                _state.update { current ->
-                    current.copy(profile = current.profile.copy(hasPhoto = true))
+            SettingsEvent.OnChangePhotoClick -> emit(SettingsEffect.OpenImagePicker)
+
+            is SettingsEvent.OnPhotoPicked -> {
+                val uri = event.uriString?.trim().orEmpty()
+                if (uri.isNotBlank()) {
+                    uploadPhoto(uri)
                 }
-                emit(SettingsEffect.ShowToastRes(R.string.settings_photo_changed_toast))
             }
 
             SettingsEvent.OnRemovePhotoClick -> {
                 _state.update { current ->
-                    current.copy(profile = current.profile.copy(hasPhoto = false))
+                    val updatedProfile = current.profile.copy(
+                        hasPhoto = false,
+                        photoUrl = null,
+                    )
+                    current.copy(
+                        profile = updatedProfile,
+                        canSave = canSaveProfileChanges(updatedProfile.name, updatedProfile.photoUrl)
+                    )
                 }
             }
 
             is SettingsEvent.OnNameChange -> _state.update { current ->
                 val name = event.value
+                val profile = current.profile.copy(name = name)
                 current.copy(
-                    profile = current.profile.copy(name = name),
-                    canSave = name.isNotBlank() && name != originalName
+                    profile = profile,
+                    canSave = canSaveProfileChanges(name, profile.photoUrl)
                 )
             }
 
@@ -171,12 +185,14 @@ class SettingsViewModel @Inject constructor(
                 is ApiResult.Success -> {
                     val user = result.data
                     originalName = user.name
+                    originalPhotoUrl = normalizePhotoUrl(user.photoUrl)
                     _state.update {
                         it.copy(
                             profile = SettingsProfileUi(
                                 name = user.name,
                                 initials = user.initials,
-                                hasPhoto = !user.photoUrl.isNullOrBlank()
+                                hasPhoto = !user.photoUrl.isNullOrBlank(),
+                                photoUrl = normalizePhotoUrl(user.photoUrl),
                             ),
                             isLoading = false,
                             canSave = false,
@@ -251,19 +267,27 @@ class SettingsViewModel @Inject constructor(
             _state.update { it.copy(isSaving = true) }
             val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
-                    userRepository.updateMe(UpdateUserRequest(name = name))
+                    userRepository.updateMe(
+                        UpdateUserRequest(
+                            name = name,
+                            photoUrl = snapshot.profile.photoUrl ?: "",
+                        )
+                    )
                 }
             }
             when (result) {
                 is ApiResult.Success -> {
                     val user = result.data
                     originalName = user.name
+                    originalPhotoUrl = normalizePhotoUrl(user.photoUrl)
                     _state.update {
+                        val photoUrl = normalizePhotoUrl(user.photoUrl)
                         it.copy(
                             profile = it.profile.copy(
                                 name = user.name,
                                 initials = user.initials,
-                                hasPhoto = !user.photoUrl.isNullOrBlank()
+                                hasPhoto = !photoUrl.isNullOrBlank(),
+                                photoUrl = photoUrl,
                             ),
                             isSaving = false,
                             canSave = false,
@@ -301,5 +325,47 @@ class SettingsViewModel @Inject constructor(
 
     private fun emit(effect: SettingsEffect) {
         viewModelScope.launch { _effects.emit(effect) }
+    }
+
+    private fun uploadPhoto(uriString: String) {
+        if (_state.value.isSaving) return
+        viewModelScope.launch {
+            _state.update { it.copy(isSaving = true) }
+            when (val result = apiCaller.call {
+                withContext(Dispatchers.IO) { imageUploadRepository.uploadImage(uriString) }
+            }) {
+                is ApiResult.Success -> {
+                    _state.update { current ->
+                        val updatedProfile = current.profile.copy(
+                            hasPhoto = true,
+                            photoUrl = result.data
+                        )
+                        current.copy(
+                            profile = updatedProfile,
+                            isSaving = false,
+                            canSave = canSaveProfileChanges(updatedProfile.name, updatedProfile.photoUrl)
+                        )
+                    }
+                    emit(SettingsEffect.ShowToastRes(R.string.settings_photo_changed_toast))
+                }
+
+                is ApiResult.Failure -> {
+                    _state.update { it.copy(isSaving = false) }
+                    emit(SettingsEffect.ShowToastRes(uiErrorMapper.messageRes(result)))
+                }
+            }
+        }
+    }
+
+    private fun canSaveProfileChanges(name: String, photoUrl: String?): Boolean {
+        val normalizedName = name.trim()
+        if (normalizedName.isBlank()) return false
+        val nameChanged = normalizedName != originalName.trim()
+        val photoChanged = normalizePhotoUrl(photoUrl) != originalPhotoUrl
+        return nameChanged || photoChanged
+    }
+
+    private fun normalizePhotoUrl(photoUrl: String?): String? {
+        return photoUrl?.trim()?.takeIf { it.isNotBlank() }
     }
 }

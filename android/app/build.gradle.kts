@@ -102,6 +102,7 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging.interceptor)
     implementation(libs.androidx.datastore.preferences)
+    implementation(libs.coil.compose)
 
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)

@@ -69,6 +69,17 @@ fun loadConfig(config: ApplicationConfig): AppConfig {
             ).coerceIn(1, 8),
     )
 
+    val media = MediaConfig(
+        uploadDir = System.getenv("MEDIA_UPLOAD_DIR")
+            ?: config.propertyOrNull("ktor.media.uploadDir")?.getString()
+            ?: "uploads",
+        maxUploadBytes = (
+            System.getenv("MEDIA_MAX_UPLOAD_BYTES")?.toLongOrNull()
+                ?: config.propertyOrNull("ktor.media.maxUploadBytes")?.getString()?.toLongOrNull()
+                ?: 10L * 1024L * 1024L
+            ).coerceIn(512L * 1024L, 50L * 1024L * 1024L),
+    )
+
     val devAuthEnabled = System.getenv("DEV_AUTH_ENABLED")
         ?.toBooleanStrictOrNull()
         ?: config.propertyOrNull("ktor.devAuthEnabled")
@@ -82,6 +93,7 @@ fun loadConfig(config: ApplicationConfig): AppConfig {
         invite = invite,
         weather = weather,
         ai = ai,
+        media = media,
         devAuthEnabled = devAuthEnabled
     )
 }

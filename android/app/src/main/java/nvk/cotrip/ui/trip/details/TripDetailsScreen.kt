@@ -38,6 +38,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
@@ -47,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import coil.compose.AsyncImage
 import kotlinx.coroutines.flow.collectLatest
 import nvk.cotrip.R
 import nvk.cotrip.ui.components.AvatarsStack
@@ -125,6 +127,7 @@ fun TripDetailsScreen(
                         title = state.header.title,
                         dateRange = state.header.dateRange,
                         locationLine = state.header.locationLine,
+                        coverUrl = state.header.coverUrl,
                         onBack = { viewModel.onEvent(TripDetailsEvent.OnBackClick) },
                         onEdit = { viewModel.onEvent(TripDetailsEvent.OnEditClick) }
                     )
@@ -215,6 +218,7 @@ private fun Header(
     title: String,
     dateRange: String,
     locationLine: String,
+    coverUrl: String?,
     onBack: () -> Unit,
     onEdit: () -> Unit,
 ) {
@@ -224,10 +228,20 @@ private fun Header(
             .height(180.dp)
             .clip(RoundedCornerShape(CoTripTokens.radius.large))
             .background(tripGradientFromId(tripId))
-            .padding(CoTripTokens.spacing.x2)
     ) {
+        if (!coverUrl.isNullOrBlank()) {
+            AsyncImage(
+                model = coverUrl,
+                contentDescription = null,
+                modifier = Modifier.matchParentSize(),
+                contentScale = ContentScale.Crop
+            )
+        }
+
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(CoTripTokens.spacing.x2),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.Top
         ) {
@@ -259,7 +273,11 @@ private fun Header(
         Column(
             modifier = Modifier
                 .align(Alignment.BottomStart)
-                .padding(bottom = CoTripTokens.spacing.x1),
+                .padding(
+                    start = CoTripTokens.spacing.x2,
+                    end = CoTripTokens.spacing.x2,
+                    bottom = CoTripTokens.spacing.x1_5
+                ),
             verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x0_5)
         ) {
             Text(

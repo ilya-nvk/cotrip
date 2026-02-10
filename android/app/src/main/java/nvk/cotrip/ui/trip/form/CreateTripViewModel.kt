@@ -15,6 +15,7 @@ import nvk.cotrip.R
 import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.network.dto.CreateTripRequest
+import nvk.cotrip.data.repository.ImageUploadRepository
 import nvk.cotrip.data.repository.PendingTripCreationStore
 import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.ui.common.UiErrorMapper
@@ -28,6 +29,7 @@ import javax.inject.Inject
 class CreateTripViewModel @Inject constructor(
     private val appNavigator: AppNavigator,
     private val tripRepository: TripRepository,
+    private val imageUploadRepository: ImageUploadRepository,
     private val pendingTripCreationStore: PendingTripCreationStore,
     private val apiCaller: ApiCaller,
     private val uiErrorMapper: UiErrorMapper,
@@ -47,7 +49,16 @@ class CreateTripViewModel @Inject constructor(
             TripFormEvent.OnCloseClick,
             TripFormEvent.OnCancelClick -> closeScreen()
 
-            TripFormEvent.OnPickCoverClick -> emitToastRes(R.string.trip_form_cover_not_implemented)
+            TripFormEvent.OnPickCoverClick -> {
+                viewModelScope.launch { _effects.emit(TripFormEffect.OpenImagePicker) }
+            }
+
+            is TripFormEvent.OnCoverPicked -> {
+                val uri = event.uriString?.trim().orEmpty()
+                if (uri.isNotBlank()) {
+                    uploadCover(uri)
+                }
+            }
 
             is TripFormEvent.OnNameChange -> {
                 _state.update { it.copy(name = event.value) }
@@ -110,7 +121,7 @@ class CreateTripViewModel @Inject constructor(
                 startDate = startDate.toString(),
                 endDate = endDate.toString(),
                 locationLine = null,
-                coverUrl = null,
+                coverUrl = s.coverUri,
                 currencyCode = s.currency.code,
             )
             AppLogger.i(
@@ -190,6 +201,26 @@ class CreateTripViewModel @Inject constructor(
         withContext(Dispatchers.IO) {
             runCatching { pendingTripCreationStore.setPendingTripId(tripId) }
                 .onFailure { AppLogger.w(TAG, "Failed to mark pending tripId=$tripId", it) }
+        }
+    }
+
+    private fun uploadCover(uriString: String) {
+        if (_state.value.isLoading) return
+        viewModelScope.launch {
+            _state.update { it.copy(isLoading = true) }
+            when (val result = apiCaller.call {
+                withContext(Dispatchers.IO) { imageUploadRepository.uploadImage(uriString) }
+            }) {
+                is ApiResult.Success -> {
+                    _state.update { it.copy(isLoading = false, coverUri = result.data) }
+                    emitToastRes(R.string.trip_form_cover_uploaded_toast)
+                }
+
+                is ApiResult.Failure -> {
+                    _state.update { it.copy(isLoading = false) }
+                    emitToastRes(uiErrorMapper.messageRes(result))
+                }
+            }
         }
     }
 }

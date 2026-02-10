@@ -56,6 +56,8 @@
     <string name="edit_trip_deleted_toast">Trip deleted</string>
     <string name="trip_form_cover_section">COVER IMAGE</string>
     <string name="trip_form_add_cover">Add cover image</string>
+    <string name="trip_form_change_cover">Change cover image</string>
+    <string name="trip_form_cover_uploaded_toast">Cover image updated</string>
     <string name="trip_form_name_label">Trip name</string>
     <string name="trip_form_dates_section">DATES</string>
     <string name="trip_form_start_date_label">Start date</string>
