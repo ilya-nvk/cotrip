@@ -10,12 +10,19 @@ import nvk.cotrip.data.network.dto.ExpenseDto
 import nvk.cotrip.data.network.dto.ExpenseUpdateRequest
 import nvk.cotrip.data.sync.SyncEntities
 import nvk.cotrip.data.sync.SyncQueueRepository
+import nvk.cotrip.util.AppLogger
+import retrofit2.HttpException
 
 class ExpenseRepositoryImpl @Inject constructor(
     private val api: CoTripApi,
     private val syncQueueRepository: SyncQueueRepository,
     private val expensesCacheStore: ExpensesCacheStore,
 ) : ExpenseRepository {
+
+    private companion object {
+        private const val TAG = "ExpenseRepository"
+    }
+
     override fun observeExpenses(tripId: String): Flow<List<ExpenseDto>> {
         return expensesCacheStore.observeExpenses(tripId)
     }
@@ -32,32 +39,49 @@ class ExpenseRepositoryImpl @Inject constructor(
 
     override suspend fun createExpense(tripId: String, request: ExpenseCreateRequest): ExpenseDto {
         val expense = api.createExpense(tripId, request)
-        expensesCacheStore.upsertExpense(tripId, expense)
+        safeLocalMutation("createExpense.upsertExpense(tripId=$tripId, expenseId=${expense.id})") {
+            expensesCacheStore.upsertExpense(tripId, expense)
+        }
         return expense
     }
 
     override suspend fun updateExpense(expenseId: String, request: ExpenseUpdateRequest) {
-        try {
-            val updated = api.updateExpense(expenseId, request)
-            expensesCacheStore.upsertExpense(updated.tripId, updated)
+        val updated = try {
+            api.updateExpense(expenseId, request)
         } catch (e: IOException) {
             syncQueueRepository.enqueueUpsert(SyncEntities.EXPENSE, expenseId, request)
+            return
+        }
+        safeLocalMutation("updateExpense.upsertExpense(expenseId=$expenseId)") {
+            expensesCacheStore.upsertExpense(updated.tripId, updated)
         }
     }
 
     override suspend fun deleteExpense(expenseId: String) {
+        val expenseTripId = runCatching { api.getExpense(expenseId).tripId }
+            .onFailure { AppLogger.w(TAG, "deleteExpense prefetch failed for expenseId=$expenseId", it) }
+            .getOrNull()
         try {
-            val expense = api.getExpense(expenseId)
             api.deleteExpense(expenseId)
-            expensesCacheStore.removeExpense(expense.tripId, expenseId)
         } catch (e: IOException) {
             syncQueueRepository.enqueueDelete(SyncEntities.EXPENSE, expenseId)
+            return
+        } catch (e: HttpException) {
+            if (e.code() != 404) throw e
+            AppLogger.i(TAG, "deleteExpense got 404 for expenseId=$expenseId, treating as already deleted")
+        }
+        if (expenseTripId != null) {
+            safeLocalMutation("deleteExpense.removeExpense(expenseId=$expenseId)") {
+                expensesCacheStore.removeExpense(expenseTripId, expenseId)
+            }
         }
     }
 
     override suspend fun refreshExpenses(tripId: String): List<ExpenseDto> {
         val expenses = api.listExpenses(tripId).items
-        expensesCacheStore.setExpenses(tripId, expenses)
+        safeLocalMutation("refreshExpenses.setExpenses(tripId=$tripId)") {
+            expensesCacheStore.setExpenses(tripId, expenses)
+        }
         return expenses
     }
 }

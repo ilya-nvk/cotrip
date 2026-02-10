@@ -1,5 +1,6 @@
 package nvk.cotrip.ui.itinerary
 
+import androidx.activity.compose.BackHandler
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -90,6 +91,7 @@ fun TripItineraryScreen(
     val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val lifecycleOwner = LocalLifecycleOwner.current
+    BackHandler { viewModel.onEvent(TripItineraryEvent.OnBackClick) }
 
     DisposableEffect(lifecycleOwner, viewModel) {
         val observer = LifecycleEventObserver { _, event ->

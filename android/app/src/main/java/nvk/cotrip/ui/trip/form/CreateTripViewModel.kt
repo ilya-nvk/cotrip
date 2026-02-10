@@ -19,6 +19,8 @@ import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
+import nvk.cotrip.util.AppLogger
+import java.time.OffsetDateTime
 import javax.inject.Inject
 
 @HiltViewModel
@@ -28,6 +30,9 @@ class CreateTripViewModel @Inject constructor(
     private val apiCaller: ApiCaller,
     private val uiErrorMapper: UiErrorMapper,
 ) : ViewModel() {
+    private companion object {
+        private const val TAG = "CreateTripVM"
+    }
 
     private val _state = MutableStateFlow(TripFormState())
     val state = _state.asStateFlow()
@@ -97,42 +102,83 @@ class CreateTripViewModel @Inject constructor(
             val startDate = s.startDate ?: return@launch
             val endDate = s.endDate ?: return@launch
             _state.update { it.copy(isLoading = true) }
+            val request = CreateTripRequest(
+                title = s.name,
+                description = s.description.takeIf { it.isNotBlank() },
+                startDate = startDate.toString(),
+                endDate = endDate.toString(),
+                locationLine = null,
+                coverUrl = null,
+                currencyCode = s.currency.code,
+            )
+            AppLogger.i(
+                TAG,
+                "createTrip started title='${request.title}' start=${request.startDate} end=${request.endDate}"
+            )
 
             val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
-                    tripRepository.createTrip(
-                        CreateTripRequest(
-                            title = s.name,
-                            description = s.description.takeIf { it.isNotBlank() },
-                            startDate = startDate.toString(),
-                            endDate = endDate.toString(),
-                            locationLine = null,
-                            coverUrl = null,
-                            currencyCode = s.currency.code,
-                        )
-                    )
+                    tripRepository.createTrip(request)
                 }
             }
 
             when (result) {
                 is ApiResult.Success -> {
+                    AppLogger.i(TAG, "createTrip succeeded tripId=${result.data.id}")
                     emitToastRes(R.string.create_trip_created_toast)
                     appNavigator.navigate(
                         Destination.TripItinerary(
                             tripId = result.data.id,
                             requireCities = true,
+                            creationFlow = true,
                         )
-                    ) {
-                        popUpTo(Destination.CreateTrip.route) { inclusive = true }
-                    }
+                    )
                 }
 
                 is ApiResult.Failure -> {
-                    emitToastRes(uiErrorMapper.messageRes(result))
+                    AppLogger.w(
+                        TAG,
+                        "createTrip failed code=${result.httpCode} apiCode=${result.error?.code.orEmpty()}",
+                        result.cause
+                    )
+                    val recoveredTripId = recoverCreatedTripId(request)
+                    if (recoveredTripId != null) {
+                        AppLogger.i(TAG, "createTrip recovered via listTrips tripId=$recoveredTripId")
+                        emitToastRes(R.string.create_trip_created_toast)
+                        appNavigator.navigate(
+                            Destination.TripItinerary(
+                                tripId = recoveredTripId,
+                                requireCities = true,
+                                creationFlow = true,
+                            )
+                        )
+                    } else {
+                        emitToastRes(uiErrorMapper.messageRes(result))
+                    }
                 }
             }
 
             _state.update { it.copy(isLoading = false) }
+        }
+    }
+
+    private suspend fun recoverCreatedTripId(request: CreateTripRequest): String? {
+        return withContext(Dispatchers.IO) {
+            runCatching {
+                tripRepository.refreshTrips()
+                val candidates = tripRepository.listTrips()
+                    .filter {
+                        it.title.trim() == request.title.trim() &&
+                            it.startDate == request.startDate &&
+                            it.endDate == request.endDate
+                    }
+                candidates.maxByOrNull { trip ->
+                    runCatching { OffsetDateTime.parse(trip.updatedAt).toInstant().toEpochMilli() }
+                        .getOrDefault(0L)
+                }?.id
+            }.onFailure {
+                AppLogger.w(TAG, "recoverCreatedTripId failed", it)
+            }.getOrNull()
         }
     }
 }

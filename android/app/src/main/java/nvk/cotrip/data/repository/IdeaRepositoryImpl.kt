@@ -12,12 +12,19 @@ import nvk.cotrip.data.network.dto.IdeaDto
 import nvk.cotrip.data.network.dto.UpdateIdeaRequest
 import nvk.cotrip.data.sync.SyncEntities
 import nvk.cotrip.data.sync.SyncQueueRepository
+import nvk.cotrip.util.AppLogger
+import retrofit2.HttpException
 
 class IdeaRepositoryImpl @Inject constructor(
     private val api: CoTripApi,
     private val syncQueueRepository: SyncQueueRepository,
     private val ideasCacheStore: IdeasCacheStore,
 ) : IdeaRepository {
+
+    private companion object {
+        private const val TAG = "IdeaRepository"
+    }
+
     override fun observeIdeas(tripId: String): Flow<List<IdeaDto>> {
         return ideasCacheStore.observeIdeas(tripId)
     }
@@ -38,26 +45,41 @@ class IdeaRepositoryImpl @Inject constructor(
 
     override suspend fun createIdea(tripId: String, request: CreateIdeaRequest): IdeaDto {
         val idea = api.createIdea(tripId, request)
-        ideasCacheStore.upsertIdea(tripId, idea)
+        safeLocalMutation("createIdea.upsertIdea(tripId=$tripId, ideaId=${idea.id})") {
+            ideasCacheStore.upsertIdea(tripId, idea)
+        }
         return idea
     }
 
     override suspend fun updateIdea(ideaId: String, request: UpdateIdeaRequest) {
-        try {
-            val updated = api.updateIdea(ideaId, request)
-            ideasCacheStore.upsertIdea(updated.tripId, updated)
+        val updated = try {
+            api.updateIdea(ideaId, request)
         } catch (e: IOException) {
             syncQueueRepository.enqueueUpsert(SyncEntities.IDEA, ideaId, request)
+            return
+        }
+        safeLocalMutation("updateIdea.upsertIdea(ideaId=$ideaId)") {
+            ideasCacheStore.upsertIdea(updated.tripId, updated)
         }
     }
 
     override suspend fun deleteIdea(ideaId: String) {
+        val ideaTripId = runCatching { api.getIdea(ideaId).tripId }
+            .onFailure { AppLogger.w(TAG, "deleteIdea prefetch failed for ideaId=$ideaId", it) }
+            .getOrNull()
         try {
-            val idea = api.getIdea(ideaId)
             api.deleteIdea(ideaId)
-            ideasCacheStore.removeIdea(idea.tripId, ideaId)
         } catch (e: IOException) {
             syncQueueRepository.enqueueDelete(SyncEntities.IDEA, ideaId)
+            return
+        } catch (e: HttpException) {
+            if (e.code() != 404) throw e
+            AppLogger.i(TAG, "deleteIdea got 404 for ideaId=$ideaId, treating as already deleted")
+        }
+        if (ideaTripId != null) {
+            safeLocalMutation("deleteIdea.removeIdea(ideaId=$ideaId)") {
+                ideasCacheStore.removeIdea(ideaTripId, ideaId)
+            }
         }
     }
 
@@ -67,19 +89,25 @@ class IdeaRepositoryImpl @Inject constructor(
 
     override suspend fun approveIdea(ideaId: String): IdeaDto {
         val idea = api.approveIdea(ideaId)
-        ideasCacheStore.upsertIdea(idea.tripId, idea)
+        safeLocalMutation("approveIdea.upsertIdea(ideaId=$ideaId)") {
+            ideasCacheStore.upsertIdea(idea.tripId, idea)
+        }
         return idea
     }
 
     override suspend fun rejectIdea(ideaId: String): IdeaDto {
         val idea = api.rejectIdea(ideaId)
-        ideasCacheStore.upsertIdea(idea.tripId, idea)
+        safeLocalMutation("rejectIdea.upsertIdea(ideaId=$ideaId)") {
+            ideasCacheStore.upsertIdea(idea.tripId, idea)
+        }
         return idea
     }
 
     override suspend fun refreshIdeas(tripId: String): List<IdeaDto> {
         val ideas = api.listIdeas(tripId).items
-        ideasCacheStore.setIdeas(tripId, ideas)
+        safeLocalMutation("refreshIdeas.setIdeas(tripId=$tripId)") {
+            ideasCacheStore.setIdeas(tripId, ideas)
+        }
         return ideas
     }
 

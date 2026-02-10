@@ -8,6 +8,7 @@ import io.ktor.server.auth.Authentication
 import io.ktor.server.auth.jwt.JWTPrincipal
 import io.ktor.server.auth.jwt.jwt
 import nvk.cotrip.backend.config.JwtConfig
+import nvk.cotrip.backend.db.UserRepository
 
 fun Application.configureAuth(config: JwtConfig) {
     val algorithm = Algorithm.HMAC256(config.secret)
@@ -22,11 +23,12 @@ fun Application.configureAuth(config: JwtConfig) {
                     .build()
             )
             validate { credential ->
-                if (credential.payload.getClaim("userId").asString().isNullOrBlank()) {
-                    null
-                } else {
-                    JWTPrincipal(credential.payload)
-                }
+                val userId = credential.payload.getClaim("userId").asString()?.trim()
+                if (userId.isNullOrEmpty()) return@validate null
+                val isKnownUser = runCatching { UserRepository.findById(userId) != null }
+                    .getOrDefault(false)
+                if (!isKnownUser) return@validate null
+                JWTPrincipal(credential.payload)
             }
         }
     }
