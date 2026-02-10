@@ -47,6 +47,7 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -227,7 +228,7 @@ private fun Header(
     dateRange: String,
     locationLine: String,
     coverUrl: String?,
-    statusBarTopInset: androidx.compose.ui.unit.Dp,
+    statusBarTopInset: Dp,
     canEdit: Boolean,
     onBack: () -> Unit,
     onEdit: () -> Unit,
