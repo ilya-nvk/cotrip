@@ -202,7 +202,32 @@ fun AppNavHost(
         composable(
             route = Destination.RouteSuggestions.ROUTE_PATTERN,
             arguments = listOf(
-                navArgument(Destination.RouteSuggestions.ARG_TRIP_ID) { type = NavType.StringType }
+                navArgument(Destination.RouteSuggestions.ARG_TRIP_ID) { type = NavType.StringType },
+                navArgument(Destination.RouteSuggestions.ARG_CITY) {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+                navArgument(Destination.RouteSuggestions.ARG_DESCRIPTION) {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+                navArgument(Destination.RouteSuggestions.ARG_TYPE_OPTIONS) {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+                navArgument(Destination.RouteSuggestions.ARG_TIME_OF_DAY_OPTIONS) {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+                navArgument(Destination.RouteSuggestions.ARG_BUDGET_OPTIONS) {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
             )
         ) {
             RouteSuggestionsScreen()

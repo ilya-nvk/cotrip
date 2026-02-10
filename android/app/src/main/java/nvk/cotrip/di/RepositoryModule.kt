@@ -17,6 +17,8 @@ import nvk.cotrip.data.cache.UserCacheStore
 import nvk.cotrip.data.cache.UserCacheStoreImpl
 import nvk.cotrip.data.repository.AuthRepository
 import nvk.cotrip.data.repository.AuthRepositoryImpl
+import nvk.cotrip.data.repository.AiSuggestionsRepository
+import nvk.cotrip.data.repository.AiSuggestionsRepositoryImpl
 import nvk.cotrip.data.repository.ExpenseRepository
 import nvk.cotrip.data.repository.ExpenseRepositoryImpl
 import nvk.cotrip.data.repository.IdeaRepository
@@ -72,6 +74,12 @@ abstract class RepositoryModule {
     abstract fun bindAuthRepository(
         impl: AuthRepositoryImpl
     ): AuthRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindAiSuggestionsRepository(
+        impl: AiSuggestionsRepositoryImpl
+    ): AiSuggestionsRepository
 
     @Binds
     @Singleton

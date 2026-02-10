@@ -36,7 +36,7 @@ fun Application.configureRouting(appConfig: AppConfig) {
         inviteRoutes(appConfig)
         expenseRoutes()
         weatherRoutes(appConfig.weather)
-        aiRoutes()
+        aiRoutes(appConfig.ai)
         notificationRoutes()
         syncRoutes()
         notImplementedRoutes()

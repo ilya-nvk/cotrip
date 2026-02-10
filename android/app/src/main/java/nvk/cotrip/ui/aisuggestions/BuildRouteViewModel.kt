@@ -72,8 +72,19 @@ class BuildRouteViewModel @Inject constructor(
             is BuildRouteEvent.OnTimeOfDaySelect -> selectTimeOfDay(event.label)
             is BuildRouteEvent.OnBudgetSelect -> selectBudget(event.label)
             BuildRouteEvent.OnGenerateClick -> {
-                if (_state.value.city != null) {
-                    appNavigator.navigate(Destination.RouteSuggestions(tripId))
+                val current = _state.value
+                val selectedCity = current.city?.trim()?.takeIf { it.isNotBlank() }
+                if (selectedCity != null) {
+                    appNavigator.navigate(
+                        Destination.RouteSuggestions(
+                            tripId = tripId,
+                            city = selectedCity,
+                            description = current.description.trim().takeIf { it.isNotBlank() },
+                            typeOptions = selectedLabels(current.typeOptions),
+                            timeOfDayOptions = selectedLabels(current.timeOfDayOptions),
+                            budgetOptions = selectedLabels(current.budgetOptions),
+                        )
+                    )
                 }
             }
         }
@@ -107,5 +118,9 @@ class BuildRouteViewModel @Inject constructor(
                 }
             )
         }
+    }
+
+    private fun selectedLabels(options: List<AiOptionUi>): List<String> {
+        return options.filter { it.selected }.map { it.label }
     }
 }

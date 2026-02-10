@@ -3,6 +3,8 @@ package nvk.cotrip.data.network
 import nvk.cotrip.data.network.dto.AuthDevRequest
 import nvk.cotrip.data.network.dto.AuthGoogleRequest
 import nvk.cotrip.data.network.dto.AuthResponse
+import nvk.cotrip.data.network.dto.AiSuggestionsRequestDto
+import nvk.cotrip.data.network.dto.AiSuggestionsResponseDto
 import nvk.cotrip.data.network.dto.ActivityDto
 import nvk.cotrip.data.network.dto.CommentDto
 import nvk.cotrip.data.network.dto.ConvertIdeaRequest
@@ -247,6 +249,15 @@ interface CoTripApi {
         @Query("start") start: String? = null,
         @Query("end") end: String? = null,
     ): WeatherForecastResponseDto
+
+    @POST("v1/trips/{tripId}/ai/suggestions")
+    suspend fun generateAiSuggestions(
+        @Path("tripId") tripId: String,
+        @Body request: AiSuggestionsRequestDto,
+    ): AiSuggestionsResponseDto
+
+    @POST("v1/ai/suggestions/{id}/save-to-ideas")
+    suspend fun saveAiSuggestionToIdeas(@Path("id") suggestionId: String): IdeaDto
 
     @POST("v1/sync/changes")
     suspend fun postSyncChanges(@Body request: SyncChangesRequest): SyncChangesResponse

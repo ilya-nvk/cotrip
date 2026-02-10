@@ -1,5 +1,7 @@
 package nvk.cotrip.ui.navigation
 
+import android.net.Uri
+
 sealed interface Destination {
     val route: String
 
@@ -151,12 +153,47 @@ sealed interface Destination {
         }
     }
 
-    data class RouteSuggestions(val tripId: String) : Destination {
-        override val route: String = "trips/$tripId/route-suggestions"
+    data class RouteSuggestions(
+        val tripId: String,
+        val city: String? = null,
+        val description: String? = null,
+        val typeOptions: List<String> = emptyList(),
+        val timeOfDayOptions: List<String> = emptyList(),
+        val budgetOptions: List<String> = emptyList(),
+    ) : Destination {
+        override val route: String = buildString {
+            append("trips/$tripId/route-suggestions")
+            val params = mutableListOf<String>()
+            city?.trim()?.takeIf { it.isNotBlank() }?.let {
+                params += "${ARG_CITY}=${Uri.encode(it)}"
+            }
+            description?.trim()?.takeIf { it.isNotBlank() }?.let {
+                params += "${ARG_DESCRIPTION}=${Uri.encode(it)}"
+            }
+            typeOptions.takeIf { it.isNotEmpty() }?.let {
+                params += "${ARG_TYPE_OPTIONS}=${Uri.encode(it.joinToString(","))}"
+            }
+            timeOfDayOptions.takeIf { it.isNotEmpty() }?.let {
+                params += "${ARG_TIME_OF_DAY_OPTIONS}=${Uri.encode(it.joinToString(","))}"
+            }
+            budgetOptions.takeIf { it.isNotEmpty() }?.let {
+                params += "${ARG_BUDGET_OPTIONS}=${Uri.encode(it.joinToString(","))}"
+            }
+            if (params.isNotEmpty()) {
+                append('?')
+                append(params.joinToString("&"))
+            }
+        }
 
         companion object {
-            const val ROUTE_PATTERN = "trips/{tripId}/route-suggestions"
+            const val ROUTE_PATTERN =
+                "trips/{tripId}/route-suggestions?city={city}&description={description}&typeOptions={typeOptions}&timeOfDayOptions={timeOfDayOptions}&budgetOptions={budgetOptions}"
             const val ARG_TRIP_ID = "tripId"
+            const val ARG_CITY = "city"
+            const val ARG_DESCRIPTION = "description"
+            const val ARG_TYPE_OPTIONS = "typeOptions"
+            const val ARG_TIME_OF_DAY_OPTIONS = "timeOfDayOptions"
+            const val ARG_BUDGET_OPTIONS = "budgetOptions"
         }
     }
 

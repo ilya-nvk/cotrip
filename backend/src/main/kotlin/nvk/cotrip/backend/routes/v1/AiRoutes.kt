@@ -10,11 +10,14 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.post
 import kotlinx.serialization.Serializable
+import nvk.cotrip.backend.config.AiConfig
 import nvk.cotrip.backend.db.AiRepository
 import nvk.cotrip.backend.db.AiSuggestionInput
 import nvk.cotrip.backend.db.AiSuggestionRow
 import nvk.cotrip.backend.db.IdeaRepository
 import nvk.cotrip.backend.db.TripRepository
+import nvk.cotrip.backend.integrations.YandexAiClient
+import nvk.cotrip.backend.integrations.YandexTripSuggestionPrompt
 
 @Serializable
 data class AiSuggestionRequest(
@@ -25,7 +28,7 @@ data class AiSuggestionRequest(
     val budgetOptions: List<String> = emptyList(),
 )
 
-fun Route.aiRoutes() {
+fun Route.aiRoutes(aiConfig: AiConfig) {
     authenticate("auth-jwt") {
         post("/v1/trips/{tripId}/ai/suggestions") {
             val principal = call.principal<JWTPrincipal>()
@@ -45,7 +48,7 @@ fun Route.aiRoutes() {
             }
 
             val request = call.receive<AiSuggestionRequest>()
-            val provider = System.getenv("ALICE_AI_PROVIDER") ?: "mock"
+            val provider = aiConfig.provider
 
             val aiRequest = AiRepository.createRequest(
                 tripId = tripId,
@@ -58,15 +61,53 @@ fun Route.aiRoutes() {
                 createdBy = userId,
             )
 
-            val suggestions = buildSuggestions(request).map { suggestion ->
-                AiSuggestionInput(
-                    title = suggestion.title,
-                    description = suggestion.description,
-                    typeLabel = suggestion.typeLabel,
-                    durationLabel = suggestion.durationLabel,
-                    budgetLabel = suggestion.budgetLabel,
-                    estimatedCost = suggestion.estimatedCost,
+            val suggestions = runCatching {
+                when (provider) {
+                    "yandex" -> YandexAiClient.generateSuggestions(
+                        config = aiConfig,
+                        prompt = YandexTripSuggestionPrompt(
+                            city = request.city,
+                            description = request.description,
+                            typeOptions = request.typeOptions,
+                            timeOfDayOptions = request.timeOfDayOptions,
+                            budgetOptions = request.budgetOptions,
+                            maxSuggestions = aiConfig.maxSuggestions,
+                        ),
+                    )
+
+                    "mock" -> buildMockSuggestions(
+                        request = request,
+                        maxSuggestions = aiConfig.maxSuggestions,
+                    )
+
+                    else -> throw IllegalArgumentException("Unsupported AI provider: $provider")
+                }
+            }.getOrElse { error ->
+                AiRepository.updateRequestStatus(aiRequest.id, "error", error.message?.take(1_000))
+                val isUnavailable = provider == "yandex" && error is IllegalStateException
+                call.respond(
+                    if (isUnavailable) HttpStatusCode.ServiceUnavailable else HttpStatusCode.BadGateway,
+                    mapOf(
+                        "error" to mapOf(
+                            "code" to if (isUnavailable) "ai_provider_unavailable" else "ai_generation_failed",
+                            "message" to if (isUnavailable) {
+                                "AI provider is not configured"
+                            } else {
+                                "Unable to generate AI suggestions"
+                            },
+                        )
+                    )
                 )
+                return@post
+            }
+
+            if (suggestions.isEmpty()) {
+                AiRepository.updateRequestStatus(aiRequest.id, "error", "No suggestions returned")
+                call.respond(
+                    HttpStatusCode.BadGateway,
+                    mapOf("error" to mapOf("code" to "ai_generation_failed", "message" to "Unable to generate AI suggestions"))
+                )
+                return@post
             }
 
             val savedSuggestions = AiRepository.insertSuggestions(aiRequest.id, suggestions)
@@ -129,25 +170,23 @@ fun Route.aiRoutes() {
     }
 }
 
-private fun buildSuggestions(request: AiSuggestionRequest): List<AiSuggestionDto> {
+private fun buildMockSuggestions(request: AiSuggestionRequest, maxSuggestions: Int): List<AiSuggestionInput> {
     val city = request.city?.ifBlank { "" } ?: ""
     val types = if (request.typeOptions.isEmpty()) listOf("Museum", "Cafe", "Walk", "Market") else request.typeOptions
     val budgets = if (request.budgetOptions.isEmpty()) listOf("Budget", "Mid-range", "Premium") else request.budgetOptions
     val times = if (request.timeOfDayOptions.isEmpty()) listOf("Morning", "Afternoon", "Evening") else request.timeOfDayOptions
 
-    return types.take(5).mapIndexed { index, type ->
+    return types.take(maxSuggestions).mapIndexed { index, type ->
         val budgetLabel = budgets[index % budgets.size]
         val timeLabel = times[index % times.size]
         val title = if (city.isBlank()) type else "$city $type"
-        AiSuggestionDto(
-            id = "",
+        AiSuggestionInput(
             title = title,
             description = "Suggested $type for $timeLabel in ${if (city.isBlank()) "your trip" else city}.",
             typeLabel = type,
             durationLabel = "2-3 hours",
             budgetLabel = budgetLabel,
             estimatedCost = 15.0 + (index * 10),
-            isSaved = false,
         )
     }
 }
