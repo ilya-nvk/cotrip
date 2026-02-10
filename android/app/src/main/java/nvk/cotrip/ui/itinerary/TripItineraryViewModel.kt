@@ -46,10 +46,13 @@ class TripItineraryViewModel @Inject constructor(
         checkNotNull(savedStateHandle[Destination.TripItinerary.ARG_TRIP_ID])
     private val requireCitySelection: Boolean =
         savedStateHandle[Destination.TripItinerary.ARG_REQUIRE_CITIES] ?: false
+    private val isCreationFlow: Boolean =
+        savedStateHandle[Destination.TripItinerary.ARG_CREATION_FLOW] ?: false
 
     private var allCities: List<CitySuggestionUi> = emptyList()
     private var currencySymbol: String = "€"
     private var citySearchJob: Job? = null
+    private var isCancellingCreation: Boolean = false
 
     private val _state = MutableStateFlow(
         TripItineraryState(
@@ -77,6 +80,10 @@ class TripItineraryViewModel @Inject constructor(
     fun onEvent(event: TripItineraryEvent) {
         when (event) {
             TripItineraryEvent.OnBackClick -> {
+                if (isCreationFlow) {
+                    cancelTripCreation()
+                    return
+                }
                 if (_state.value.isCitySelectionRequired && _state.value.pendingCitySelectionCount > 0) {
                     emitToast(R.string.itinerary_city_setup_required_toast)
                 } else {
@@ -106,6 +113,24 @@ class TripItineraryViewModel @Inject constructor(
                 reorderInState(event.dayId, event.fromIndex, event.toIndex)
             is TripItineraryEvent.OnReorderCommit ->
                 commitReorder(event.dayId)
+        }
+    }
+
+    private fun cancelTripCreation() {
+        if (!isCreationFlow || isCancellingCreation) return
+        isCancellingCreation = true
+        viewModelScope.launch {
+            _state.update { it.copy(isRefreshing = true) }
+            when (val result = apiCaller.call {
+                withContext(Dispatchers.IO) {
+                    tripRepository.deleteTrip(tripId)
+                }
+            }) {
+                is ApiResult.Success -> appNavigator.popBackStack()
+                is ApiResult.Failure -> emitToast(uiErrorMapper.messageRes(result))
+            }
+            _state.update { it.copy(isRefreshing = false) }
+            isCancellingCreation = false
         }
     }
 

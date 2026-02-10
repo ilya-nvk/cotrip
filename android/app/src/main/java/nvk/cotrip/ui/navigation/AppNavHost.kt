@@ -172,6 +172,10 @@ fun AppNavHost(
                     type = NavType.BoolType
                     defaultValue = false
                 },
+                navArgument(Destination.TripItinerary.ARG_CREATION_FLOW) {
+                    type = NavType.BoolType
+                    defaultValue = false
+                },
             )
         ) {
             TripItineraryScreen()

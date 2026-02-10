@@ -121,10 +121,9 @@ class CreateTripViewModel @Inject constructor(
                         Destination.TripItinerary(
                             tripId = result.data.id,
                             requireCities = true,
+                            creationFlow = true,
                         )
-                    ) {
-                        popUpTo(Destination.CreateTrip.route) { inclusive = true }
-                    }
+                    )
                 }
 
                 is ApiResult.Failure -> {
