@@ -20,6 +20,7 @@ import nvk.cotrip.backend.db.IdeaRepository
 import nvk.cotrip.backend.db.IdeaRow
 import nvk.cotrip.backend.db.TripRepository
 import nvk.cotrip.backend.db.UserRepository
+import nvk.cotrip.backend.notifications.NotificationService
 import nvk.cotrip.backend.ws.publishCommentCreated
 
 @Serializable
@@ -189,6 +190,13 @@ fun Route.ideaRoutes() {
                     body = "$actorName edited the idea"
                 )
                 publishCommentCreated(updated.tripId, systemComment)
+                NotificationService.notifyIdeaComment(
+                    tripId = updated.tripId,
+                    ideaId = updated.id,
+                    actorUserId = userId,
+                    actorName = actorName,
+                    body = systemComment.body
+                )
             }
 
             val commentCount = CommentRepository.countByIdeaIds(listOf(updated.id))[updated.id] ?: 0
@@ -344,6 +352,13 @@ fun Route.ideaRoutes() {
                 body = "$actorName added this idea to the itinerary"
             )
             publishCommentCreated(idea.tripId, systemComment)
+            NotificationService.notifyIdeaComment(
+                tripId = idea.tripId,
+                ideaId = idea.id,
+                actorUserId = userId,
+                actorName = actorName,
+                body = systemComment.body
+            )
 
             call.respond(HttpStatusCode.NoContent)
         }

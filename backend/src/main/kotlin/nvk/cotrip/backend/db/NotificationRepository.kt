@@ -20,6 +20,40 @@ data class NotificationSettingRow(
 )
 
 object NotificationRepository {
+    fun create(userId: String, type: String, payload: String): NotificationRow = dbQuery { conn ->
+        conn.prepareStatement(
+            """
+            INSERT INTO notifications (user_id, type, payload)
+            VALUES (?, ?, ?::jsonb)
+            RETURNING id, user_id, type, payload, created_at, read_at
+            """.trimIndent()
+        ).use { stmt ->
+            stmt.setObject(1, UUID.fromString(userId))
+            stmt.setString(2, type)
+            stmt.setString(3, payload)
+            stmt.executeQuery().use { rs ->
+                rs.next()
+                mapNotification(rs)
+            }
+        }
+    }
+
+    fun isSettingEnabled(userId: String, key: String): Boolean = dbQuery { conn ->
+        conn.prepareStatement(
+            """
+            SELECT enabled
+            FROM notification_settings
+            WHERE user_id = ? AND key = ?
+            """.trimIndent()
+        ).use { stmt ->
+            stmt.setObject(1, UUID.fromString(userId))
+            stmt.setString(2, key)
+            stmt.executeQuery().use { rs ->
+                if (rs.next()) rs.getBoolean("enabled") else true
+            }
+        }
+    }
+
     fun listForUser(userId: String, limit: Int = 100): List<NotificationRow> = dbQuery { conn ->
         conn.prepareStatement(
             """
