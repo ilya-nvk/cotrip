@@ -48,7 +48,7 @@ jobs:
               WHERE datname = 'cotrip';
               DROP DATABASE cotrip;
               CREATE DATABASE cotrip OWNER cotrip;
-SQL
+          SQL
 
             sudo systemctl restart cotrip
             sudo systemctl is-active --quiet cotrip
