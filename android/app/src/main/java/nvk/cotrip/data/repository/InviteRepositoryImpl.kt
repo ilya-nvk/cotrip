@@ -19,4 +19,8 @@ class InviteRepositoryImpl @Inject constructor(
     override suspend fun acceptInvite(token: String): String {
         return api.acceptInvite(token)["tripId"].orEmpty()
     }
+
+    override suspend fun joinTripById(tripId: String): String {
+        return api.joinTripById(tripId)["tripId"].orEmpty()
+    }
 }

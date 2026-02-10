@@ -8,6 +8,7 @@ import nvk.cotrip.data.cache.ItineraryCacheStore
 import nvk.cotrip.data.cache.TripsCacheStore
 import nvk.cotrip.data.cache.UserCacheStore
 import nvk.cotrip.data.network.CoTripApi
+import nvk.cotrip.data.network.requireSuccess
 import nvk.cotrip.data.network.dto.UpdateUserRequest
 import nvk.cotrip.data.network.dto.UserDto
 import nvk.cotrip.data.sync.SyncStateStore
@@ -63,7 +64,7 @@ class UserRepositoryImpl @Inject constructor(
 
     override suspend fun deleteMe() {
         try {
-            api.deleteMe()
+            api.deleteMe().requireSuccess()
         } catch (e: HttpException) {
             if (e.code() != 404) throw e
             AppLogger.i(TAG, "deleteMe got 404, treating as already deleted")

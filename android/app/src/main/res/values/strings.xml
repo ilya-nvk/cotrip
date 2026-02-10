@@ -23,12 +23,12 @@
     <string name="settings_save">Save</string>
     <string name="join_trip">Join trip</string>
     <string name="join_trip_title">Join trip</string>
-    <string name="join_trip_subtitle">Paste an invite link to join an existing trip.</string>
-    <string name="join_trip_invite_label">Invite link</string>
-    <string name="join_trip_invite_placeholder">https://…/invite/abc123</string>
+    <string name="join_trip_subtitle">Paste an invite link or trip ID to join an existing trip.</string>
+    <string name="join_trip_invite_label">Invite link or trip ID</string>
+    <string name="join_trip_invite_placeholder">https://api.cotrip.site/invite/... or trip ID</string>
     <string name="join_trip_action">Join trip</string>
-    <string name="join_trip_hint">Paste a valid invite link from CoTrip.</string>
-    <string name="join_trip_invalid">Invalid invite link</string>
+    <string name="join_trip_hint">Supported: invite link, /v1/trips/.../invite, or trip ID.</string>
+    <string name="join_trip_invalid">Invalid invite link or trip ID</string>
     <string name="join_trip_already_joined">You are already in this trip</string>
     <string name="join_trip_success">Joined trip</string>
     <string name="toggle_past">Toggle past</string>

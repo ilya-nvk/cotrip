@@ -5,6 +5,8 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import nvk.cotrip.data.cache.ExpensesCacheStore
 import nvk.cotrip.data.network.CoTripApi
+import nvk.cotrip.data.network.NetworkStateProvider
+import nvk.cotrip.data.network.requireSuccess
 import nvk.cotrip.data.network.dto.ExpenseCreateRequest
 import nvk.cotrip.data.network.dto.ExpenseDto
 import nvk.cotrip.data.network.dto.ExpenseUpdateRequest
@@ -17,6 +19,7 @@ class ExpenseRepositoryImpl @Inject constructor(
     private val api: CoTripApi,
     private val syncQueueRepository: SyncQueueRepository,
     private val expensesCacheStore: ExpensesCacheStore,
+    private val networkStateProvider: NetworkStateProvider,
 ) : ExpenseRepository {
 
     private companion object {
@@ -28,8 +31,9 @@ class ExpenseRepositoryImpl @Inject constructor(
     }
 
     override suspend fun listExpenses(tripId: String): List<ExpenseDto> {
-        val cached = expensesCacheStore.getExpenses(tripId)
-        if (cached.isNotEmpty()) return cached
+        if (!networkStateProvider.isOnline()) {
+            return expensesCacheStore.getExpenses(tripId)
+        }
         return refreshExpenses(tripId)
     }
 
@@ -62,7 +66,7 @@ class ExpenseRepositoryImpl @Inject constructor(
             .onFailure { AppLogger.w(TAG, "deleteExpense prefetch failed for expenseId=$expenseId", it) }
             .getOrNull()
         try {
-            api.deleteExpense(expenseId)
+            api.deleteExpense(expenseId).requireSuccess()
         } catch (e: IOException) {
             syncQueueRepository.enqueueDelete(SyncEntities.EXPENSE, expenseId)
             return

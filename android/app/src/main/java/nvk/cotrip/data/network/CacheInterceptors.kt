@@ -10,11 +10,15 @@ class OfflineCacheInterceptor(
 ) : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         var request = chain.request()
-        if (request.method == "GET" && !networkStateProvider.isOnline()) {
-            val cacheControl = CacheControl.Builder()
-                .onlyIfCached()
-                .maxStale(7, TimeUnit.DAYS)
-                .build()
+        if (request.method == "GET") {
+            val cacheControl = if (networkStateProvider.isOnline()) {
+                CacheControl.FORCE_NETWORK
+            } else {
+                CacheControl.Builder()
+                    .onlyIfCached()
+                    .maxStale(7, TimeUnit.DAYS)
+                    .build()
+            }
             request = request.newBuilder()
                 .cacheControl(cacheControl)
                 .build()

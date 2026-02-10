@@ -26,6 +26,12 @@ import java.util.Locale
 
 private const val INVITE_HOST = "api.cotrip.site"
 private val INVITE_TOKEN_REGEX = Regex("^[a-f0-9]{32}$", RegexOption.IGNORE_CASE)
+private val TRIP_ID_REGEX = Regex("^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$", RegexOption.IGNORE_CASE)
+
+private sealed interface JoinTarget {
+    data class InviteToken(val token: String) : JoinTarget
+    data class TripId(val tripId: String) : JoinTarget
+}
 
 @HiltViewModel
 class JoinTripViewModel @Inject constructor(
@@ -49,20 +55,19 @@ class JoinTripViewModel @Inject constructor(
     private val _effects = MutableSharedFlow<JoinTripEffect>()
     val effects = _effects.asSharedFlow()
 
-    private val deepLinkToken: String? =
+    private val deepLinkValue: String? =
         savedStateHandle[Destination.JoinTrip.ARG_INVITE_TOKEN]
 
     init {
-        val token = deepLinkToken?.trim()?.takeIf { it.isNotBlank() }
-        if (token != null && isValidToken(token)) {
-            val canonicalUrl = canonicalInviteUrl(token)
+        val target = deepLinkValue?.let { parseJoinTarget(it) }
+        if (target != null) {
             _state.update {
                 it.copy(
-                    inviteInput = canonicalUrl,
+                    inviteInput = canonicalInput(target),
                     isInviteValid = true,
                 )
             }
-            joinTrip(tokenOverride = token)
+            joinTrip(targetOverride = target)
         }
     }
 
@@ -70,7 +75,7 @@ class JoinTripViewModel @Inject constructor(
         when (event) {
             JoinTripEvent.OnBackClick -> appNavigator.popBackStack()
             is JoinTripEvent.OnInviteInputChange -> {
-                val isValid = parseToken(event.value) != null
+                val isValid = parseJoinTarget(event.value) != null
                 _state.update {
                     it.copy(
                         inviteInput = event.value,
@@ -82,9 +87,9 @@ class JoinTripViewModel @Inject constructor(
         }
     }
 
-    private fun joinTrip(tokenOverride: String? = null) {
-        val token = tokenOverride ?: parseToken(_state.value.inviteInput)
-        if (token.isNullOrBlank()) {
+    private fun joinTrip(targetOverride: JoinTarget? = null) {
+        val target = targetOverride ?: parseJoinTarget(_state.value.inviteInput)
+        if (target == null) {
             emit(JoinTripEffect.ShowToastRes(R.string.join_trip_invalid))
             return
         }
@@ -94,9 +99,15 @@ class JoinTripViewModel @Inject constructor(
             _state.update { it.copy(isLoading = true) }
             val preflight = apiCaller.call {
                 withContext(Dispatchers.IO) {
-                    val invite = inviteRepository.getInvite(token)
                     runCatching { tripRepository.refreshTrips() }
-                    tripRepository.listTrips().any { it.id == invite.tripId }
+                    val joinedIds = tripRepository.listTrips().mapTo(mutableSetOf()) { it.id }
+                    when (target) {
+                        is JoinTarget.InviteToken -> {
+                            val invite = inviteRepository.getInvite(target.token)
+                            joinedIds.contains(invite.tripId)
+                        }
+                        is JoinTarget.TripId -> joinedIds.contains(target.tripId)
+                    }
                 }
             }
 
@@ -118,7 +129,15 @@ class JoinTripViewModel @Inject constructor(
 
             val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
-                    val tripId = inviteRepository.acceptInvite(token)
+                    val tripId = when (target) {
+                        is JoinTarget.InviteToken -> inviteRepository.acceptInvite(target.token)
+                        is JoinTarget.TripId -> inviteRepository.joinTripById(target.tripId)
+                    }.ifBlank {
+                        when (target) {
+                            is JoinTarget.InviteToken -> error("acceptInvite returned empty tripId")
+                            is JoinTarget.TripId -> target.tripId
+                        }
+                    }
                     runCatching { tripRepository.refreshTrips() }
                     tripId
                 }
@@ -141,23 +160,68 @@ class JoinTripViewModel @Inject constructor(
         }
     }
 
-    private fun parseToken(raw: String): String? {
+    private fun parseJoinTarget(raw: String): JoinTarget? {
         val trimmed = raw.trim()
         if (trimmed.isBlank()) return null
+        trimmed.toTokenTarget()?.let { return it }
+        trimmed.toTripIdTarget()?.let { return it }
+
         val uri = runCatching { Uri.parse(trimmed) }.getOrNull() ?: return null
         val scheme = uri.scheme?.lowercase(Locale.US) ?: return null
         if (scheme != "https" && scheme != "http") return null
         val host = uri.host?.lowercase(Locale.US) ?: return null
         if (host != INVITE_HOST) return null
-        val pathSegments = uri.pathSegments
-        if (pathSegments.size < 2) return null
-        if (!pathSegments[0].equals("invite", ignoreCase = true)) return null
-        val token = pathSegments[1].trim()
-        return token.takeIf { isValidToken(it) }
+        val pathSegments = uri.pathSegments.filter { it.isNotBlank() }
+        if (pathSegments.isEmpty()) return null
+
+        return when {
+            pathSegments.size >= 2 &&
+                pathSegments[0].equals("invite", ignoreCase = true) ->
+                pathSegments[1].toTokenTarget()
+
+            pathSegments.size >= 3 &&
+                pathSegments[0].equals("v1", ignoreCase = true) &&
+                pathSegments[1].equals("invites", ignoreCase = true) ->
+                pathSegments[2].toTokenTarget()
+
+            pathSegments.size >= 3 &&
+                pathSegments[0].equals("trips", ignoreCase = true) &&
+                pathSegments[2].equals("invite", ignoreCase = true) ->
+                pathSegments[1].toTripIdTarget()
+
+            pathSegments.size >= 4 &&
+                pathSegments[0].equals("v1", ignoreCase = true) &&
+                pathSegments[1].equals("trips", ignoreCase = true) &&
+                pathSegments[3].equals("invite", ignoreCase = true) ->
+                pathSegments[2].toTripIdTarget()
+
+            else -> null
+        }
+    }
+
+    private fun String.toTokenTarget(): JoinTarget.InviteToken? {
+        val normalized = trim().lowercase(Locale.US)
+        return normalized.takeIf { isValidToken(it) }?.let { JoinTarget.InviteToken(it) }
+    }
+
+    private fun String.toTripIdTarget(): JoinTarget.TripId? {
+        val normalized = trim().lowercase(Locale.US)
+        return normalized.takeIf { isValidTripId(it) }?.let { JoinTarget.TripId(it) }
     }
 
     private fun isValidToken(token: String): Boolean {
         return INVITE_TOKEN_REGEX.matches(token.trim())
+    }
+
+    private fun isValidTripId(tripId: String): Boolean {
+        return TRIP_ID_REGEX.matches(tripId.trim())
+    }
+
+    private fun canonicalInput(target: JoinTarget): String {
+        return when (target) {
+            is JoinTarget.InviteToken -> canonicalInviteUrl(target.token)
+            is JoinTarget.TripId -> target.tripId
+        }
     }
 
     private fun canonicalInviteUrl(token: String): String {

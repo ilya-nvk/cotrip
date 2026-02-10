@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nvk.cotrip.R
@@ -51,6 +52,7 @@ class TripDetailsViewModel @Inject constructor(
     val effects = _effects.asSharedFlow()
 
     init {
+        observeCachedTripData()
         loadTrip(isUserRefresh = false)
     }
 
@@ -130,6 +132,37 @@ class TripDetailsViewModel @Inject constructor(
         )
     }
 
+    private fun observeCachedTripData() {
+        viewModelScope.launch {
+            combine(
+                tripRepository.observeTrip(tripId),
+                ideaRepository.observeIdeas(tripId),
+                expenseRepository.observeExpenses(tripId)
+            ) { trip, ideas, expenses ->
+                Triple(trip, ideas, expenses)
+            }.collect { (trip, ideas, expenses) ->
+                val resolvedTrip = trip ?: return@collect
+                val current = _state.value
+                val loaded = LoadedTrip(
+                    trip = resolvedTrip,
+                    members = emptyList(),
+                    ideas = ideas,
+                    expenses = expenses,
+                )
+                val cacheState = buildState(loaded)
+                val mergedState = if (current.travelers.isNotEmpty()) {
+                    cacheState.copy(
+                        travelers = current.travelers,
+                        peopleCountText = current.peopleCountText,
+                    )
+                } else {
+                    cacheState
+                }
+                _state.value = mergedState.copy(isRefreshing = current.isRefreshing)
+            }
+        }
+    }
+
     private fun loadTrip(isUserRefresh: Boolean) {
         viewModelScope.launch {
             if (isUserRefresh) {
@@ -139,15 +172,15 @@ class TripDetailsViewModel @Inject constructor(
                 withContext(Dispatchers.IO) {
                     val trip = tripRepository.getTrip(tripId)
                     val members = tripRepository.listMembers(tripId)
-                    val ideas = ideaRepository.listIdeas(tripId)
-                    val expenses = expenseRepository.listExpenses(tripId)
+                    val ideas = ideaRepository.refreshIdeas(tripId)
+                    val expenses = expenseRepository.refreshExpenses(tripId)
                     LoadedTrip(trip, members, ideas, expenses)
                 }
             }
 
             when (result) {
                 is ApiResult.Success -> {
-                    _state.value = buildState(result.data)
+                    _state.value = buildState(result.data).copy(isRefreshing = false)
                 }
 
                 is ApiResult.Failure -> {

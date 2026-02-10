@@ -4,6 +4,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import nvk.cotrip.data.cache.TripsCacheStore
 import nvk.cotrip.data.network.CoTripApi
+import nvk.cotrip.data.network.NetworkStateProvider
+import nvk.cotrip.data.network.requireSuccess
 import nvk.cotrip.data.network.dto.CreateTripRequest
 import nvk.cotrip.data.network.dto.MemberDto
 import nvk.cotrip.data.network.dto.TripDto
@@ -19,6 +21,7 @@ class TripRepositoryImpl @Inject constructor(
     private val api: CoTripApi,
     private val tripsCacheStore: TripsCacheStore,
     private val syncQueueRepository: SyncQueueRepository,
+    private val networkStateProvider: NetworkStateProvider,
 ) : TripRepository {
 
     private companion object {
@@ -40,10 +43,12 @@ class TripRepositoryImpl @Inject constructor(
     }
 
     override suspend fun listTrips(): List<TripDto> {
-        val cached = runCatching { tripsCacheStore.getTrips() }
-            .onFailure { AppLogger.w(TAG, "listTrips cache read failed", it) }
-            .getOrDefault(emptyList())
-        if (cached.isNotEmpty()) return cached
+        if (!networkStateProvider.isOnline()) {
+            return runCatching { tripsCacheStore.getTrips() }
+                .onFailure { AppLogger.w(TAG, "listTrips offline cache read failed", it) }
+                .getOrDefault(emptyList())
+        }
+
         val trips = api.listTrips().items
         safeLocalMutation("listTrips.setTrips") {
             tripsCacheStore.setTrips(trips)
@@ -104,7 +109,7 @@ class TripRepositoryImpl @Inject constructor(
 
     override suspend fun archiveTrip(tripId: String) {
         try {
-            api.archiveTrip(tripId)
+            api.archiveTrip(tripId).requireSuccess()
         } catch (e: IOException) {
             syncQueueRepository.enqueueUpsert(
                 entity = SyncEntities.TRIP,
@@ -115,10 +120,10 @@ class TripRepositoryImpl @Inject constructor(
             if (e.code() != 404) throw e
             AppLogger.i(TAG, "archiveTrip got 404 for tripId=$tripId, treating as already archived")
         }
-        val current = runCatching { tripsCacheStore.getTrips() }
+        val cached = runCatching { tripsCacheStore.getTrips() }
             .onFailure { AppLogger.w(TAG, "archiveTrip cache read failed for $tripId", it) }
             .getOrDefault(emptyList())
-        val updated = current.map { trip ->
+        val updated = cached.map { trip ->
             if (trip.id == tripId) trip.copy(status = "archived") else trip
         }
         safeLocalMutation("archiveTrip.setTrips(tripId=$tripId)") {
@@ -128,7 +133,7 @@ class TripRepositoryImpl @Inject constructor(
 
     override suspend fun deleteTrip(tripId: String) {
         try {
-            api.deleteTrip(tripId)
+            api.deleteTrip(tripId).requireSuccess()
         } catch (e: IOException) {
             syncQueueRepository.enqueueDelete(SyncEntities.TRIP, tripId)
         } catch (e: HttpException) {
@@ -145,6 +150,6 @@ class TripRepositoryImpl @Inject constructor(
     }
 
     override suspend fun removeMember(tripId: String, memberId: String) {
-        api.removeMember(tripId, memberId)
+        api.removeMember(tripId, memberId).requireSuccess()
     }
 }

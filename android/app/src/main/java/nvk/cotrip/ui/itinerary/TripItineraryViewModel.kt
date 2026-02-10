@@ -22,6 +22,7 @@ import nvk.cotrip.data.network.dto.ActivityDto
 import nvk.cotrip.data.network.dto.ItineraryDayDto
 import nvk.cotrip.data.network.dto.UpdateDayRequest
 import nvk.cotrip.data.repository.ItineraryRepository
+import nvk.cotrip.data.repository.PendingTripCreationStore
 import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.navigation.AppNavigator
@@ -39,6 +40,7 @@ class TripItineraryViewModel @Inject constructor(
     private val appNavigator: AppNavigator,
     private val tripRepository: TripRepository,
     private val itineraryRepository: ItineraryRepository,
+    private val pendingTripCreationStore: PendingTripCreationStore,
     private val apiCaller: ApiCaller,
     private val uiErrorMapper: UiErrorMapper,
 ) : ViewModel() {
@@ -75,6 +77,12 @@ class TripItineraryViewModel @Inject constructor(
     val effects = _effects.asSharedFlow()
 
     init {
+        if (isCreationFlow) {
+            viewModelScope.launch(Dispatchers.IO) {
+                runCatching { pendingTripCreationStore.setPendingTripId(tripId) }
+                    .onFailure { AppLogger.w(TAG, "Failed to persist pending tripId=$tripId", it) }
+            }
+        }
         observeData()
         refreshItinerary(isUserRefresh = false)
     }
@@ -131,11 +139,13 @@ class TripItineraryViewModel @Inject constructor(
             }) {
                 is ApiResult.Success -> {
                     AppLogger.i(TAG, "cancelTripCreation succeeded for tripId=$tripId")
+                    clearPendingCreationTrip()
                     appNavigator.popBackStack()
                 }
                 is ApiResult.Failure -> {
                     if (result.httpCode == 404) {
                         AppLogger.i(TAG, "cancelTripCreation got 404 for tripId=$tripId, closing screen")
+                        clearPendingCreationTrip()
                         appNavigator.popBackStack()
                     } else {
                         AppLogger.w(
@@ -524,14 +534,24 @@ class TripItineraryViewModel @Inject constructor(
             emitToast(R.string.itinerary_city_setup_required_toast)
             return
         }
-        appNavigator.navigate(Destination.TripDetails(tripId)) {
-            popUpTo(Destination.Trips.route) { inclusive = false }
-            launchSingleTop = true
+        viewModelScope.launch {
+            clearPendingCreationTrip()
+            appNavigator.navigate(Destination.TripDetails(tripId)) {
+                popUpTo(Destination.Trips.route) { inclusive = false }
+                launchSingleTop = true
+            }
         }
     }
 
     private fun emitToast(resId: Int) {
         viewModelScope.launch { _effects.emit(TripItineraryEffect.ShowToastRes(resId)) }
+    }
+
+    private suspend fun clearPendingCreationTrip() {
+        withContext(Dispatchers.IO) {
+            runCatching { pendingTripCreationStore.clearPendingTripId(tripId) }
+                .onFailure { AppLogger.w(TAG, "Failed to clear pending tripId=$tripId", it) }
+        }
     }
 
     private companion object {

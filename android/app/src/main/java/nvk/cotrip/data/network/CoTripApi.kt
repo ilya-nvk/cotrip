@@ -37,6 +37,7 @@ import nvk.cotrip.data.network.dto.SyncChangesRequest
 import nvk.cotrip.data.network.dto.SyncChangesResponse
 import nvk.cotrip.data.network.dto.SyncPullResponse
 import nvk.cotrip.data.network.dto.WeatherForecastResponseDto
+import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
@@ -59,7 +60,7 @@ interface CoTripApi {
     suspend fun updateMe(@Body request: UpdateUserRequest): UserDto
 
     @DELETE("v1/users/me")
-    suspend fun deleteMe(): Unit
+    suspend fun deleteMe(): Response<Unit>
 
     @POST("v1/trips")
     suspend fun createTrip(@Body request: CreateTripRequest): TripDto
@@ -77,16 +78,16 @@ interface CoTripApi {
     ): TripDto
 
     @DELETE("v1/trips/{tripId}")
-    suspend fun deleteTrip(@Path("tripId") tripId: String): Unit
+    suspend fun deleteTrip(@Path("tripId") tripId: String): Response<Unit>
 
     @POST("v1/trips/{tripId}/archive")
-    suspend fun archiveTrip(@Path("tripId") tripId: String): Unit
+    suspend fun archiveTrip(@Path("tripId") tripId: String): Response<Unit>
 
     @POST("v1/trips/{tripId}/transfer-owner")
     suspend fun transferOwner(
         @Path("tripId") tripId: String,
         @Body request: TransferOwnerRequest,
-    ): Unit
+    ): Response<Unit>
 
     @POST("v1/trips/{tripId}/invite")
     suspend fun createInvite(@Path("tripId") tripId: String): InviteLinkDto
@@ -97,6 +98,9 @@ interface CoTripApi {
     @POST("v1/invites/{token}/accept")
     suspend fun acceptInvite(@Path("token") token: String): Map<String, String>
 
+    @POST("v1/trips/{tripId}/join")
+    suspend fun joinTripById(@Path("tripId") tripId: String): Map<String, String>
+
     @GET("v1/trips/{tripId}/members")
     suspend fun listMembers(@Path("tripId") tripId: String): ApiListResponse<MemberDto>
 
@@ -104,7 +108,7 @@ interface CoTripApi {
     suspend fun removeMember(
         @Path("tripId") tripId: String,
         @Path("memberId") memberId: String,
-    ): Unit
+    ): Response<Unit>
 
     @GET("v1/trips/{tripId}/ideas")
     suspend fun listIdeas(
@@ -131,13 +135,13 @@ interface CoTripApi {
     ): IdeaDto
 
     @DELETE("v1/ideas/{ideaId}")
-    suspend fun deleteIdea(@Path("ideaId") ideaId: String): Unit
+    suspend fun deleteIdea(@Path("ideaId") ideaId: String): Response<Unit>
 
     @POST("v1/ideas/{ideaId}/convert-to-activity")
     suspend fun convertIdeaToActivity(
         @Path("ideaId") ideaId: String,
         @Body request: ConvertIdeaRequest,
-    ): Unit
+    ): Response<Unit>
 
     @POST("v1/ideas/{ideaId}/approve")
     suspend fun approveIdea(@Path("ideaId") ideaId: String): IdeaDto
@@ -149,7 +153,7 @@ interface CoTripApi {
     suspend fun listComments(@Path("ideaId") ideaId: String): ApiListResponse<CommentDto>
 
     @DELETE("v1/comments/{commentId}")
-    suspend fun deleteComment(@Path("commentId") commentId: String): Unit
+    suspend fun deleteComment(@Path("commentId") commentId: String): Response<Unit>
 
     @GET("v1/trips/{tripId}/expenses")
     suspend fun listExpenses(
@@ -172,7 +176,7 @@ interface CoTripApi {
     ): ExpenseDto
 
     @DELETE("v1/expenses/{expenseId}")
-    suspend fun deleteExpense(@Path("expenseId") expenseId: String): Unit
+    suspend fun deleteExpense(@Path("expenseId") expenseId: String): Response<Unit>
 
     @GET("v1/trips/{tripId}/itinerary")
     suspend fun getItinerary(
@@ -197,7 +201,7 @@ interface CoTripApi {
     suspend fun updateDay(
         @Path("dayId") dayId: String,
         @Body request: UpdateDayRequest,
-    ): Unit
+    ): Response<Unit>
 
     @POST("v1/itinerary/days/{dayId}/activities")
     suspend fun createActivity(
@@ -212,7 +216,7 @@ interface CoTripApi {
     ): ActivityDto
 
     @DELETE("v1/itinerary/activities/{activityId}")
-    suspend fun deleteActivity(@Path("activityId") activityId: String): Unit
+    suspend fun deleteActivity(@Path("activityId") activityId: String): Response<Unit>
 
     @POST("v1/itinerary/activities/{activityId}/move")
     suspend fun moveActivity(
@@ -224,13 +228,13 @@ interface CoTripApi {
     suspend fun reorderActivities(
         @Path("dayId") dayId: String,
         @Body request: ReorderActivitiesRequest,
-    ): Unit
+    ): Response<Unit>
 
     @POST("v1/trips/{tripId}/itinerary/trim-out-of-range")
     suspend fun trimOutOfRangeDays(
         @Path("tripId") tripId: String,
         @Body request: TrimOutOfRangeRequest,
-    ): Unit
+    ): Response<Unit>
 
     @GET("v1/trips/{tripId}/weather")
     suspend fun getWeather(
@@ -258,7 +262,7 @@ interface CoTripApi {
     suspend fun listNotifications(): NotificationListResponse
 
     @PATCH("v1/notifications/{id}/read")
-    suspend fun markNotificationRead(@Path("id") id: String): Unit
+    suspend fun markNotificationRead(@Path("id") id: String): Response<Unit>
 
     @GET("v1/users/me/notification-settings")
     suspend fun getNotificationSettings(): NotificationSettingsResponse

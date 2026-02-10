@@ -15,6 +15,7 @@ import nvk.cotrip.R
 import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.network.dto.CreateTripRequest
+import nvk.cotrip.data.repository.PendingTripCreationStore
 import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.navigation.AppNavigator
@@ -27,6 +28,7 @@ import javax.inject.Inject
 class CreateTripViewModel @Inject constructor(
     private val appNavigator: AppNavigator,
     private val tripRepository: TripRepository,
+    private val pendingTripCreationStore: PendingTripCreationStore,
     private val apiCaller: ApiCaller,
     private val uiErrorMapper: UiErrorMapper,
 ) : ViewModel() {
@@ -125,6 +127,7 @@ class CreateTripViewModel @Inject constructor(
             when (result) {
                 is ApiResult.Success -> {
                     AppLogger.i(TAG, "createTrip succeeded tripId=${result.data.id}")
+                    markTripCreationPending(result.data.id)
                     emitToastRes(R.string.create_trip_created_toast)
                     appNavigator.navigate(
                         Destination.TripItinerary(
@@ -144,6 +147,7 @@ class CreateTripViewModel @Inject constructor(
                     val recoveredTripId = recoverCreatedTripId(request)
                     if (recoveredTripId != null) {
                         AppLogger.i(TAG, "createTrip recovered via listTrips tripId=$recoveredTripId")
+                        markTripCreationPending(recoveredTripId)
                         emitToastRes(R.string.create_trip_created_toast)
                         appNavigator.navigate(
                             Destination.TripItinerary(
@@ -179,6 +183,13 @@ class CreateTripViewModel @Inject constructor(
             }.onFailure {
                 AppLogger.w(TAG, "recoverCreatedTripId failed", it)
             }.getOrNull()
+        }
+    }
+
+    private suspend fun markTripCreationPending(tripId: String) {
+        withContext(Dispatchers.IO) {
+            runCatching { pendingTripCreationStore.setPendingTripId(tripId) }
+                .onFailure { AppLogger.w(TAG, "Failed to mark pending tripId=$tripId", it) }
         }
     }
 }
