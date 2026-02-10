@@ -36,6 +36,8 @@ data class YandexTripSuggestionPrompt(
     val typeOptions: List<String>,
     val timeOfDayOptions: List<String>,
     val budgetOptions: List<String>,
+    val currencyCode: String,
+    val generationToken: String?,
     val maxSuggestions: Int,
 )
 
@@ -68,7 +70,7 @@ object YandexAiClient {
         val schema = suggestionSchema(prompt.maxSuggestions)
         val requestBody = buildJsonObject {
             put("model", model)
-            put("temperature", 0.2)
+            put("temperature", 0.55)
             put("max_tokens", 1200)
             put(
                 "messages",
@@ -163,12 +165,17 @@ object YandexAiClient {
         val typeLine = prompt.typeOptions.takeIf { it.isNotEmpty() }?.joinToString(", ") ?: "Any types"
         val timeLine = prompt.timeOfDayOptions.takeIf { it.isNotEmpty() }?.joinToString(", ") ?: "Any time of day"
         val budgetLine = prompt.budgetOptions.takeIf { it.isNotEmpty() }?.joinToString(", ") ?: "Any budget"
+        val generationToken = prompt.generationToken?.trim().orEmpty().ifBlank { "none" }
         return """
             Trip city: $city
+            Trip currency code: ${prompt.currencyCode}
             User description: $description
             Type options: $typeLine
             Time of day options: $timeLine
             Budget options: $budgetLine
+            Generation token: $generationToken
+            Output rule: estimatedCost must be a numeric amount in trip currency (${prompt.currencyCode}).
+            For different generation tokens, produce a different set of suggestions.
         """.trimIndent()
     }
 

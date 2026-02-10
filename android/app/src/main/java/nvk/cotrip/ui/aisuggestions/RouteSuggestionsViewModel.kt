@@ -20,6 +20,7 @@ import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import java.util.Locale
+import java.util.UUID
 import javax.inject.Inject
 
 @HiltViewModel
@@ -89,6 +90,7 @@ class RouteSuggestionsViewModel @Inject constructor(
                         typeOptions = selectedTypes,
                         timeOfDayOptions = selectedTimes,
                         budgetOptions = selectedBudgets,
+                        generationToken = UUID.randomUUID().toString(),
                     )
                 )
             }
