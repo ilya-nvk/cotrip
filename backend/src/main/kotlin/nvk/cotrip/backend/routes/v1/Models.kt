@@ -105,8 +105,23 @@ data class ItineraryDayDto(
     val date: String,
     val dayNumber: Int,
     val city: String? = null,
+    val cityPlaceId: String? = null,
     val isOutOfRange: Boolean,
     val activities: List<ActivityDto> = emptyList(),
+)
+
+@Serializable
+data class CitySuggestionDto(
+    val name: String,
+    val placeId: String,
+    val fullText: String,
+)
+
+@Serializable
+data class PlaceSuggestionDto(
+    val name: String,
+    val placeId: String,
+    val fullText: String,
 )
 
 @Serializable

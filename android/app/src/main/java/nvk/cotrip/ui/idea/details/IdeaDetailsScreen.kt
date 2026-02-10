@@ -28,7 +28,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -157,13 +156,8 @@ fun IdeaDetailsScreen(
             when (state.selectedTab) {
                 IdeaDetailsTab.Details -> DetailsBottomBar(
                     addedDay = state.addedDay,
-                    status = state.status,
-                    isOwner = state.isOwner,
-                    isUpdatingStatus = state.isUpdatingStatus,
                     onAddClick = { viewModel.onEvent(IdeaDetailsEvent.OnAddToItineraryClick) },
                     onDeleteClick = { viewModel.onEvent(IdeaDetailsEvent.OnDeleteClick) },
-                    onApproveClick = { viewModel.onEvent(IdeaDetailsEvent.OnApproveClick) },
-                    onRejectClick = { viewModel.onEvent(IdeaDetailsEvent.OnRejectClick) },
                 )
 
                 IdeaDetailsTab.Discussion -> CommentInputBar(
@@ -501,13 +495,8 @@ private fun SystemMessage(
 @Composable
 private fun DetailsBottomBar(
     addedDay: Int?,
-    status: String,
-    isOwner: Boolean,
-    isUpdatingStatus: Boolean,
     onAddClick: () -> Unit,
     onDeleteClick: () -> Unit,
-    onApproveClick: () -> Unit,
-    onRejectClick: () -> Unit,
 ) {
     Box(
         modifier = Modifier
@@ -522,28 +511,6 @@ private fun DetailsBottomBar(
             verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x1_5),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            if (isOwner && status == "pending") {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x1_5)
-                ) {
-                    PrimaryButton(
-                        text = stringResource(R.string.idea_details_approve),
-                        onClick = onApproveClick,
-                        enabled = !isUpdatingStatus,
-                        modifier = Modifier.weight(1f)
-                    )
-                    OutlinedButton(
-                        onClick = onRejectClick,
-                        enabled = !isUpdatingStatus,
-                        border = BorderStroke(1.dp, Border),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text(text = stringResource(R.string.idea_details_reject))
-                    }
-                }
-            }
-
             val buttonText = if (addedDay == null) {
                 stringResource(R.string.idea_details_add_to_itinerary)
             } else {

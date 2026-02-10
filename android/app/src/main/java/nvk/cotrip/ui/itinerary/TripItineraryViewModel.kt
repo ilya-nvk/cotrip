@@ -5,6 +5,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -42,8 +44,9 @@ class TripItineraryViewModel @Inject constructor(
     private val tripId: String =
         checkNotNull(savedStateHandle[Destination.TripItinerary.ARG_TRIP_ID])
 
-    private var allCities: List<String> = emptyList()
+    private var allCities: List<CitySuggestionUi> = emptyList()
     private var currencySymbol: String = "€"
+    private var citySearchJob: Job? = null
 
     private val _state = MutableStateFlow(
         TripItineraryState(
@@ -74,7 +77,10 @@ class TripItineraryViewModel @Inject constructor(
                 Destination.CreateActivity(tripId)
             )
 
-            TripItineraryEvent.OnDismissCityPicker -> _state.update { it.copy(cityPicker = null) }
+            TripItineraryEvent.OnDismissCityPicker -> {
+                citySearchJob?.cancel()
+                _state.update { it.copy(cityPicker = null) }
+            }
             is TripItineraryEvent.OnActivityClick -> appNavigator.navigate(
                 Destination.ActivityDetails(event.activityId)
             )
@@ -99,17 +105,27 @@ class TripItineraryViewModel @Inject constructor(
                     if (trip != null) {
                         currencySymbol = currencySymbolFor(trip.currencyCode)
                     }
-                    allCities =
-                        itinerary.mapNotNull { it.city?.takeIf(String::isNotBlank) }.distinct()
+                    allCities = collectTripCities(itinerary)
 
                     val dayUis = itinerary.map { it.toUi(currencySymbol) }
                     val dateRange = trip?.let { formatRange(it.startDate, it.endDate) }
                         ?: _state.value.dateRange
                     _state.update {
+                        val picker = it.cityPicker
+                        val updatedPicker = if (picker != null && picker.query.isBlank()) {
+                            picker.copy(
+                                localSuggestions = allCities,
+                                suggestions = allCities,
+                                isSearching = false,
+                            )
+                        } else {
+                            picker
+                        }
                         it.copy(
                             dateRange = dateRange,
                             mode = if (dayUis.isEmpty()) ItineraryMode.Empty else ItineraryMode.Filled,
-                            days = dayUis
+                            days = dayUis,
+                            cityPicker = updatedPicker,
                         )
                     }
                 }
@@ -137,8 +153,9 @@ class TripItineraryViewModel @Inject constructor(
                 cityPicker = CityPickerState(
                     dayId = dayId,
                     query = "",
-                    allCities = cities,
-                    filteredCities = cities
+                    localSuggestions = cities,
+                    suggestions = cities,
+                    isSearching = false,
                 )
             )
         }
@@ -187,33 +204,105 @@ class TripItineraryViewModel @Inject constructor(
     }
 
     private fun updateCityQuery(value: String) {
-        _state.update { st ->
-            val picker = st.cityPicker ?: return@update st
-            val filtered = if (value.isBlank()) {
-                picker.allCities
-            } else {
-                picker.allCities.filter { it.contains(value, ignoreCase = true) }
+        val query = value.trim()
+        _state.value.cityPicker ?: return
+        citySearchJob?.cancel()
+
+        if (query.isBlank()) {
+            _state.update { st ->
+                val current = st.cityPicker ?: return@update st
+                st.copy(
+                    cityPicker = current.copy(
+                        query = "",
+                        suggestions = current.localSuggestions,
+                        isSearching = false,
+                    )
+                )
             }
-            st.copy(cityPicker = picker.copy(query = value, filteredCities = filtered))
+            return
+        }
+
+        _state.update { st ->
+            val current = st.cityPicker ?: return@update st
+            st.copy(
+                cityPicker = current.copy(
+                    query = query,
+                    suggestions = emptyList(),
+                    isSearching = true,
+                )
+            )
+        }
+
+        citySearchJob = viewModelScope.launch {
+            delay(300)
+            when (val result = apiCaller.call {
+                withContext(Dispatchers.IO) {
+                    itineraryRepository.searchCities(tripId = tripId, query = query, limit = 8)
+                }
+            }) {
+                is ApiResult.Success -> {
+                    val suggestions = result.data.map {
+                        CitySuggestionUi(
+                            name = it.name,
+                            placeId = it.placeId,
+                            fullText = it.fullText,
+                        )
+                    }
+                    _state.update { st ->
+                        val current = st.cityPicker ?: return@update st
+                        if (current.query != query) {
+                            return@update st
+                        }
+                        st.copy(
+                            cityPicker = current.copy(
+                                suggestions = suggestions,
+                                isSearching = false,
+                            )
+                        )
+                    }
+                }
+
+                is ApiResult.Failure -> {
+                    _state.update { st ->
+                        val current = st.cityPicker ?: return@update st
+                        if (current.query != query) {
+                            return@update st
+                        }
+                        val fallback = current.localSuggestions.filter {
+                            it.name.contains(query, ignoreCase = true)
+                        }
+                        st.copy(
+                            cityPicker = current.copy(
+                                suggestions = fallback,
+                                isSearching = false,
+                            )
+                        )
+                    }
+                }
+            }
         }
     }
 
-    private fun selectCity(city: String) {
+    private fun selectCity(city: CitySuggestionUi) {
         val picker = _state.value.cityPicker ?: return
+        citySearchJob?.cancel()
         _state.update { it.copy(cityPicker = null) }
         viewModelScope.launch {
             when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
                     itineraryRepository.updateDay(
                         dayId = picker.dayId,
-                        request = UpdateDayRequest(city = city)
+                        request = UpdateDayRequest(
+                            city = city.name,
+                            cityPlaceId = city.placeId,
+                        )
                     )
                 }
             }) {
                 is ApiResult.Success -> {
                     _state.update { st ->
                         val days = st.days.map { d ->
-                            if (d.id == picker.dayId) d.copy(city = city) else d
+                            if (d.id == picker.dayId) d.copy(city = city.name) else d
                         }
                         st.copy(days = days)
                     }
@@ -227,6 +316,26 @@ class TripItineraryViewModel @Inject constructor(
     private fun emitToast(resId: Int) {
         viewModelScope.launch { _effects.emit(TripItineraryEffect.ShowToastRes(resId)) }
     }
+}
+
+private fun collectTripCities(days: List<ItineraryDayDto>): List<CitySuggestionUi> {
+    val byName = linkedMapOf<String, CitySuggestionUi>()
+    for (day in days) {
+        val cityName = day.city?.trim()?.takeIf { it.isNotEmpty() } ?: continue
+        val key = cityName.lowercase(Locale.getDefault())
+        val candidate = CitySuggestionUi(
+            name = cityName,
+            placeId = day.cityPlaceId,
+            fullText = cityName,
+        )
+        val current = byName[key]
+        byName[key] = if (current == null || (current.placeId == null && candidate.placeId != null)) {
+            candidate
+        } else {
+            current
+        }
+    }
+    return byName.values.toList()
 }
 
 private fun ItineraryDayDto.toUi(currencySymbol: String): ItineraryDayUi {

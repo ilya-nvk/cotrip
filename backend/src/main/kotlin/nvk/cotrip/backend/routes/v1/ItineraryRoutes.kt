@@ -13,15 +13,18 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.patch
 import io.ktor.server.routing.post
 import kotlinx.serialization.Serializable
+import nvk.cotrip.backend.config.AppConfig
 import nvk.cotrip.backend.db.ActivityRepository
 import nvk.cotrip.backend.db.ActivityRow
 import nvk.cotrip.backend.db.DayRepository
 import nvk.cotrip.backend.db.ItineraryDayRepository
 import nvk.cotrip.backend.db.TripRepository
+import nvk.cotrip.backend.integrations.GooglePlacesClient
 
 @Serializable
 data class UpdateDayRequest(
     val city: String? = null,
+    val cityPlaceId: String? = null,
 )
 
 @Serializable
@@ -66,8 +69,120 @@ data class TrimOutOfRangeRequest(
     val dayIds: List<String>,
 )
 
-fun Route.itineraryRoutes() {
+fun Route.itineraryRoutes(appConfig: AppConfig) {
     authenticate("auth-jwt") {
+        get("/v1/trips/{tripId}/cities/search") {
+            val principal = call.principal<JWTPrincipal>()
+            val userId = principal?.getClaim("userId", String::class) ?: run {
+                call.respond(HttpStatusCode.Unauthorized)
+                return@get
+            }
+
+            val tripId = call.parameters["tripId"] ?: run {
+                call.respond(HttpStatusCode.BadRequest)
+                return@get
+            }
+
+            if (!TripRepository.isMember(tripId, userId)) {
+                call.respond(HttpStatusCode.Forbidden)
+                return@get
+            }
+
+            val query = call.request.queryParameters["query"]?.trim().orEmpty()
+            if (query.isBlank()) {
+                call.respond(mapOf("items" to emptyList<CitySuggestionDto>()))
+                return@get
+            }
+
+            val apiKey = appConfig.googleMaps.apiKey
+            if (apiKey.isNullOrBlank()) {
+                call.respond(
+                    HttpStatusCode.ServiceUnavailable,
+                    mapOf("error" to mapOf("code" to "google_maps_not_configured", "message" to "Google Maps API key is not configured"))
+                )
+                return@get
+            }
+
+            val limit = call.request.queryParameters["limit"]?.toIntOrNull()?.coerceIn(1, 20) ?: 8
+            val suggestions = runCatching {
+                GooglePlacesClient.searchCities(query = query, apiKey = apiKey, limit = limit)
+            }.getOrElse {
+                call.respond(
+                    HttpStatusCode.BadGateway,
+                    mapOf("error" to mapOf("code" to "google_places_error", "message" to "Unable to fetch city suggestions"))
+                )
+                return@get
+            }
+
+            call.respond(
+                mapOf(
+                    "items" to suggestions.map {
+                        CitySuggestionDto(
+                            name = it.name,
+                            placeId = it.placeId,
+                            fullText = it.fullText,
+                        )
+                    }
+                )
+            )
+        }
+
+        get("/v1/trips/{tripId}/places/search") {
+            val principal = call.principal<JWTPrincipal>()
+            val userId = principal?.getClaim("userId", String::class) ?: run {
+                call.respond(HttpStatusCode.Unauthorized)
+                return@get
+            }
+
+            val tripId = call.parameters["tripId"] ?: run {
+                call.respond(HttpStatusCode.BadRequest)
+                return@get
+            }
+
+            if (!TripRepository.isMember(tripId, userId)) {
+                call.respond(HttpStatusCode.Forbidden)
+                return@get
+            }
+
+            val query = call.request.queryParameters["query"]?.trim().orEmpty()
+            if (query.isBlank()) {
+                call.respond(mapOf("items" to emptyList<PlaceSuggestionDto>()))
+                return@get
+            }
+
+            val apiKey = appConfig.googleMaps.apiKey
+            if (apiKey.isNullOrBlank()) {
+                call.respond(
+                    HttpStatusCode.ServiceUnavailable,
+                    mapOf("error" to mapOf("code" to "google_maps_not_configured", "message" to "Google Maps API key is not configured"))
+                )
+                return@get
+            }
+
+            val limit = call.request.queryParameters["limit"]?.toIntOrNull()?.coerceIn(1, 20) ?: 8
+            val suggestions = runCatching {
+                GooglePlacesClient.searchPlaces(query = query, apiKey = apiKey, limit = limit)
+            }.getOrElse {
+                call.respond(
+                    HttpStatusCode.BadGateway,
+                    mapOf("error" to mapOf("code" to "google_places_error", "message" to "Unable to fetch place suggestions"))
+                )
+                return@get
+            }
+
+            call.respond(
+                mapOf(
+                    "items" to suggestions.map {
+                        PlaceSuggestionDto(
+                            name = it.name,
+                            placeId = it.placeId,
+                            fullText = it.fullText,
+                        )
+                    }
+                )
+            )
+        }
+
         get("/v1/trips/{tripId}/itinerary") {
             val principal = call.principal<JWTPrincipal>()
             val userId = principal?.getClaim("userId", String::class) ?: run {
@@ -96,6 +211,7 @@ fun Route.itineraryRoutes() {
                     date = day.date.toString(),
                     dayNumber = day.dayNumber,
                     city = day.city,
+                    cityPlaceId = day.cityPlaceId,
                     isOutOfRange = day.isOutOfRange,
                     activities = activitiesByDay[day.id].orEmpty().map { it.toDto() },
                 )
@@ -128,7 +244,7 @@ fun Route.itineraryRoutes() {
             }
 
             val request = call.receive<UpdateDayRequest>()
-            val updated = ItineraryDayRepository.updateCity(dayId, request.city)
+            val updated = ItineraryDayRepository.updateCity(dayId, request.city, request.cityPlaceId)
             if (updated == null) {
                 call.respond(HttpStatusCode.NotFound)
                 return@patch

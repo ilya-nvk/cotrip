@@ -209,10 +209,10 @@ sealed interface Destination {
     }
 
     data class EditActivity(val activityId: String) : Destination {
-        override val route: String = "trips/$activityId/activity-details"
+        override val route: String = "trips/$activityId/activity-edit"
 
         companion object {
-            const val ROUTE_PATTERN = "trips/{activityId}/activity-details"
+            const val ROUTE_PATTERN = "trips/{activityId}/activity-edit"
             const val ARG_ACTIVITY_ID = "activityId"
         }
     }

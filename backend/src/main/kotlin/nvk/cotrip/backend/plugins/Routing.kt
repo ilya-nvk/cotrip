@@ -32,7 +32,7 @@ fun Application.configureRouting(appConfig: AppConfig) {
         memberRoutes()
         commentRoutes()
         ideaRoutes()
-        itineraryRoutes()
+        itineraryRoutes(appConfig)
         inviteRoutes(appConfig)
         expenseRoutes()
         weatherRoutes()

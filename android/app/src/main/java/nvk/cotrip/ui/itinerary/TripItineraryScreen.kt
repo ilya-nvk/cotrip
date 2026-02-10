@@ -114,7 +114,8 @@ fun TripItineraryScreen(
         ) {
             CityPickerSheet(
                 query = currentState.query,
-                cities = currentState.filteredCities,
+                cities = currentState.suggestions,
+                isSearching = currentState.isSearching,
                 onQueryChange = { viewModel.onEvent(TripItineraryEvent.OnCityQueryChange(it)) },
                 onSelect = { viewModel.onEvent(TripItineraryEvent.OnCitySelected(it)) }
             )
@@ -530,9 +531,10 @@ private fun Divider() {
 @Composable
 private fun CityPickerSheet(
     query: String,
-    cities: List<String>,
+    cities: List<CitySuggestionUi>,
+    isSearching: Boolean,
     onQueryChange: (String) -> Unit,
-    onSelect: (String) -> Unit,
+    onSelect: (CitySuggestionUi) -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -556,6 +558,14 @@ private fun CityPickerSheet(
             modifier = Modifier.fillMaxWidth()
         )
 
+        if (isSearching) {
+            Text(
+                text = stringResource(R.string.itinerary_choose_city_searching),
+                style = MaterialTheme.typography.bodySmall,
+                color = TextSecondary
+            )
+        }
+
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
@@ -563,9 +573,9 @@ private fun CityPickerSheet(
             contentPadding = PaddingValues(vertical = CoTripTokens.spacing.x1),
             verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x0_5)
         ) {
-            items(cities, key = { it }) { city ->
+            items(cities, key = { it.placeId ?: it.name }) { city ->
                 CoTripListItem(
-                    title = city,
+                    title = city.fullText ?: city.name,
                     onClick = { onSelect(city) }
                 )
             }

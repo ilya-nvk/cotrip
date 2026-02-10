@@ -5,6 +5,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -44,6 +46,7 @@ class CreateActivityViewModel @Inject constructor(
 
     private var dayByDate: Map<LocalDate, ItineraryDayDto> = emptyMap()
     private var selectedDayId: String? = null
+    private var locationSearchJob: Job? = null
 
     private val _state = MutableStateFlow(
         ActivityFormState(
@@ -53,8 +56,10 @@ class CreateActivityViewModel @Inject constructor(
             title = "",
             dateText = "",
             timeText = "",
-            locationName = "",
-            locationLink = "",
+            locationInput = "",
+            locationPlaceId = null,
+            locationSuggestions = emptyList(),
+            isLocationSearching = false,
             currencySymbol = "€",
             costAmount = "",
             costType = CostType.PerPerson,
@@ -82,8 +87,8 @@ class CreateActivityViewModel @Inject constructor(
             is ActivityFormEvent.OnDateSelected -> selectDate(event.date)
             is ActivityFormEvent.OnTimeSelected -> selectTime(event.time)
             is ActivityFormEvent.OnTitleChange -> _state.update { it.copy(title = event.value) }
-            is ActivityFormEvent.OnLocationNameChange -> _state.update { it.copy(locationName = event.value) }
-            is ActivityFormEvent.OnLocationLinkChange -> _state.update { it.copy(locationLink = event.value) }
+            is ActivityFormEvent.OnLocationInputChange -> onLocationInputChanged(event.value)
+            is ActivityFormEvent.OnLocationSuggestionSelected -> onLocationSuggestionSelected(event.value)
             is ActivityFormEvent.OnCostAmountChange -> _state.update {
                 it.copy(
                     costAmount = moneyInput(
@@ -170,8 +175,8 @@ class CreateActivityViewModel @Inject constructor(
                         request = CreateActivityRequest(
                             title = snapshot.title.trim(),
                             timeText = snapshot.timeText.trim().ifBlank { null },
-                            locationName = snapshot.locationName.trim().ifBlank { null },
-                            locationLink = snapshot.locationLink.trim().ifBlank { null },
+                            locationName = snapshot.locationInput.trim().ifBlank { null },
+                            locationLink = snapshot.locationPlaceId?.toGoogleMapsPlaceLink(),
                             costAmount = parseAmount(snapshot.costAmount),
                             costType = snapshot.costAmount.toCostType(snapshot.costType),
                             website = snapshot.website.trim().ifBlank { null },
@@ -190,6 +195,65 @@ class CreateActivityViewModel @Inject constructor(
                     _state.update { it.copy(isSaving = false) }
                 }
             }
+        }
+    }
+
+    private fun onLocationInputChanged(value: String) {
+        val query = value.trim()
+        locationSearchJob?.cancel()
+        _state.update {
+            it.copy(
+                locationInput = value,
+                locationPlaceId = null,
+                locationSuggestions = emptyList(),
+                isLocationSearching = query.isNotBlank(),
+            )
+        }
+
+        if (query.isBlank()) {
+            return
+        }
+
+        locationSearchJob = viewModelScope.launch {
+            delay(300)
+            when (val result = apiCaller.call {
+                withContext(Dispatchers.IO) {
+                    itineraryRepository.searchPlaces(tripId = tripId, query = query, limit = 8)
+                }
+            }) {
+                is ApiResult.Success -> {
+                    val mapped = result.data.map {
+                        LocationSuggestionUi(
+                            name = it.name,
+                            placeId = it.placeId,
+                            fullText = it.fullText,
+                        )
+                    }
+                    _state.update {
+                        if (it.locationInput.trim() != query) return@update it
+                        it.copy(locationSuggestions = mapped, isLocationSearching = false)
+                    }
+                }
+
+                is ApiResult.Failure -> {
+                    _state.update {
+                        if (it.locationInput.trim() != query) return@update it
+                        it.copy(locationSuggestions = emptyList(), isLocationSearching = false)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun onLocationSuggestionSelected(value: LocationSuggestionUi) {
+        locationSearchJob?.cancel()
+        _state.update {
+            it.copy(
+                locationInput = value.fullText,
+                locationPlaceId = value.placeId,
+                locationSuggestions = emptyList(),
+                isLocationSearching = false,
+            )
         }
     }
 

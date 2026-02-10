@@ -9,7 +9,7 @@ sealed interface TripItineraryEvent {
     data class OnActivityClick(val activityId: String) : TripItineraryEvent
     data class OnChooseCityClick(val dayId: String) : TripItineraryEvent
     data class OnCityQueryChange(val value: String) : TripItineraryEvent
-    data class OnCitySelected(val city: String) : TripItineraryEvent
+    data class OnCitySelected(val city: CitySuggestionUi) : TripItineraryEvent
     data class OnReorderMove(
         val dayId: String,
         val fromIndex: Int,

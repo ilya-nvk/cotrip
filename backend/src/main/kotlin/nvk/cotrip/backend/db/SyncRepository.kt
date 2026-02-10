@@ -108,6 +108,7 @@ object SyncRepository {
                        'date', to_jsonb(d.date),
                        'dayNumber', d.day_number,
                        'city', d.city,
+                       'cityPlaceId', d.city_place_id,
                        'isOutOfRange', d.is_out_of_range,
                        'activities', '[]'::jsonb
                    ) AS payload

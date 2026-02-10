@@ -123,6 +123,7 @@
     <string name="itinerary_empty_day_hint">Select a city to start planning this day</string>
     <string name="itinerary_choose_city_title">Choose city</string>
     <string name="itinerary_choose_city_placeholder">Search or enter city name</string>
+    <string name="itinerary_choose_city_searching">Searching cities...</string>
     <string name="itinerary_add_activity_not_implemented">Adding activities is not implemented yet</string>
     <string name="itinerary_reorder_start">Reorder activities</string>
     <string name="itinerary_reorder_done">Done</string>
@@ -162,13 +163,13 @@
     <string name="idea_form_title_edit">Edit idea</string>
     <string name="idea_form_primary_save">Save idea</string>
     <string name="idea_form_title_label">Title *</string>
-    <string name="idea_form_city_label">City</string>
-    <string name="idea_form_city_picker_title">Choose city</string>
+    <string name="idea_form_city_label">Place</string>
+    <string name="idea_form_city_searching">Searching locations...</string>
     <string name="idea_form_cost_label">Estimated cost</string>
     <string name="idea_form_website_label">Website or link</string>
     <string name="idea_form_notes_label">Notes</string>
     <string name="idea_form_title_placeholder">Enter idea title</string>
-    <string name="idea_form_city_placeholder">Choose city</string>
+    <string name="idea_form_city_placeholder">Search on map or enter any text</string>
     <string name="idea_form_cost_placeholder">0</string>
     <string name="idea_form_cost_per_person">Per person</string>
     <string name="idea_form_cost_total">Total</string>
@@ -303,8 +304,8 @@
     <string name="activity_form_section_time_optional">TIME (OPTIONAL)</string>
     <string name="activity_form_time_placeholder">--:-- --</string>
     <string name="activity_form_section_location_optional">LOCATION (OPTIONAL)</string>
-    <string name="activity_form_location_name_placeholder">e.g., Louvre Museum</string>
-    <string name="activity_form_location_link_placeholder">Map or location link (optional)</string>
+    <string name="activity_form_location_placeholder">Search on map or enter any text</string>
+    <string name="activity_form_location_searching">Searching locations...</string>
     <string name="activity_form_section_cost_optional">COST (OPTIONAL)</string>
     <string name="activity_form_cost_placeholder">e.g., 17</string>
     <string name="activity_form_cost_per_person">Per person</string>

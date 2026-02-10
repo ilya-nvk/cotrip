@@ -258,12 +258,28 @@ Delete message:
 
 `GET /v1/trips/{tripId}/itinerary`
 
+`GET /v1/trips/{tripId}/cities/search?query=&limit=`
+
+Response item:
+
+```json
+{ "name": "Paris", "placeId": "ChIJD7fiBh9u5kcRYJSMaMOCCwQ", "fullText": "Paris, France" }
+```
+
+`GET /v1/trips/{tripId}/places/search?query=&limit=`
+
+Response item:
+
+```json
+{ "name": "Louvre Museum", "placeId": "ChIJb8Jg9pRu5kcR8P9r8u1vD9g", "fullText": "Louvre Museum, Paris, France" }
+```
+
 `PATCH /v1/itinerary/days/{dayId}`
 
 Request:
 
 ```json
-{ "city": "string|null" }
+{ "city": "string|null", "cityPlaceId": "string|null" }
 ```
 
 `POST /v1/itinerary/days/{dayId}/activities`

@@ -4,9 +4,7 @@ sealed interface IdeaFormEvent {
     data object OnBackClick : IdeaFormEvent
     data object OnPrimaryClick : IdeaFormEvent
     data object OnDeleteClick : IdeaFormEvent
-    data object OnCityClick : IdeaFormEvent
-    data object OnDismissCityPicker : IdeaFormEvent
-    data class OnCitySelected(val city: String) : IdeaFormEvent
+    data class OnCitySelected(val city: IdeaLocationSuggestionUi) : IdeaFormEvent
     data class OnTitleChange(val value: String) : IdeaFormEvent
     data class OnCityChange(val value: String) : IdeaFormEvent
     data class OnCostAmountChange(val value: String) : IdeaFormEvent

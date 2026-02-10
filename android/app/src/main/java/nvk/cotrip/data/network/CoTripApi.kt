@@ -9,6 +9,7 @@ import nvk.cotrip.data.network.dto.ConvertIdeaRequest
 import nvk.cotrip.data.network.dto.CreateActivityRequest
 import nvk.cotrip.data.network.dto.CreateIdeaRequest
 import nvk.cotrip.data.network.dto.CreateTripRequest
+import nvk.cotrip.data.network.dto.CitySuggestionDto
 import nvk.cotrip.data.network.dto.ExpenseCreateRequest
 import nvk.cotrip.data.network.dto.ExpenseDto
 import nvk.cotrip.data.network.dto.ExpenseUpdateRequest
@@ -31,6 +32,7 @@ import nvk.cotrip.data.network.dto.UpdateIdeaRequest
 import nvk.cotrip.data.network.dto.UpdateTripRequest
 import nvk.cotrip.data.network.dto.UpdateUserRequest
 import nvk.cotrip.data.network.dto.UserDto
+import nvk.cotrip.data.network.dto.PlaceSuggestionDto
 import nvk.cotrip.data.network.dto.SyncChangesRequest
 import nvk.cotrip.data.network.dto.SyncChangesResponse
 import nvk.cotrip.data.network.dto.SyncPullResponse
@@ -175,6 +177,20 @@ interface CoTripApi {
     suspend fun getItinerary(
         @Path("tripId") tripId: String,
     ): ApiListResponse<ItineraryDayDto>
+
+    @GET("v1/trips/{tripId}/cities/search")
+    suspend fun searchCities(
+        @Path("tripId") tripId: String,
+        @Query("query") query: String,
+        @Query("limit") limit: Int = 8,
+    ): ApiListResponse<CitySuggestionDto>
+
+    @GET("v1/trips/{tripId}/places/search")
+    suspend fun searchPlaces(
+        @Path("tripId") tripId: String,
+        @Query("query") query: String,
+        @Query("limit") limit: Int = 8,
+    ): ApiListResponse<PlaceSuggestionDto>
 
     @PATCH("v1/itinerary/days/{dayId}")
     suspend fun updateDay(

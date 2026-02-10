@@ -18,9 +18,14 @@ data class InviteConfig(
     val baseUrl: String,
 )
 
+data class GoogleMapsConfig(
+    val apiKey: String? = null,
+)
+
 data class AppConfig(
     val jwt: JwtConfig,
     val db: DbConfig,
     val invite: InviteConfig,
+    val googleMaps: GoogleMapsConfig,
     val devAuthEnabled: Boolean,
 )

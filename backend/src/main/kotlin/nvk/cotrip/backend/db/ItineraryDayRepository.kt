@@ -10,6 +10,7 @@ data class ItineraryDayRow(
     val date: LocalDate,
     val dayNumber: Int,
     val city: String?,
+    val cityPlaceId: String?,
     val isOutOfRange: Boolean,
 )
 
@@ -17,7 +18,7 @@ object ItineraryDayRepository {
     fun listByTrip(tripId: String): List<ItineraryDayRow> = dbQuery { conn ->
         conn.prepareStatement(
             """
-            SELECT id, trip_id, date, day_number, city, is_out_of_range
+            SELECT id, trip_id, date, day_number, city, city_place_id, is_out_of_range
             FROM itinerary_days
             WHERE trip_id = ?
             ORDER BY date ASC
@@ -34,17 +35,18 @@ object ItineraryDayRepository {
         }
     }
 
-    fun updateCity(dayId: String, city: String?): ItineraryDayRow? = dbQuery { conn ->
+    fun updateCity(dayId: String, city: String?, cityPlaceId: String?): ItineraryDayRow? = dbQuery { conn ->
         conn.prepareStatement(
             """
             UPDATE itinerary_days
-            SET city = ?, updated_at = now()
+            SET city = ?, city_place_id = ?, updated_at = now()
             WHERE id = ?
-            RETURNING id, trip_id, date, day_number, city, is_out_of_range
+            RETURNING id, trip_id, date, day_number, city, city_place_id, is_out_of_range
             """.trimIndent()
         ).use { stmt ->
             stmt.setString(1, city)
-            stmt.setObject(2, UUID.fromString(dayId))
+            stmt.setString(2, cityPlaceId)
+            stmt.setObject(3, UUID.fromString(dayId))
             stmt.executeQuery().use { rs ->
                 if (rs.next()) mapDay(rs) else null
             }
@@ -103,6 +105,7 @@ object ItineraryDayRepository {
             date = rs.getObject("date", LocalDate::class.java),
             dayNumber = rs.getInt("day_number"),
             city = rs.getString("city"),
+            cityPlaceId = rs.getString("city_place_id"),
             isOutOfRange = rs.getBoolean("is_out_of_range"),
         )
     }

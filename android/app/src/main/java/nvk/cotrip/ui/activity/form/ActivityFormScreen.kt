@@ -42,6 +42,7 @@ import kotlinx.coroutines.flow.collectLatest
 import nvk.cotrip.R
 import nvk.cotrip.ui.components.CoTripDivider
 import nvk.cotrip.ui.components.CoTripIconButton
+import nvk.cotrip.ui.components.CoTripListItem
 import nvk.cotrip.ui.components.DestructiveOutlinedButton
 import nvk.cotrip.ui.components.PrimaryButton
 import nvk.cotrip.ui.components.SecondaryButton
@@ -259,20 +260,33 @@ private fun ActivityFormScreen(
                 verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x1_5)
             ) {
                 FormTextField(
-                    value = state.locationName,
-                    onValueChange = { viewModel.onEvent(ActivityFormEvent.OnLocationNameChange(it)) },
-                    placeholder = stringResource(R.string.activity_form_location_name_placeholder),
+                    value = state.locationInput,
+                    onValueChange = { viewModel.onEvent(ActivityFormEvent.OnLocationInputChange(it)) },
+                    placeholder = stringResource(R.string.activity_form_location_placeholder),
                     singleLine = true,
                     trailingIcon = null
                 )
 
-                FormTextField(
-                    value = state.locationLink,
-                    onValueChange = { viewModel.onEvent(ActivityFormEvent.OnLocationLinkChange(it)) },
-                    placeholder = stringResource(R.string.activity_form_location_link_placeholder),
-                    singleLine = true,
-                    trailingIcon = null
-                )
+                if (state.isLocationSearching) {
+                    Text(
+                        text = stringResource(R.string.activity_form_location_searching),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextSecondary
+                    )
+                }
+
+                state.locationSuggestions.take(6).forEach { suggestion ->
+                    CoTripListItem(
+                        title = suggestion.fullText,
+                        onClick = {
+                            viewModel.onEvent(
+                                ActivityFormEvent.OnLocationSuggestionSelected(
+                                    suggestion
+                                )
+                            )
+                        }
+                    )
+                }
             }
 
             CoTripDivider()
