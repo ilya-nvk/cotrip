@@ -1,7 +1,7 @@
 package nvk.cotrip
 
-import android.app.Application
 import android.app.Activity
+import android.app.Application
 import android.os.Bundle
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
@@ -77,6 +77,7 @@ class CoTripApp : Application(), Configuration.Provider, ImageLoaderFactory {
         super.onCreate()
         registerActivityLifecycleCallbacks(lifecycleCallbacks)
         refreshScheduler.schedule()
+        refreshScheduler.scheduleImmediate()
         appScope.launch {
             pendingTripCreationCleaner.cleanupOnAppStart()
         }

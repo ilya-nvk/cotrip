@@ -5,7 +5,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -144,19 +143,15 @@ class IdeaDetailsViewModel @Inject constructor(
         viewModelScope.launch {
             when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
-                    val ideaDeferred = async { ideaRepository.getIdea(ideaId) }
-                    val tripDeferred = async { tripRepository.getTrip(tripId) }
-                    val itineraryDeferred = async { itineraryRepository.getItinerary(tripId) }
-                    val membersDeferred = async { tripRepository.listMembers(tripId) }
-                    val meDeferred = async { userRepository.getMe() }
-                    val commentsDeferred = async { ideaRepository.listComments(ideaId) }
-
-                    val idea = ideaDeferred.await()
-                    val trip = tripDeferred.await()
-                    val itinerary = itineraryDeferred.await()
-                    val members = membersDeferred.await()
-                    val me = meDeferred.await()
-                    val comments = commentsDeferred.await()
+                    val idea = ideaRepository.getIdea(ideaId)
+                    val trip = tripRepository.getTrip(tripId)
+                    val me = userRepository.getMe()
+                    val itinerary = runCatching { itineraryRepository.getItinerary(tripId) }
+                        .getOrDefault(emptyList())
+                    val members = runCatching { tripRepository.listMembers(tripId) }
+                        .getOrDefault(emptyList())
+                    val comments = runCatching { ideaRepository.listComments(ideaId) }
+                        .getOrDefault(emptyList())
 
                     currencySymbol = currencySymbolFor(trip.currencyCode)
                     membersById = members.associateBy { it.userId }

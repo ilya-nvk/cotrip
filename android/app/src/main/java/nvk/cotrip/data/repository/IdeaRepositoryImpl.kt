@@ -1,21 +1,21 @@
 package nvk.cotrip.data.repository
 
-import java.io.IOException
-import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import nvk.cotrip.data.cache.IdeasCacheStore
 import nvk.cotrip.data.network.CoTripApi
 import nvk.cotrip.data.network.NetworkStateProvider
-import nvk.cotrip.data.network.requireSuccess
 import nvk.cotrip.data.network.dto.CommentDto
 import nvk.cotrip.data.network.dto.ConvertIdeaRequest
 import nvk.cotrip.data.network.dto.CreateIdeaRequest
 import nvk.cotrip.data.network.dto.IdeaDto
 import nvk.cotrip.data.network.dto.UpdateIdeaRequest
+import nvk.cotrip.data.network.requireSuccess
 import nvk.cotrip.data.sync.SyncEntities
 import nvk.cotrip.data.sync.SyncQueueRepository
 import nvk.cotrip.util.AppLogger
 import retrofit2.HttpException
+import java.io.IOException
+import javax.inject.Inject
 
 class IdeaRepositoryImpl @Inject constructor(
     private val api: CoTripApi,
@@ -40,7 +40,15 @@ class IdeaRepositoryImpl @Inject constructor(
     }
 
     override suspend fun getIdea(ideaId: String): IdeaDto {
-        return api.getIdea(ideaId)
+        if (!networkStateProvider.isOnline()) {
+            return ideasCacheStore.findIdeaById(ideaId)
+                ?: throw IOException("Idea $ideaId is not available offline")
+        }
+        return try {
+            api.getIdea(ideaId)
+        } catch (e: IOException) {
+            ideasCacheStore.findIdeaById(ideaId) ?: throw e
+        }
     }
 
     override suspend fun listComments(ideaId: String): List<CommentDto> {

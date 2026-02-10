@@ -28,6 +28,14 @@ class IdeasCacheStoreImpl @Inject constructor(
         return decodeCache(prefs[IDEAS_KEY]).byTrip[tripId].orEmpty()
     }
 
+    override suspend fun findIdeaById(ideaId: String): IdeaDto? {
+        val prefs = dataStore.data.first()
+        return decodeCache(prefs[IDEAS_KEY]).byTrip.values
+            .asSequence()
+            .flatten()
+            .firstOrNull { it.id == ideaId }
+    }
+
     override suspend fun setIdeas(tripId: String, ideas: List<IdeaDto>) {
         updateCache { cache ->
             cache.copy(byTrip = cache.byTrip.toMutableMap().apply { put(tripId, ideas) })
