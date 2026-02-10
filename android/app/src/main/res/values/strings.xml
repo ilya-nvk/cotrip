@@ -1,11 +1,11 @@
 <resources>
-    <string name="app_name">CoTrip</string>
+    <string name="app_name">cotrip</string>
 
     <!--Sign In-->
     <string name="sign_in_subtitle">Plan trips together. Easily.</string>
     <string name="continue_with_google">Continue with Google</string>
     <string name="signing_in">Signing in...</string>
-    <string name="sign_in_privacy_note">CoTrip uses your Google account only to identify you and sync your trips.</string>
+    <string name="sign_in_privacy_note">cotrip uses your Google account only to identify you and sync your trips.</string>
 
     <!--Trips List-->
     <string name="trips_title">My Trips</string>
