@@ -91,6 +91,7 @@ class RouteSuggestionsViewModel @Inject constructor(
                         timeOfDayOptions = selectedTimes,
                         budgetOptions = selectedBudgets,
                         generationToken = UUID.randomUUID().toString(),
+                        language = Locale.getDefault().toLanguageTag(),
                     )
                 )
             }
