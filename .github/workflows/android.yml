@@ -2,7 +2,11 @@ name: Android CI
 
 on:
   push:
+    paths:
+      - "android/**"
   pull_request:
+    paths:
+      - "android/**"
 
 jobs:
   build:
@@ -26,4 +30,3 @@ jobs:
       - name: Run Unit Tests
         working-directory: android
         run: ./gradlew test
-
