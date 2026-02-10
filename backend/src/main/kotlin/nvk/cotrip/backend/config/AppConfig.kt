@@ -37,6 +37,11 @@ data class MediaConfig(
     val maxUploadBytes: Long,
 )
 
+data class AppLinksConfig(
+    val androidPackage: String?,
+    val sha256CertFingerprints: List<String>,
+)
+
 data class AppConfig(
     val jwt: JwtConfig,
     val db: DbConfig,
@@ -44,5 +49,6 @@ data class AppConfig(
     val weather: WeatherConfig,
     val ai: AiConfig,
     val media: MediaConfig,
+    val appLinks: AppLinksConfig,
     val devAuthEnabled: Boolean,
 )

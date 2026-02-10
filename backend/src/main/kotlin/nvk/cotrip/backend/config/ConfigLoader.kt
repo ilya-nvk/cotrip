@@ -1,6 +1,7 @@
 package nvk.cotrip.backend.config
 
 import io.ktor.server.config.ApplicationConfig
+import java.util.Locale
 
 fun loadConfig(config: ApplicationConfig): AppConfig {
     fun requireSetting(envName: String, configKey: String): String {
@@ -80,6 +81,24 @@ fun loadConfig(config: ApplicationConfig): AppConfig {
             ).coerceIn(512L * 1024L, 50L * 1024L * 1024L),
     )
 
+    val appLinksRawFingerprints = System.getenv("ANDROID_APP_LINK_SHA256_CERT_FINGERPRINTS")
+        ?: config.propertyOrNull("ktor.appLinks.sha256CertFingerprints")?.getString()
+        ?: ""
+
+    val appLinks = AppLinksConfig(
+        androidPackage = (
+            System.getenv("ANDROID_APP_LINK_PACKAGE")
+                ?: config.propertyOrNull("ktor.appLinks.androidPackage")?.getString()
+            )
+            ?.trim()
+            ?.takeIf { it.isNotBlank() },
+        sha256CertFingerprints = appLinksRawFingerprints
+            .split(',', ';', '\n')
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .map { it.uppercase(Locale.US) },
+    )
+
     val devAuthEnabled = System.getenv("DEV_AUTH_ENABLED")
         ?.toBooleanStrictOrNull()
         ?: config.propertyOrNull("ktor.devAuthEnabled")
@@ -94,6 +113,7 @@ fun loadConfig(config: ApplicationConfig): AppConfig {
         weather = weather,
         ai = ai,
         media = media,
+        appLinks = appLinks,
         devAuthEnabled = devAuthEnabled
     )
 }
