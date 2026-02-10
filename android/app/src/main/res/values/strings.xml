@@ -39,6 +39,10 @@
     <string name="common_error_unauthorized">Session expired. Please sign in again.</string>
     <string name="common_error_forbidden">You don\'t have permission for this action.</string>
     <string name="common_error_not_found">Requested item was not found.</string>
+    <string name="common_error_city_coordinates_required">Select a city from suggestions.</string>
+    <string name="common_error_city_search">Unable to load city suggestions.</string>
+    <string name="common_error_weather_unavailable">Weather service is not configured on server.</string>
+    <string name="common_error_weather_refresh">Unable to refresh weather forecast.</string>
     <string name="create_trip_title">Create trip</string>
     <string name="create_trip_primary_button">Create trip</string>
     <string name="create_trip_created_toast">Trip created</string>

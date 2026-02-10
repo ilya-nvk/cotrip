@@ -23,6 +23,7 @@ import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -47,11 +48,13 @@ import kotlinx.coroutines.flow.collectLatest
 import nvk.cotrip.R
 import nvk.cotrip.ui.components.CoTripCard
 import nvk.cotrip.ui.components.CoTripIconButton
+import nvk.cotrip.ui.components.CoTripListItem
 import nvk.cotrip.ui.components.TertiaryTextButton
 import nvk.cotrip.ui.theme.Border
 import nvk.cotrip.ui.theme.CoTripIcons
 import nvk.cotrip.ui.theme.CoTripTokens
 import nvk.cotrip.ui.theme.TextSecondary
+import androidx.compose.material3.rememberModalBottomSheetState
 
 private const val KEY_CARD = "forecast_card"
 private const val KEY_FOOTER = "footer"
@@ -64,6 +67,7 @@ fun TripForecastScreen(
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    val citySheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     DisposableEffect(lifecycleOwner, viewModel) {
         val observer = LifecycleEventObserver { _, event ->
@@ -82,6 +86,19 @@ fun TripForecastScreen(
                     Toast.makeText(context, context.getString(effect.resId), Toast.LENGTH_SHORT)
                         .show()
             }
+        }
+    }
+
+    if (state.isCityPickerVisible) {
+        ModalBottomSheet(
+            onDismissRequest = { viewModel.onEvent(TripForecastEvent.OnDismissCityPicker) },
+            sheetState = citySheetState,
+            containerColor = MaterialTheme.colorScheme.surface,
+        ) {
+            CityPickerSheet(
+                cities = state.cityOptions,
+                onSelect = { viewModel.onEvent(TripForecastEvent.OnCitySelected(it)) }
+            )
         }
     }
 
@@ -278,6 +295,42 @@ private fun ForecastRow(
                 .padding(horizontal = CoTripTokens.spacing.x2)
                 .background(Border)
         )
+    }
+}
+
+@Composable
+private fun CityPickerSheet(
+    cities: List<String>,
+    onSelect: (String) -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(
+                horizontal = CoTripTokens.spacing.x2,
+                vertical = CoTripTokens.spacing.x2
+            ),
+        verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x2),
+    ) {
+        Text(
+            text = stringResource(R.string.itinerary_choose_city_title),
+            style = MaterialTheme.typography.headlineSmall,
+        )
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(320.dp),
+            contentPadding = PaddingValues(vertical = CoTripTokens.spacing.x1),
+            verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x0_5),
+        ) {
+            items(cities.size, key = { index -> cities[index] }) { index ->
+                val city = cities[index]
+                CoTripListItem(
+                    title = city,
+                    onClick = { onSelect(city) },
+                )
+            }
+        }
     }
 }
 

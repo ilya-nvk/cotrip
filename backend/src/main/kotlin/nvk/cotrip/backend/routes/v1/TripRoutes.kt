@@ -121,11 +121,43 @@ fun Route.tripRoutes() {
             }
 
             val request = call.receive<UpdateTripRequest>()
+            val currentTrip = TripRepository.getTripForUser(userId, tripId) ?: run {
+                call.respond(HttpStatusCode.NotFound)
+                return@patch
+            }
+            val parsedStartDate = request.startDate?.let { raw ->
+                runCatching { LocalDate.parse(raw) }.getOrElse {
+                    call.respond(
+                        HttpStatusCode.BadRequest,
+                        mapOf("error" to mapOf("code" to "invalid_dates", "message" to "startDate must be a valid ISO date"))
+                    )
+                    return@patch
+                }
+            }
+            val parsedEndDate = request.endDate?.let { raw ->
+                runCatching { LocalDate.parse(raw) }.getOrElse {
+                    call.respond(
+                        HttpStatusCode.BadRequest,
+                        mapOf("error" to mapOf("code" to "invalid_dates", "message" to "endDate must be a valid ISO date"))
+                    )
+                    return@patch
+                }
+            }
+            val effectiveStart = parsedStartDate ?: currentTrip.startDate
+            val effectiveEnd = parsedEndDate ?: currentTrip.endDate
+            if (effectiveEnd.isBefore(effectiveStart)) {
+                call.respond(
+                    HttpStatusCode.BadRequest,
+                    mapOf("error" to mapOf("code" to "invalid_dates", "message" to "endDate must be after startDate"))
+                )
+                return@patch
+            }
+
             val update = TripUpdate(
                 title = request.title,
                 description = request.description,
-                startDate = request.startDate?.let { LocalDate.parse(it) },
-                endDate = request.endDate?.let { LocalDate.parse(it) },
+                startDate = parsedStartDate,
+                endDate = parsedEndDate,
                 locationLine = request.locationLine,
                 coverUrl = request.coverUrl,
                 currencyCode = request.currencyCode,

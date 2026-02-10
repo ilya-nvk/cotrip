@@ -1,6 +1,7 @@
 package nvk.cotrip.backend.db
 
 import java.sql.ResultSet
+import java.sql.Connection
 import java.time.LocalDate
 import java.time.OffsetDateTime
 import java.util.UUID
@@ -179,7 +180,7 @@ object TripRepository {
             }
         } ?: return@dbQuery null
 
-        conn.prepareStatement(
+        val updatedTrip = conn.prepareStatement(
             """
             UPDATE trips
             SET title = ?, description = ?, start_date = ?, end_date = ?, location_line = ?, cover_url = ?, currency_code = ?, updated_at = now()
@@ -200,6 +201,73 @@ object TripRepository {
                 rs.next()
                 mapTrip(rs)
             }
+        }
+
+        reconcileItineraryDays(
+            conn = conn,
+            tripId = updatedTrip.id,
+            startDate = updatedTrip.startDate,
+            endDate = updatedTrip.endDate,
+        )
+
+        updatedTrip
+    }
+
+    private fun reconcileItineraryDays(
+        conn: Connection,
+        tripId: String,
+        startDate: LocalDate,
+        endDate: LocalDate,
+    ) {
+        conn.prepareStatement(
+            """
+            INSERT INTO itinerary_days (trip_id, date, day_number, is_out_of_range)
+            SELECT ?, day::date, 0, false
+            FROM generate_series(?::date, ?::date, interval '1 day') AS day
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM itinerary_days d
+                WHERE d.trip_id = ? AND d.date = day::date
+            )
+            """.trimIndent()
+        ).use { stmt ->
+            stmt.setObject(1, UUID.fromString(tripId))
+            stmt.setObject(2, startDate)
+            stmt.setObject(3, endDate)
+            stmt.setObject(4, UUID.fromString(tripId))
+            stmt.executeUpdate()
+        }
+
+        conn.prepareStatement(
+            """
+            UPDATE itinerary_days
+            SET is_out_of_range = (date < ? OR date > ?),
+                updated_at = now()
+            WHERE trip_id = ?
+            """.trimIndent()
+        ).use { stmt ->
+            stmt.setObject(1, startDate)
+            stmt.setObject(2, endDate)
+            stmt.setObject(3, UUID.fromString(tripId))
+            stmt.executeUpdate()
+        }
+
+        conn.prepareStatement(
+            """
+            WITH ranked AS (
+                SELECT id, ROW_NUMBER() OVER (ORDER BY date ASC) AS rn
+                FROM itinerary_days
+                WHERE trip_id = ?
+            )
+            UPDATE itinerary_days d
+            SET day_number = ranked.rn,
+                updated_at = now()
+            FROM ranked
+            WHERE d.id = ranked.id
+            """.trimIndent()
+        ).use { stmt ->
+            stmt.setObject(1, UUID.fromString(tripId))
+            stmt.executeUpdate()
         }
     }
 

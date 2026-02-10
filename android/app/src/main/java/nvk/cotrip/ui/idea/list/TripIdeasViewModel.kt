@@ -60,7 +60,6 @@ class TripIdeasViewModel @Inject constructor(
 
     private var dayOptions: List<IdeaDayOptionUi> = emptyList()
     private var currencySymbol: String = "€"
-    private val addedDays = mutableMapOf<String, Int>()
     private val commentsSocket = CommentsWebSocket(okHttpClient, json)
 
     private val _state = MutableStateFlow(
@@ -124,12 +123,13 @@ class TripIdeasViewModel @Inject constructor(
                 dayOptions = itinerary
                     .filter { !it.isOutOfRange }
                     .map { it.toDayOption() }
+                val addedDaysByIdea = collectAddedDays(itinerary)
 
                 _state.update { current ->
                     val updatedPicker = current.dayPicker?.copy(days = dayOptions)
                     current.copy(
                         ideas = ideas.map { idea ->
-                            idea.toUi(currencySymbol, addedDays[idea.id])
+                            idea.toUi(currencySymbol, addedDaysByIdea[idea.id])
                         },
                         dayPicker = updatedPicker,
                         isRefreshing = refreshing,
@@ -191,13 +191,15 @@ class TripIdeasViewModel @Inject constructor(
                 }
             }) {
                 is ApiResult.Success -> {
-                    addedDays[ideaId] = day.dayNumber
                     _state.update { current ->
                         current.copy(
                             ideas = current.ideas.map { idea ->
                                 if (idea.id == ideaId) idea.copy(addedDay = day.dayNumber) else idea
                             }
                         )
+                    }
+                    withContext(Dispatchers.IO) {
+                        itineraryRepository.refreshItinerary(tripId)
                     }
                     emit(TripIdeasEffect.ShowToastRes(R.string.ideas_added_to_itinerary_toast))
                 }
@@ -262,6 +264,19 @@ class TripIdeasViewModel @Inject constructor(
     private fun emit(effect: TripIdeasEffect) {
         viewModelScope.launch { _effects.emit(effect) }
     }
+}
+
+private fun collectAddedDays(itinerary: List<ItineraryDayDto>): Map<String, Int> {
+    val result = mutableMapOf<String, Int>()
+    itinerary
+        .sortedBy { it.dayNumber }
+        .forEach { day ->
+            day.activities.forEach activityLoop@{ activity ->
+                val ideaId = activity.sourceIdeaId ?: return@activityLoop
+                result.putIfAbsent(ideaId, day.dayNumber)
+            }
+        }
+    return result
 }
 
 private fun IdeaDto.toUi(currencySymbol: String, addedDay: Int?): IdeaListItemUi {

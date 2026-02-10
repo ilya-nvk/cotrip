@@ -153,11 +153,14 @@ class TripItineraryViewModel @Inject constructor(
     }
 
     private fun openCityPicker(dayId: String) {
+        val selectedDay = _state.value.days.firstOrNull { it.id == dayId } ?: return
         val cities = allCities
         _state.update { st ->
             st.copy(
                 cityPicker = CityPickerState(
-                    dayId = dayId,
+                    dayId = selectedDay.id,
+                    dayNumber = selectedDay.dayNumber,
+                    dayDate = selectedDay.dateIso,
                     query = "",
                     localSuggestions = cities,
                     suggestions = cities,
@@ -293,15 +296,21 @@ class TripItineraryViewModel @Inject constructor(
 
     private fun selectCity(city: CitySuggestionUi) {
         val picker = _state.value.cityPicker ?: return
+        val selectedCityName = city.fullText?.trim().takeUnless { it.isNullOrBlank() } ?: city.name
         citySearchJob?.cancel()
         _state.update { it.copy(cityPicker = null) }
         viewModelScope.launch {
             when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
+                    val latestDays = itineraryRepository.refreshItinerary(tripId)
+                    val targetDay = latestDays.firstOrNull { it.id == picker.dayId }
+                        ?: latestDays.firstOrNull { it.date == picker.dayDate }
+                        ?: latestDays.firstOrNull { it.dayNumber == picker.dayNumber }
+                        ?: throw IllegalStateException("day_not_found")
                     itineraryRepository.updateDay(
-                        dayId = picker.dayId,
+                        dayId = targetDay.id,
                         request = UpdateDayRequest(
-                            city = city.name,
+                            city = selectedCityName,
                             cityProviderId = city.providerId,
                             cityLat = city.lat,
                             cityLon = city.lon,
@@ -312,10 +321,15 @@ class TripItineraryViewModel @Inject constructor(
                 is ApiResult.Success -> {
                     _state.update { st ->
                         val days = st.days.map { d ->
-                            if (d.id == picker.dayId) d.copy(city = city.name) else d
+                            if (d.id == picker.dayId || d.dateIso == picker.dayDate) {
+                                d.copy(city = selectedCityName)
+                            } else {
+                                d
+                            }
                         }
                         st.copy(days = days)
                     }
+                    refreshItinerary(isUserRefresh = false)
                 }
 
                 is ApiResult.Failure -> emitToast(uiErrorMapper.messageRes(result))
@@ -359,6 +373,7 @@ private fun ItineraryDayDto.toUi(currencySymbol: String): ItineraryDayUi {
     return ItineraryDayUi(
         id = id,
         dayNumber = dayNumber,
+        dateIso = this.date,
         dateText = dateText,
         city = city,
         activities = activities,
