@@ -5,6 +5,7 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import nvk.cotrip.data.cache.ExpensesCacheStore
 import nvk.cotrip.data.network.CoTripApi
+import nvk.cotrip.data.network.NetworkStateProvider
 import nvk.cotrip.data.network.requireSuccess
 import nvk.cotrip.data.network.dto.ExpenseCreateRequest
 import nvk.cotrip.data.network.dto.ExpenseDto
@@ -18,6 +19,7 @@ class ExpenseRepositoryImpl @Inject constructor(
     private val api: CoTripApi,
     private val syncQueueRepository: SyncQueueRepository,
     private val expensesCacheStore: ExpensesCacheStore,
+    private val networkStateProvider: NetworkStateProvider,
 ) : ExpenseRepository {
 
     private companion object {
@@ -29,8 +31,9 @@ class ExpenseRepositoryImpl @Inject constructor(
     }
 
     override suspend fun listExpenses(tripId: String): List<ExpenseDto> {
-        val cached = expensesCacheStore.getExpenses(tripId)
-        if (cached.isNotEmpty()) return cached
+        if (!networkStateProvider.isOnline()) {
+            return expensesCacheStore.getExpenses(tripId)
+        }
         return refreshExpenses(tripId)
     }
 

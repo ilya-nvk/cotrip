@@ -10,11 +10,15 @@ class OfflineCacheInterceptor(
 ) : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         var request = chain.request()
-        if (request.method == "GET" && !networkStateProvider.isOnline()) {
-            val cacheControl = CacheControl.Builder()
-                .onlyIfCached()
-                .maxStale(7, TimeUnit.DAYS)
-                .build()
+        if (request.method == "GET") {
+            val cacheControl = if (networkStateProvider.isOnline()) {
+                CacheControl.FORCE_NETWORK
+            } else {
+                CacheControl.Builder()
+                    .onlyIfCached()
+                    .maxStale(7, TimeUnit.DAYS)
+                    .build()
+            }
             request = request.newBuilder()
                 .cacheControl(cacheControl)
                 .build()
@@ -25,19 +29,13 @@ class OfflineCacheInterceptor(
 
 class CacheControlInterceptor : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
-        val request = chain.request()
-        val response = chain.proceed(request)
-        if (request.method != "GET") return response
-
-        val isAuthorizedRequest = !request.header("Authorization").isNullOrBlank()
-        return if (isAuthorizedRequest) {
-            response.newBuilder()
-                .header("Cache-Control", "no-cache, no-store, must-revalidate")
-                .build()
-        } else {
+        val response = chain.proceed(chain.request())
+        return if (chain.request().method == "GET") {
             response.newBuilder()
                 .header("Cache-Control", "public, max-age=120")
                 .build()
+        } else {
+            response
         }
     }
 }

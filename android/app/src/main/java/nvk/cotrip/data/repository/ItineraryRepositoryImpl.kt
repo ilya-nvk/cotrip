@@ -5,6 +5,7 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import nvk.cotrip.data.cache.ItineraryCacheStore
 import nvk.cotrip.data.network.CoTripApi
+import nvk.cotrip.data.network.NetworkStateProvider
 import nvk.cotrip.data.network.requireSuccess
 import nvk.cotrip.data.network.dto.ActivityDto
 import nvk.cotrip.data.network.dto.CreateActivityRequest
@@ -25,6 +26,7 @@ class ItineraryRepositoryImpl @Inject constructor(
     private val api: CoTripApi,
     private val syncQueueRepository: SyncQueueRepository,
     private val itineraryCacheStore: ItineraryCacheStore,
+    private val networkStateProvider: NetworkStateProvider,
 ) : ItineraryRepository {
     private companion object {
         private const val TAG = "ItineraryRepository"
@@ -35,8 +37,9 @@ class ItineraryRepositoryImpl @Inject constructor(
     }
 
     override suspend fun getItinerary(tripId: String): List<ItineraryDayDto> {
-        val cached = itineraryCacheStore.getItinerary(tripId)
-        if (cached.isNotEmpty()) return cached
+        if (!networkStateProvider.isOnline()) {
+            return itineraryCacheStore.getItinerary(tripId)
+        }
         return refreshItinerary(tripId)
     }
 
