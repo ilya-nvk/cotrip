@@ -5,6 +5,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -13,12 +15,14 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import nvk.cotrip.R
-import nvk.cotrip.data.repository.ItineraryRepository
-import nvk.cotrip.data.repository.TripRepository
+import nvk.cotrip.data.network.ApiCaller
+import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.network.dto.ActivityDto
 import nvk.cotrip.data.network.dto.ItineraryDayDto
 import nvk.cotrip.data.network.dto.UpdateDayRequest
+import nvk.cotrip.data.repository.ItineraryRepository
+import nvk.cotrip.data.repository.TripRepository
+import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import nvk.cotrip.ui.trip.form.TripCurrency
@@ -33,13 +37,16 @@ class TripItineraryViewModel @Inject constructor(
     private val appNavigator: AppNavigator,
     private val tripRepository: TripRepository,
     private val itineraryRepository: ItineraryRepository,
+    private val apiCaller: ApiCaller,
+    private val uiErrorMapper: UiErrorMapper,
 ) : ViewModel() {
 
     private val tripId: String =
         checkNotNull(savedStateHandle[Destination.TripItinerary.ARG_TRIP_ID])
 
-    private var allCities: List<String> = emptyList()
+    private var allCities: List<CitySuggestionUi> = emptyList()
     private var currencySymbol: String = "€"
+    private var citySearchJob: Job? = null
 
     private val _state = MutableStateFlow(
         TripItineraryState(
@@ -49,6 +56,7 @@ class TripItineraryViewModel @Inject constructor(
             days = emptyList(),
             cityPicker = null,
             isReordering = false,
+            isRefreshing = false,
         )
     )
     val state = _state.asStateFlow()
@@ -58,19 +66,23 @@ class TripItineraryViewModel @Inject constructor(
 
     init {
         observeData()
-        refreshItinerary()
+        refreshItinerary(isUserRefresh = false)
     }
 
     fun onEvent(event: TripItineraryEvent) {
         when (event) {
             TripItineraryEvent.OnBackClick -> appNavigator.popBackStack()
-            TripItineraryEvent.OnRefresh -> refreshItinerary()
+            TripItineraryEvent.OnAutoRefresh -> refreshItinerary(isUserRefresh = false)
+            TripItineraryEvent.OnUserRefresh -> refreshItinerary(isUserRefresh = true)
             TripItineraryEvent.OnToggleReorder -> toggleReorder()
             TripItineraryEvent.OnAddActivityClick -> appNavigator.navigate(
                 Destination.CreateActivity(tripId)
             )
 
-            TripItineraryEvent.OnDismissCityPicker -> _state.update { it.copy(cityPicker = null) }
+            TripItineraryEvent.OnDismissCityPicker -> {
+                citySearchJob?.cancel()
+                _state.update { it.copy(cityPicker = null) }
+            }
             is TripItineraryEvent.OnActivityClick -> appNavigator.navigate(
                 Destination.ActivityDetails(event.activityId)
             )
@@ -95,33 +107,48 @@ class TripItineraryViewModel @Inject constructor(
                     if (trip != null) {
                         currencySymbol = currencySymbolFor(trip.currencyCode)
                     }
-                    allCities =
-                        itinerary.mapNotNull { it.city?.takeIf(String::isNotBlank) }.distinct()
+                    allCities = collectTripCities(itinerary)
 
                     val dayUis = itinerary.map { it.toUi(currencySymbol) }
                     val dateRange = trip?.let { formatRange(it.startDate, it.endDate) }
                         ?: _state.value.dateRange
                     _state.update {
+                        val picker = it.cityPicker
+                        val updatedPicker = if (picker != null && picker.query.isBlank()) {
+                            picker.copy(
+                                localSuggestions = allCities,
+                                suggestions = allCities,
+                                isSearching = false,
+                            )
+                        } else {
+                            picker
+                        }
                         it.copy(
                             dateRange = dateRange,
                             mode = if (dayUis.isEmpty()) ItineraryMode.Empty else ItineraryMode.Filled,
-                            days = dayUis
+                            days = dayUis,
+                            cityPicker = updatedPicker,
                         )
                     }
                 }
         }
     }
 
-    private fun refreshItinerary() {
+    private fun refreshItinerary(isUserRefresh: Boolean) {
         viewModelScope.launch {
-            runCatching {
+            if (isUserRefresh) {
+                _state.update { it.copy(isRefreshing = true) }
+            }
+            when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
                     tripRepository.getTrip(tripId)
                     itineraryRepository.refreshItinerary(tripId)
                 }
-            }.onFailure {
-                emitToast(R.string.common_error_message)
+            }) {
+                is ApiResult.Success -> Unit
+                is ApiResult.Failure -> emitToast(uiErrorMapper.messageRes(result))
             }
+            _state.update { it.copy(isRefreshing = false) }
         }
     }
 
@@ -132,8 +159,9 @@ class TripItineraryViewModel @Inject constructor(
                 cityPicker = CityPickerState(
                     dayId = dayId,
                     query = "",
-                    allCities = cities,
-                    filteredCities = cities
+                    localSuggestions = cities,
+                    suggestions = cities,
+                    isSearching = false,
                 )
             )
         }
@@ -164,52 +192,133 @@ class TripItineraryViewModel @Inject constructor(
     private fun commitReorder(dayId: String) {
         val day = _state.value.days.firstOrNull { it.id == dayId } ?: return
         viewModelScope.launch {
-            runCatching {
+            when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
                     itineraryRepository.reorderActivities(
                         dayId = dayId,
                         orderedIds = day.activities.map { it.id }
                     )
                 }
-            }.onFailure {
-                emitToast(R.string.common_error_message)
-                refreshItinerary()
+            }) {
+                is ApiResult.Success -> Unit
+                is ApiResult.Failure -> {
+                    emitToast(uiErrorMapper.messageRes(result))
+                    refreshItinerary(isUserRefresh = false)
+                }
             }
         }
     }
 
     private fun updateCityQuery(value: String) {
-        _state.update { st ->
-            val picker = st.cityPicker ?: return@update st
-            val filtered = if (value.isBlank()) {
-                picker.allCities
-            } else {
-                picker.allCities.filter { it.contains(value, ignoreCase = true) }
+        val query = value.trim()
+        _state.value.cityPicker ?: return
+        citySearchJob?.cancel()
+
+        if (query.isBlank()) {
+            _state.update { st ->
+                val current = st.cityPicker ?: return@update st
+                st.copy(
+                    cityPicker = current.copy(
+                        query = "",
+                        suggestions = current.localSuggestions,
+                        isSearching = false,
+                    )
+                )
             }
-            st.copy(cityPicker = picker.copy(query = value, filteredCities = filtered))
+            return
+        }
+
+        _state.update { st ->
+            val current = st.cityPicker ?: return@update st
+            st.copy(
+                cityPicker = current.copy(
+                    query = query,
+                    suggestions = emptyList(),
+                    isSearching = true,
+                )
+            )
+        }
+
+        citySearchJob = viewModelScope.launch {
+            delay(300)
+            when (val result = apiCaller.call {
+                withContext(Dispatchers.IO) {
+                    itineraryRepository.searchCities(tripId = tripId, query = query, limit = 8)
+                }
+            }) {
+                is ApiResult.Success -> {
+                    val suggestions = result.data.map {
+                        CitySuggestionUi(
+                            name = it.name,
+                            providerId = it.providerId,
+                            lat = it.lat,
+                            lon = it.lon,
+                            fullText = it.fullText,
+                        )
+                    }
+                    _state.update { st ->
+                        val current = st.cityPicker ?: return@update st
+                        if (current.query != query) {
+                            return@update st
+                        }
+                        st.copy(
+                            cityPicker = current.copy(
+                                suggestions = suggestions,
+                                isSearching = false,
+                            )
+                        )
+                    }
+                }
+
+                is ApiResult.Failure -> {
+                    _state.update { st ->
+                        val current = st.cityPicker ?: return@update st
+                        if (current.query != query) {
+                            return@update st
+                        }
+                        val fallback = current.localSuggestions.filter {
+                            it.name.contains(query, ignoreCase = true)
+                        }
+                        st.copy(
+                            cityPicker = current.copy(
+                                suggestions = fallback,
+                                isSearching = false,
+                            )
+                        )
+                    }
+                }
+            }
         }
     }
 
-    private fun selectCity(city: String) {
+    private fun selectCity(city: CitySuggestionUi) {
         val picker = _state.value.cityPicker ?: return
+        citySearchJob?.cancel()
         _state.update { it.copy(cityPicker = null) }
         viewModelScope.launch {
-            runCatching {
+            when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
                     itineraryRepository.updateDay(
                         dayId = picker.dayId,
-                        request = UpdateDayRequest(city = city)
+                        request = UpdateDayRequest(
+                            city = city.name,
+                            cityProviderId = city.providerId,
+                            cityLat = city.lat,
+                            cityLon = city.lon,
+                        )
                     )
                 }
-            }.onSuccess {
-                _state.update { st ->
-                    val days = st.days.map { d ->
-                        if (d.id == picker.dayId) d.copy(city = city) else d
+            }) {
+                is ApiResult.Success -> {
+                    _state.update { st ->
+                        val days = st.days.map { d ->
+                            if (d.id == picker.dayId) d.copy(city = city.name) else d
+                        }
+                        st.copy(days = days)
                     }
-                    st.copy(days = days)
                 }
-            }.onFailure {
-                emitToast(R.string.common_error_message)
+
+                is ApiResult.Failure -> emitToast(uiErrorMapper.messageRes(result))
             }
         }
     }
@@ -217,6 +326,30 @@ class TripItineraryViewModel @Inject constructor(
     private fun emitToast(resId: Int) {
         viewModelScope.launch { _effects.emit(TripItineraryEffect.ShowToastRes(resId)) }
     }
+}
+
+private fun collectTripCities(days: List<ItineraryDayDto>): List<CitySuggestionUi> {
+    val byName = linkedMapOf<String, CitySuggestionUi>()
+    for (day in days) {
+        val cityName = day.city?.trim()?.takeIf { it.isNotEmpty() } ?: continue
+        val cityLat = day.cityLat ?: continue
+        val cityLon = day.cityLon ?: continue
+        val key = cityName.lowercase(Locale.getDefault())
+        val candidate = CitySuggestionUi(
+            name = cityName,
+            providerId = day.cityProviderId,
+            lat = cityLat,
+            lon = cityLon,
+            fullText = cityName,
+        )
+        val current = byName[key]
+        byName[key] = if (current == null || (current.providerId == null && candidate.providerId != null)) {
+            candidate
+        } else {
+            current
+        }
+    }
+    return byName.values.toList()
 }
 
 private fun ItineraryDayDto.toUi(currencySymbol: String): ItineraryDayUi {

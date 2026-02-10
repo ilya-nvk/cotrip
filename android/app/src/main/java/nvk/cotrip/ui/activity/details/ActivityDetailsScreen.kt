@@ -180,15 +180,26 @@ fun ActivityDetailsScreen(
                 icon = CoTripIcons.Location,
                 title = state.locationName ?: stringResource(R.string.activity_details_empty),
                 subtitle = null,
-                trailing = if (state.locationName != null) {
+                trailing = null
+            )
+
+            Divider()
+
+            SectionLabel(text = stringResource(R.string.activity_details_link_label))
+            InfoRow(
+                icon = CoTripIcons.Link,
+                title = state.link ?: stringResource(R.string.activity_details_empty),
+                subtitle = null,
+                trailing = if (state.link != null) {
                     {
                         CoTripIconButton(
                             icon = CoTripIcons.OpenInNew,
                             contentDescription = null,
-                            onClick = { viewModel.onEvent(ActivityDetailsEvent.OnOpenLocationClick) }
+                            onClick = { viewModel.onEvent(ActivityDetailsEvent.OnOpenLinkClick) }
                         )
                     }
-                } else null
+                } else null,
+                titleColor = if (state.link != null) PrimaryBlue else TextMedium
             )
 
             Divider()

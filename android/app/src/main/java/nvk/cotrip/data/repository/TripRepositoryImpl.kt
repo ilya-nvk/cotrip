@@ -8,11 +8,15 @@ import nvk.cotrip.data.network.dto.CreateTripRequest
 import nvk.cotrip.data.network.dto.MemberDto
 import nvk.cotrip.data.network.dto.TripDto
 import nvk.cotrip.data.network.dto.UpdateTripRequest
+import nvk.cotrip.data.sync.SyncEntities
+import nvk.cotrip.data.sync.SyncQueueRepository
+import java.io.IOException
 import javax.inject.Inject
 
 class TripRepositoryImpl @Inject constructor(
     private val api: CoTripApi,
     private val tripsCacheStore: TripsCacheStore,
+    private val syncQueueRepository: SyncQueueRepository,
 ) : TripRepository {
 
     override val trips: Flow<List<TripDto>> = tripsCacheStore.trips
@@ -51,13 +55,38 @@ class TripRepositoryImpl @Inject constructor(
     }
 
     override suspend fun updateTrip(tripId: String, request: UpdateTripRequest): TripDto {
-        val trip = api.updateTrip(tripId, request)
-        tripsCacheStore.upsertTrip(trip)
-        return trip
+        return try {
+            val trip = api.updateTrip(tripId, request)
+            tripsCacheStore.upsertTrip(trip)
+            trip
+        } catch (e: IOException) {
+            val local = tripsCacheStore.getTrips().firstOrNull { it.id == tripId }
+            syncQueueRepository.enqueueUpsert(SyncEntities.TRIP, tripId, request)
+            if (local == null) throw e
+            val updatedLocal = local.copy(
+                title = request.title ?: local.title,
+                description = request.description ?: local.description,
+                startDate = request.startDate ?: local.startDate,
+                endDate = request.endDate ?: local.endDate,
+                locationLine = request.locationLine ?: local.locationLine,
+                coverUrl = request.coverUrl ?: local.coverUrl,
+                currencyCode = request.currencyCode ?: local.currencyCode,
+            )
+            tripsCacheStore.upsertTrip(updatedLocal)
+            updatedLocal
+        }
     }
 
     override suspend fun archiveTrip(tripId: String) {
-        api.archiveTrip(tripId)
+        try {
+            api.archiveTrip(tripId)
+        } catch (e: IOException) {
+            syncQueueRepository.enqueueUpsert(
+                entity = SyncEntities.TRIP,
+                id = tripId,
+                payload = mapOf("status" to "archived"),
+            )
+        }
         val current = tripsCacheStore.getTrips()
         val updated = current.map { trip ->
             if (trip.id == tripId) trip.copy(status = "archived") else trip
@@ -66,7 +95,11 @@ class TripRepositoryImpl @Inject constructor(
     }
 
     override suspend fun deleteTrip(tripId: String) {
-        api.deleteTrip(tripId)
+        try {
+            api.deleteTrip(tripId)
+        } catch (e: IOException) {
+            syncQueueRepository.enqueueDelete(SyncEntities.TRIP, tripId)
+        }
         tripsCacheStore.removeTrip(tripId)
     }
 

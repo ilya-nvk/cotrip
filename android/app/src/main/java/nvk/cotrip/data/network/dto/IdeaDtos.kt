@@ -6,6 +6,7 @@ import kotlinx.serialization.Serializable
 data class CreateIdeaRequest(
     val title: String,
     val city: String? = null,
+    val link: String? = null,
     val costAmount: Double? = null,
     val costType: String? = null,
     val website: String? = null,
@@ -16,6 +17,7 @@ data class CreateIdeaRequest(
 data class UpdateIdeaRequest(
     val title: String? = null,
     val city: String? = null,
+    val link: String? = null,
     val costAmount: Double? = null,
     val costType: String? = null,
     val website: String? = null,
@@ -36,6 +38,7 @@ data class IdeaDto(
     val authorId: String,
     val title: String,
     val city: String? = null,
+    val link: String? = null,
     val costAmount: Double? = null,
     val costType: String? = null,
     val website: String? = null,

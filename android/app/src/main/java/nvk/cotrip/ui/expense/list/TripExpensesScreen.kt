@@ -1,5 +1,6 @@
 package nvk.cotrip.ui.expense.list
 
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -20,6 +21,10 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -30,11 +35,13 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -60,22 +67,33 @@ private const val KEY_SPENT_HEADER = "spent_header"
 private const val KEY_PLANNED_HEADER = "planned_header"
 private const val KEY_BOTTOM_SPACER = "bottom_spacer"
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
 @Composable
 fun TripExpensesScreen(
     viewModel: TripExpensesViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
     val lifecycleOwner = LocalLifecycleOwner.current
+    val context = LocalContext.current
 
     DisposableEffect(lifecycleOwner, viewModel) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                viewModel.onEvent(TripExpensesEvent.OnRefresh)
+                viewModel.onEvent(TripExpensesEvent.OnAutoRefresh)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    LaunchedEffect(viewModel, context) {
+        viewModel.effects.collect { effect ->
+            when (effect) {
+                is TripExpensesEffect.ShowToastRes ->
+                    Toast.makeText(context, context.getString(effect.resId), Toast.LENGTH_SHORT)
+                        .show()
+            }
+        }
     }
 
     Scaffold(
@@ -110,45 +128,59 @@ fun TripExpensesScreen(
             CoTripFab(onClick = { viewModel.onEvent(TripExpensesEvent.OnAddExpenseClick) })
         }
     ) { padding ->
-        LazyColumn(
+        val pullRefreshState = rememberPullRefreshState(
+            refreshing = state.isRefreshing,
+            onRefresh = { viewModel.onEvent(TripExpensesEvent.OnUserRefresh) }
+        )
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding),
-            contentPadding = PaddingValues(
-                horizontal = CoTripTokens.spacing.x2,
-                vertical = CoTripTokens.spacing.x2
-            ),
-            verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x2)
+                .padding(padding)
+                .pullRefresh(pullRefreshState)
         ) {
-            item(key = KEY_SUMMARY) {
-                SummaryBlock(summary = state.summary)
-            }
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(
+                    horizontal = CoTripTokens.spacing.x2,
+                    vertical = CoTripTokens.spacing.x2
+                ),
+                verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x2)
+            ) {
+                item(key = KEY_SUMMARY) {
+                    SummaryBlock(summary = state.summary)
+                }
 
-            item(key = KEY_SPENT_HEADER) {
-                SectionTitle(text = stringResource(R.string.expenses_spent_section))
-            }
+                item(key = KEY_SPENT_HEADER) {
+                    SectionTitle(text = stringResource(R.string.expenses_spent_section))
+                }
 
-            items(state.spent, key = { it.id }) { expense ->
-                ExpenseCard(
-                    expense = expense,
-                    onClick = { viewModel.onEvent(TripExpensesEvent.OnExpenseClick(expense.id)) }
-                )
-            }
+                items(state.spent, key = { it.id }) { expense ->
+                    ExpenseCard(
+                        expense = expense,
+                        onClick = { viewModel.onEvent(TripExpensesEvent.OnExpenseClick(expense.id)) }
+                    )
+                }
 
-            item(key = KEY_PLANNED_HEADER) {
-                SectionTitle(text = stringResource(R.string.expenses_planned_section))
-            }
+                item(key = KEY_PLANNED_HEADER) {
+                    SectionTitle(text = stringResource(R.string.expenses_planned_section))
+                }
 
-            items(state.planned, key = { it.id }) { expense ->
-                ExpenseCard(
-                    expense = expense,
-                    onClick = { viewModel.onEvent(TripExpensesEvent.OnExpenseClick(expense.id)) }
-                )
-            }
+                items(state.planned, key = { it.id }) { expense ->
+                    ExpenseCard(
+                        expense = expense,
+                        onClick = { viewModel.onEvent(TripExpensesEvent.OnExpenseClick(expense.id)) }
+                    )
+                }
 
-            item(key = KEY_BOTTOM_SPACER) {
-                Spacer(Modifier.height(96.dp))
+                item(key = KEY_BOTTOM_SPACER) {
+                    Spacer(Modifier.height(96.dp))
+                }
             }
+            PullRefreshIndicator(
+                refreshing = state.isRefreshing,
+                state = pullRefreshState,
+                modifier = Modifier.align(Alignment.TopCenter)
+            )
         }
     }
 }

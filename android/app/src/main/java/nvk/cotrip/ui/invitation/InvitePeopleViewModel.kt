@@ -12,7 +12,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nvk.cotrip.R
+import nvk.cotrip.data.network.ApiCaller
+import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.repository.InviteRepository
+import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import java.time.OffsetDateTime
@@ -24,6 +27,8 @@ class InvitePeopleViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val appNavigator: AppNavigator,
     private val inviteRepository: InviteRepository,
+    private val apiCaller: ApiCaller,
+    private val uiErrorMapper: UiErrorMapper,
 ) : ViewModel() {
 
     private val tripId: String =
@@ -57,26 +62,32 @@ class InvitePeopleViewModel @Inject constructor(
 
     private fun loadInvite() {
         viewModelScope.launch {
-            val result = runCatching {
+            val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
                     inviteRepository.createInvite(tripId)
                 }
             }
 
-            result.onSuccess { invite ->
-                val expiresAt = runCatching { OffsetDateTime.parse(invite.expiresAt) }.getOrNull()
-                val hoursLeft = expiresAt?.let {
-                    val diff = ChronoUnit.HOURS.between(OffsetDateTime.now(), it)
-                    diff.coerceAtLeast(0)
-                } ?: 12
+            when (result) {
+                is ApiResult.Success -> {
+                    val invite = result.data
+                    val expiresAt =
+                        runCatching { OffsetDateTime.parse(invite.expiresAt) }.getOrNull()
+                    val hoursLeft = expiresAt?.let {
+                        val diff = ChronoUnit.HOURS.between(OffsetDateTime.now(), it)
+                        diff.coerceAtLeast(0)
+                    } ?: 12
 
-                _state.value = InvitePeopleState(
-                    tripId = tripId,
-                    inviteLink = invite.url,
-                    expiresInHours = hoursLeft.toInt(),
-                )
-            }.onFailure {
-                emitToast(R.string.common_error_message)
+                    _state.value = InvitePeopleState(
+                        tripId = tripId,
+                        inviteLink = invite.url,
+                        expiresInHours = hoursLeft.toInt(),
+                    )
+                }
+
+                is ApiResult.Failure -> {
+                    emitToast(uiErrorMapper.messageRes(result))
+                }
             }
         }
     }

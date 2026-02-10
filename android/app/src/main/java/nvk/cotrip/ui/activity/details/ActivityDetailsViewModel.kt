@@ -12,11 +12,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nvk.cotrip.R
+import nvk.cotrip.data.network.ApiCaller
+import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.network.dto.ActivityDto
 import nvk.cotrip.data.network.dto.ItineraryDayDto
 import nvk.cotrip.data.network.dto.TripDto
 import nvk.cotrip.data.repository.ItineraryRepository
 import nvk.cotrip.data.repository.TripRepository
+import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import nvk.cotrip.ui.trip.form.TripCurrency
@@ -31,6 +34,8 @@ class ActivityDetailsViewModel @Inject constructor(
     private val appNavigator: AppNavigator,
     private val tripRepository: TripRepository,
     private val itineraryRepository: ItineraryRepository,
+    private val apiCaller: ApiCaller,
+    private val uiErrorMapper: UiErrorMapper,
 ) : ViewModel() {
 
     private val activityId: String =
@@ -45,6 +50,7 @@ class ActivityDetailsViewModel @Inject constructor(
             dateText = "",
             timeText = "",
             locationName = null,
+            link = null,
             costText = null,
             website = null,
             notes = null,
@@ -68,7 +74,7 @@ class ActivityDetailsViewModel @Inject constructor(
                 Destination.EditActivity(activityId)
             )
 
-            ActivityDetailsEvent.OnOpenLocationClick -> emitToast(R.string.activity_details_open_location_not_implemented)
+            ActivityDetailsEvent.OnOpenLinkClick -> emitToast(R.string.activity_details_open_link_not_implemented)
             ActivityDetailsEvent.OnOpenWebsiteClick -> emitToast(R.string.activity_details_open_website_not_implemented)
             ActivityDetailsEvent.OnDeleteClick -> deleteActivity()
         }
@@ -76,31 +82,35 @@ class ActivityDetailsViewModel @Inject constructor(
 
     private fun loadActivity() {
         viewModelScope.launch {
-            runCatching {
+            when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) { findActivity(activityId) }
-            }.onSuccess { info ->
-                currentTripId = info.trip.id
-                val currencySymbol = currencySymbolFor(info.trip.currencyCode)
-                val dateText = formatDay(info.day.date)
-                val dayAndCity = if (info.day.city.isNullOrBlank()) {
-                    "Day ${info.day.dayNumber}"
-                } else {
-                    "Day ${info.day.dayNumber} · ${info.day.city}"
+            }) {
+                is ApiResult.Success -> {
+                    val info = result.data
+                    currentTripId = info.trip.id
+                    val currencySymbol = currencySymbolFor(info.trip.currencyCode)
+                    val dateText = formatDay(info.day.date)
+                    val dayAndCity = if (info.day.city.isNullOrBlank()) {
+                        "Day ${info.day.dayNumber}"
+                    } else {
+                        "Day ${info.day.dayNumber} · ${info.day.city}"
+                    }
+                    _state.value = ActivityDetailsState(
+                        dayId = info.day.id,
+                        activityId = info.activity.id,
+                        dayAndCity = dayAndCity,
+                        title = info.activity.title,
+                        dateText = dateText,
+                        timeText = info.activity.timeText.orEmpty(),
+                        locationName = info.activity.locationName,
+                        link = info.activity.link,
+                        costText = info.activity.costAmount?.let { formatCost(it, currencySymbol) },
+                        website = info.activity.website,
+                        notes = info.activity.notes,
+                    )
                 }
-                _state.value = ActivityDetailsState(
-                    dayId = info.day.id,
-                    activityId = info.activity.id,
-                    dayAndCity = dayAndCity,
-                    title = info.activity.title,
-                    dateText = dateText,
-                    timeText = info.activity.timeText.orEmpty(),
-                    locationName = info.activity.locationName,
-                    costText = info.activity.costAmount?.let { formatCost(it, currencySymbol) },
-                    website = info.activity.website,
-                    notes = info.activity.notes,
-                )
-            }.onFailure {
-                emitToast(R.string.common_error_message)
+
+                is ApiResult.Failure -> emitToast(uiErrorMapper.messageRes(result))
             }
         }
     }
@@ -108,15 +118,17 @@ class ActivityDetailsViewModel @Inject constructor(
     private fun deleteActivity() {
         if (currentTripId == null) return
         viewModelScope.launch {
-            runCatching {
+            when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
                     itineraryRepository.deleteActivity(activityId)
                 }
-            }.onSuccess {
-                emitToast(R.string.activity_details_deleted_toast)
-                appNavigator.popBackStack()
-            }.onFailure {
-                emitToast(R.string.common_error_message)
+            }) {
+                is ApiResult.Success -> {
+                    emitToast(R.string.activity_details_deleted_toast)
+                    appNavigator.popBackStack()
+                }
+
+                is ApiResult.Failure -> emitToast(uiErrorMapper.messageRes(result))
             }
         }
     }

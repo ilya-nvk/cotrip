@@ -6,6 +6,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import androidx.navigation.navDeepLink
 import nvk.cotrip.ui.activity.details.ActivityDetailsScreen
 import nvk.cotrip.ui.activity.form.CreateActivityScreen
 import nvk.cotrip.ui.activity.form.EditActivityScreen
@@ -24,6 +25,7 @@ import nvk.cotrip.ui.idea.list.TripIdeasScreen
 import nvk.cotrip.ui.invitation.InvitePeopleScreen
 import nvk.cotrip.ui.invitation.JoinTripScreen
 import nvk.cotrip.ui.itinerary.TripItineraryScreen
+import nvk.cotrip.ui.notifications.NotificationsScreen
 import nvk.cotrip.ui.outofrangedays.OutOfRangeDaysScreen
 import nvk.cotrip.ui.settings.SettingsScreen
 import nvk.cotrip.ui.trip.details.TripDetailsScreen
@@ -58,7 +60,24 @@ fun AppNavHost(
             SettingsScreen()
         }
 
-        composable(Destination.JoinTrip.route) {
+        composable(Destination.Notifications.route) {
+            NotificationsScreen()
+        }
+
+        composable(
+            route = Destination.JoinTrip.ROUTE_PATTERN,
+            arguments = listOf(
+                navArgument(Destination.JoinTrip.ARG_INVITE_TOKEN) {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            ),
+            deepLinks = listOf(
+                navDeepLink { uriPattern = "https://api.cotrip.site/invite/{${Destination.JoinTrip.ARG_INVITE_TOKEN}}" },
+                navDeepLink { uriPattern = "http://api.cotrip.site/invite/{${Destination.JoinTrip.ARG_INVITE_TOKEN}}" },
+            )
+        ) {
             JoinTripScreen()
         }
 

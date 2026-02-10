@@ -17,16 +17,19 @@ import kotlinx.serialization.json.Json
 import nvk.cotrip.BuildConfig
 import nvk.cotrip.R
 import nvk.cotrip.data.auth.SessionStore
-import nvk.cotrip.data.repository.IdeaRepository
-import nvk.cotrip.data.repository.ItineraryRepository
-import nvk.cotrip.data.repository.TripRepository
+import nvk.cotrip.data.network.ApiCaller
+import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.network.dto.ConvertIdeaRequest
 import nvk.cotrip.data.network.dto.IdeaDto
 import nvk.cotrip.data.network.dto.ItineraryDayDto
+import nvk.cotrip.data.network.ws.CommentCreatedPayload
 import nvk.cotrip.data.network.ws.CommentDeletedPayload
 import nvk.cotrip.data.network.ws.CommentWsEvent
-import nvk.cotrip.data.network.ws.CommentCreatedPayload
 import nvk.cotrip.data.network.ws.CommentsWebSocket
+import nvk.cotrip.data.repository.IdeaRepository
+import nvk.cotrip.data.repository.ItineraryRepository
+import nvk.cotrip.data.repository.TripRepository
+import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.idea.common.IdeaDayOptionUi
 import nvk.cotrip.ui.idea.common.IdeaDayPickerState
 import nvk.cotrip.ui.navigation.AppNavigator
@@ -48,6 +51,8 @@ class TripIdeasViewModel @Inject constructor(
     private val sessionStore: SessionStore,
     private val okHttpClient: OkHttpClient,
     private val json: Json,
+    private val apiCaller: ApiCaller,
+    private val uiErrorMapper: UiErrorMapper,
 ) : ViewModel() {
 
     private val tripId: String =
@@ -62,19 +67,21 @@ class TripIdeasViewModel @Inject constructor(
         TripIdeasState(
             tripId = tripId,
             ideas = emptyList(),
-            dayPicker = null
+            dayPicker = null,
+            isRefreshing = false,
         )
     )
     val state = _state.asStateFlow()
 
     private val _effects = MutableSharedFlow<TripIdeasEffect>()
     val effects = _effects.asSharedFlow()
+    private val isRefreshing = MutableStateFlow(false)
 
     init {
         observeSocket()
         connectSocket()
         observeData()
-        refreshIdeas()
+        refreshIdeas(isUserRefresh = false)
     }
 
     override fun onCleared() {
@@ -85,7 +92,8 @@ class TripIdeasViewModel @Inject constructor(
     fun onEvent(event: TripIdeasEvent) {
         when (event) {
             TripIdeasEvent.OnBackClick -> appNavigator.popBackStack()
-            TripIdeasEvent.OnRefresh -> refreshIdeas()
+            TripIdeasEvent.OnAutoRefresh -> refreshIdeas(isUserRefresh = false)
+            TripIdeasEvent.OnUserRefresh -> refreshIdeas(isUserRefresh = true)
             TripIdeasEvent.OnAddIdeaClick -> appNavigator.navigate(
                 Destination.CreateIdea(tripId)
             )
@@ -105,10 +113,11 @@ class TripIdeasViewModel @Inject constructor(
             combine(
                 ideaRepository.observeIdeas(tripId),
                 tripRepository.observeTrip(tripId),
-                itineraryRepository.observeItinerary(tripId)
-            ) { ideas, trip, itinerary ->
-                Triple(ideas, trip, itinerary)
-            }.collect { (ideas, trip, itinerary) ->
+                itineraryRepository.observeItinerary(tripId),
+                isRefreshing,
+            ) { ideas, trip, itinerary, refreshing ->
+                Quadruple(ideas, trip, itinerary, refreshing)
+            }.collect { (ideas, trip, itinerary, refreshing) ->
                 if (trip != null) {
                     currencySymbol = currencySymbolFor(trip.currencyCode)
                 }
@@ -122,24 +131,36 @@ class TripIdeasViewModel @Inject constructor(
                         ideas = ideas.map { idea ->
                             idea.toUi(currencySymbol, addedDays[idea.id])
                         },
-                        dayPicker = updatedPicker
+                        dayPicker = updatedPicker,
+                        isRefreshing = refreshing,
                     )
                 }
             }
         }
     }
 
-    private fun refreshIdeas() {
+    private fun refreshIdeas(isUserRefresh: Boolean) {
         viewModelScope.launch {
-            runCatching {
+            if (isUserRefresh) {
+                isRefreshing.value = true
+            }
+            when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
                     tripRepository.getTrip(tripId)
                     ideaRepository.refreshIdeas(tripId)
                     itineraryRepository.refreshItinerary(tripId)
                 }
-            }.onFailure {
-                emit(TripIdeasEffect.ShowToastRes(R.string.common_error_message))
+            }) {
+                is ApiResult.Success -> Unit
+                is ApiResult.Failure -> emit(
+                    TripIdeasEffect.ShowToastRes(
+                        uiErrorMapper.messageRes(
+                            result
+                        )
+                        )
+                )
             }
+            isRefreshing.value = false
         }
     }
 
@@ -161,25 +182,31 @@ class TripIdeasViewModel @Inject constructor(
         val ideaId = _state.value.dayPicker?.ideaId ?: return
         _state.update { it.copy(dayPicker = null) }
         viewModelScope.launch {
-            runCatching {
+            when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
                     ideaRepository.convertIdeaToActivity(
                         ideaId,
                         ConvertIdeaRequest(dayId = day.id)
                     )
                 }
-            }.onSuccess {
-                addedDays[ideaId] = day.dayNumber
-                _state.update { current ->
-                    current.copy(
-                        ideas = current.ideas.map { idea ->
-                            if (idea.id == ideaId) idea.copy(addedDay = day.dayNumber) else idea
-                        }
-                    )
+            }) {
+                is ApiResult.Success -> {
+                    addedDays[ideaId] = day.dayNumber
+                    _state.update { current ->
+                        current.copy(
+                            ideas = current.ideas.map { idea ->
+                                if (idea.id == ideaId) idea.copy(addedDay = day.dayNumber) else idea
+                            }
+                        )
+                    }
+                    emit(TripIdeasEffect.ShowToastRes(R.string.ideas_added_to_itinerary_toast))
                 }
-                emit(TripIdeasEffect.ShowToastRes(R.string.ideas_added_to_itinerary_toast))
-            }.onFailure {
-                emit(TripIdeasEffect.ShowToastRes(R.string.common_error_message))
+
+                is ApiResult.Failure -> emit(
+                    TripIdeasEffect.ShowToastRes(
+                        uiErrorMapper.messageRes(result)
+                    )
+                )
             }
         }
     }
@@ -272,3 +299,10 @@ private fun formatCost(amount: Double, currencySymbol: String): String {
     }
     return "$currencySymbol$display"
 }
+
+private data class Quadruple<A, B, C, D>(
+    val first: A,
+    val second: B,
+    val third: C,
+    val fourth: D,
+)

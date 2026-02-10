@@ -9,6 +9,7 @@ import nvk.cotrip.data.network.dto.ConvertIdeaRequest
 import nvk.cotrip.data.network.dto.CreateActivityRequest
 import nvk.cotrip.data.network.dto.CreateIdeaRequest
 import nvk.cotrip.data.network.dto.CreateTripRequest
+import nvk.cotrip.data.network.dto.CitySuggestionDto
 import nvk.cotrip.data.network.dto.ExpenseCreateRequest
 import nvk.cotrip.data.network.dto.ExpenseDto
 import nvk.cotrip.data.network.dto.ExpenseUpdateRequest
@@ -17,6 +18,9 @@ import nvk.cotrip.data.network.dto.ItineraryDayDto
 import nvk.cotrip.data.network.dto.InviteInfoDto
 import nvk.cotrip.data.network.dto.InviteLinkDto
 import nvk.cotrip.data.network.dto.MemberDto
+import nvk.cotrip.data.network.dto.NotificationListResponse
+import nvk.cotrip.data.network.dto.NotificationSettingsResponse
+import nvk.cotrip.data.network.dto.NotificationSettingsUpdateRequest
 import nvk.cotrip.data.network.dto.TripDto
 import nvk.cotrip.data.network.dto.TransferOwnerRequest
 import nvk.cotrip.data.network.dto.TrimOutOfRangeRequest
@@ -28,8 +32,11 @@ import nvk.cotrip.data.network.dto.UpdateIdeaRequest
 import nvk.cotrip.data.network.dto.UpdateTripRequest
 import nvk.cotrip.data.network.dto.UpdateUserRequest
 import nvk.cotrip.data.network.dto.UserDto
+import nvk.cotrip.data.network.dto.PlaceSuggestionDto
 import nvk.cotrip.data.network.dto.SyncChangesRequest
 import nvk.cotrip.data.network.dto.SyncChangesResponse
+import nvk.cotrip.data.network.dto.SyncPullResponse
+import nvk.cotrip.data.network.dto.WeatherForecastResponseDto
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
@@ -172,6 +179,20 @@ interface CoTripApi {
         @Path("tripId") tripId: String,
     ): ApiListResponse<ItineraryDayDto>
 
+    @GET("v1/trips/{tripId}/cities/search")
+    suspend fun searchCities(
+        @Path("tripId") tripId: String,
+        @Query("query") query: String,
+        @Query("limit") limit: Int = 8,
+    ): ApiListResponse<CitySuggestionDto>
+
+    @GET("v1/trips/{tripId}/places/search")
+    suspend fun searchPlaces(
+        @Path("tripId") tripId: String,
+        @Query("query") query: String,
+        @Query("limit") limit: Int = 8,
+    ): ApiListResponse<PlaceSuggestionDto>
+
     @PATCH("v1/itinerary/days/{dayId}")
     suspend fun updateDay(
         @Path("dayId") dayId: String,
@@ -211,6 +232,39 @@ interface CoTripApi {
         @Body request: TrimOutOfRangeRequest,
     ): Unit
 
+    @GET("v1/trips/{tripId}/weather")
+    suspend fun getWeather(
+        @Path("tripId") tripId: String,
+        @Query("city") city: String,
+        @Query("start") start: String? = null,
+        @Query("end") end: String? = null,
+    ): WeatherForecastResponseDto
+
+    @POST("v1/trips/{tripId}/weather/refresh")
+    suspend fun refreshWeather(
+        @Path("tripId") tripId: String,
+        @Query("city") city: String,
+        @Query("start") start: String? = null,
+        @Query("end") end: String? = null,
+    ): WeatherForecastResponseDto
+
     @POST("v1/sync/changes")
     suspend fun postSyncChanges(@Body request: SyncChangesRequest): SyncChangesResponse
+
+    @GET("v1/sync/changes")
+    suspend fun getSyncChanges(@Query("since") since: String): SyncPullResponse
+
+    @GET("v1/notifications")
+    suspend fun listNotifications(): NotificationListResponse
+
+    @PATCH("v1/notifications/{id}/read")
+    suspend fun markNotificationRead(@Path("id") id: String): Unit
+
+    @GET("v1/users/me/notification-settings")
+    suspend fun getNotificationSettings(): NotificationSettingsResponse
+
+    @PATCH("v1/users/me/notification-settings")
+    suspend fun updateNotificationSettings(
+        @Body request: NotificationSettingsUpdateRequest
+    ): NotificationSettingsResponse
 }

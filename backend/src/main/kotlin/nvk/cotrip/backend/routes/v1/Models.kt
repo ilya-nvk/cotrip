@@ -74,6 +74,7 @@ data class IdeaDto(
     val authorId: String,
     val title: String,
     val city: String? = null,
+    val link: String? = null,
     val costAmount: Double? = null,
     val costType: String? = null,
     val website: String? = null,
@@ -90,7 +91,7 @@ data class ActivityDto(
     val title: String,
     val timeText: String? = null,
     val locationName: String? = null,
-    val locationLink: String? = null,
+    val link: String? = null,
     val costAmount: Double? = null,
     val costType: String? = null,
     val website: String? = null,
@@ -105,8 +106,27 @@ data class ItineraryDayDto(
     val date: String,
     val dayNumber: Int,
     val city: String? = null,
+    val cityProviderId: String? = null,
+    val cityLat: Double? = null,
+    val cityLon: Double? = null,
     val isOutOfRange: Boolean,
     val activities: List<ActivityDto> = emptyList(),
+)
+
+@Serializable
+data class CitySuggestionDto(
+    val name: String,
+    val providerId: String? = null,
+    val lat: Double,
+    val lon: Double,
+    val fullText: String,
+)
+
+@Serializable
+data class PlaceSuggestionDto(
+    val name: String,
+    val placeId: String,
+    val fullText: String,
 )
 
 @Serializable
@@ -144,6 +164,17 @@ data class WeatherForecastDto(
     val iconCode: String? = null,
     val source: String,
     val fetchedAt: String,
+)
+
+@Serializable
+data class WeatherForecastResponseDto(
+    val items: List<WeatherForecastDto> = emptyList(),
+    val nextCursor: String? = null,
+    val cacheUsed: Boolean = false,
+    val availableFrom: String? = null,
+    val availableTo: String? = null,
+    val missingDates: List<String> = emptyList(),
+    val nextRefreshAt: String? = null,
 )
 
 @Serializable

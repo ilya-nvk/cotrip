@@ -95,6 +95,24 @@ object UserRepository {
         }
     }
 
+    fun restoreUser(userId: String, name: String, photoUrl: String?): UserRow? = dbQuery { conn ->
+        conn.prepareStatement(
+            """
+            UPDATE users
+            SET name = ?, photo_url = ?, deleted_at = NULL
+            WHERE id = ?
+            RETURNING id, google_id, name, photo_url, deleted_at
+            """.trimIndent()
+        ).use { stmt ->
+            stmt.setString(1, name)
+            stmt.setString(2, photoUrl)
+            stmt.setObject(3, UUID.fromString(userId))
+            stmt.executeQuery().use { rs ->
+                if (rs.next()) mapUser(rs) else null
+            }
+        }
+    }
+
     fun softDelete(userId: String): Boolean = dbQuery { conn ->
         conn.prepareStatement(
             """

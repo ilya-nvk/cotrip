@@ -20,7 +20,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -29,7 +28,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -78,7 +76,6 @@ private fun IdeaFormScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     LaunchedEffect(viewModel) {
         viewModel.effects.collectLatest { effect ->
@@ -91,20 +88,6 @@ private fun IdeaFormScreen(
     }
 
     val isPrimaryEnabled = state.title.isNotBlank() && !state.isSaving
-
-    val cityPicker = state.cityPicker
-    if (cityPicker != null) {
-        ModalBottomSheet(
-            onDismissRequest = { viewModel.onEvent(IdeaFormEvent.OnDismissCityPicker) },
-            sheetState = sheetState,
-            containerColor = MaterialTheme.colorScheme.surface
-        ) {
-            CityPickerSheet(
-                cities = cityPicker.cities,
-                onSelect = { viewModel.onEvent(IdeaFormEvent.OnCitySelected(it)) }
-            )
-        }
-    }
 
     Scaffold(
         modifier = Modifier
@@ -190,20 +173,34 @@ private fun IdeaFormScreen(
             )
 
             FieldLabel(text = stringResource(R.string.idea_form_city_label))
-            FormTextField(
-                value = state.city,
-                onValueChange = { viewModel.onEvent(IdeaFormEvent.OnCityChange(it)) },
-                placeholder = stringResource(R.string.idea_form_city_placeholder),
-                singleLine = true,
-                readOnly = false,
-                trailingIcon = {
-                    CoTripIconButton(
-                        icon = CoTripIcons.ExpandMore,
-                        contentDescription = null,
-                        onClick = { viewModel.onEvent(IdeaFormEvent.OnCityClick) }
+            Column(verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x1)) {
+                FormTextField(
+                    value = state.city,
+                    onValueChange = { viewModel.onEvent(IdeaFormEvent.OnCityChange(it)) },
+                    placeholder = stringResource(R.string.idea_form_city_placeholder),
+                    singleLine = true,
+                )
+                if (state.isCitySearching) {
+                    Text(
+                        text = stringResource(R.string.idea_form_city_searching),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextSecondary
                     )
-                },
-                onClick = { viewModel.onEvent(IdeaFormEvent.OnCityClick) }
+                }
+                state.citySuggestions.take(6).forEach { suggestion ->
+                    CoTripListItem(
+                        title = suggestion.fullText,
+                        onClick = { viewModel.onEvent(IdeaFormEvent.OnCitySelected(suggestion)) }
+                    )
+                }
+            }
+
+            FieldLabel(text = stringResource(R.string.idea_form_link_label))
+            FormTextField(
+                value = state.link,
+                onValueChange = { viewModel.onEvent(IdeaFormEvent.OnLinkChange(it)) },
+                placeholder = stringResource(R.string.idea_form_link_placeholder),
+                singleLine = true
             )
 
             FieldLabel(text = stringResource(R.string.idea_form_cost_label))
@@ -305,35 +302,6 @@ private fun FormTextField(
             cursorColor = PrimaryBlue
         )
     )
-}
-
-@Composable
-private fun CityPickerSheet(
-    cities: List<String>,
-    onSelect: (String) -> Unit,
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(
-                horizontal = CoTripTokens.spacing.x2,
-                vertical = CoTripTokens.spacing.x2
-            ),
-        verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x2)
-    ) {
-        Text(
-            text = stringResource(R.string.idea_form_city_picker_title),
-            style = MaterialTheme.typography.headlineSmall,
-            color = TextPrimary
-        )
-
-        cities.forEach { city ->
-            CoTripListItem(
-                title = city,
-                onClick = { onSelect(city) }
-            )
-        }
-    }
 }
 
 @Composable

@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import nvk.cotrip.data.network.dto.TripDto
 import nvk.cotrip.data.repository.TripRepository
+import nvk.cotrip.data.sync.SyncPullRepository
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import java.time.LocalDate
@@ -25,6 +26,7 @@ import javax.inject.Inject
 class TripsListViewModel @Inject constructor(
     private val appNavigator: AppNavigator,
     private val tripRepository: TripRepository,
+    private val syncPullRepository: SyncPullRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<TripsListUiState>(TripsListUiState.Loading)
@@ -38,15 +40,16 @@ class TripsListViewModel @Inject constructor(
 
     init {
         observeTrips()
-        refreshTrips(isRefresh = false)
+        refreshTrips(isUserRefresh = false)
     }
 
     fun onEvent(event: TripsListEvent) {
         when (event) {
             TripsListEvent.OnSettingsClick -> appNavigator.navigate(Destination.Settings)
             TripsListEvent.OnCreateTripClick -> appNavigator.navigate(Destination.CreateTrip)
-            TripsListEvent.OnJoinTripClick -> appNavigator.navigate(Destination.JoinTrip)
-            TripsListEvent.OnRefresh -> refreshTrips(isRefresh = true)
+            TripsListEvent.OnJoinTripClick -> appNavigator.navigate(Destination.JoinTrip())
+            TripsListEvent.OnAutoRefresh -> refreshTrips(isUserRefresh = false)
+            TripsListEvent.OnUserRefresh -> refreshTrips(isUserRefresh = true)
             is TripsListEvent.OnTripClick -> appNavigator.navigate(Destination.TripDetails(event.id))
             TripsListEvent.OnTogglePast -> _state.update {
                 val current = it as? TripsListUiState.Content ?: return@update it
@@ -77,18 +80,21 @@ class TripsListViewModel @Inject constructor(
         }
     }
 
-    private fun refreshTrips(isRefresh: Boolean) {
+    private fun refreshTrips(isUserRefresh: Boolean) {
         viewModelScope.launch {
             val currentContent = _state.value as? TripsListUiState.Content
-            if (isRefresh) {
+            if (isUserRefresh) {
                 isRefreshing.value = true
             } else if (currentContent == null) {
                 _state.value = TripsListUiState.Loading
             }
 
             val result = tripRepository.refreshTrips()
+            val syncResult = syncPullRepository.pull()
             if (result.isFailure) {
                 _effects.tryEmit(TripsListEffect.ShowToast("Failed to load trips."))
+            } else if (syncResult.isFailure) {
+                _effects.tryEmit(TripsListEffect.ShowToast("Failed to sync updates."))
             }
             isRefreshing.value = false
         }

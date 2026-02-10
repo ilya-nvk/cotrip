@@ -35,6 +35,10 @@
     <!--Trip Form-->
     <string name="common_cancel">Cancel</string>
     <string name="common_error_message">Something went wrong. Try again.</string>
+    <string name="common_error_network">No internet connection. Check your network and try again.</string>
+    <string name="common_error_unauthorized">Session expired. Please sign in again.</string>
+    <string name="common_error_forbidden">You don\'t have permission for this action.</string>
+    <string name="common_error_not_found">Requested item was not found.</string>
     <string name="create_trip_title">Create trip</string>
     <string name="create_trip_primary_button">Create trip</string>
     <string name="create_trip_created_toast">Trip created</string>
@@ -101,6 +105,8 @@
     <string name="weather_forecast_disclaimer">Weather data is approximate and subject to change.</string>
     <string name="weather_forecast_source">Source: %1$s</string>
     <string name="weather_forecast_updated">Last updated: %1$s</string>
+    <string name="weather_forecast_empty">No weather data for selected dates yet.</string>
+    <string name="weather_forecast_city_missing">Choose city</string>
     <string name="weather_forecast_city_not_implemented">City selection is not implemented yet</string>
 
     <!--Out of Range Days-->
@@ -118,7 +124,8 @@
     <string name="itinerary_choose_city">Choose city</string>
     <string name="itinerary_empty_day_hint">Select a city to start planning this day</string>
     <string name="itinerary_choose_city_title">Choose city</string>
-    <string name="itinerary_choose_city_placeholder">Search or enter city name</string>
+    <string name="itinerary_choose_city_placeholder">Search city and select from suggestions</string>
+    <string name="itinerary_choose_city_searching">Searching cities...</string>
     <string name="itinerary_add_activity_not_implemented">Adding activities is not implemented yet</string>
     <string name="itinerary_reorder_start">Reorder activities</string>
     <string name="itinerary_reorder_done">Done</string>
@@ -139,6 +146,7 @@
     <string name="idea_details_tab_details">Details</string>
     <string name="idea_details_tab_discussion">Discussion</string>
     <string name="idea_details_city">City</string>
+    <string name="idea_details_link">Link</string>
     <string name="idea_details_cost">Estimated cost</string>
     <string name="idea_details_website">Website</string>
     <string name="idea_details_notes">Notes</string>
@@ -158,13 +166,15 @@
     <string name="idea_form_title_edit">Edit idea</string>
     <string name="idea_form_primary_save">Save idea</string>
     <string name="idea_form_title_label">Title *</string>
-    <string name="idea_form_city_label">City</string>
-    <string name="idea_form_city_picker_title">Choose city</string>
+    <string name="idea_form_city_label">Place</string>
+    <string name="idea_form_city_searching">Searching in trip places...</string>
+    <string name="idea_form_link_label">Link (optional)</string>
     <string name="idea_form_cost_label">Estimated cost</string>
     <string name="idea_form_website_label">Website or link</string>
     <string name="idea_form_notes_label">Notes</string>
     <string name="idea_form_title_placeholder">Enter idea title</string>
-    <string name="idea_form_city_placeholder">Choose city</string>
+    <string name="idea_form_city_placeholder">Search in trip history or enter any text</string>
+    <string name="idea_form_link_placeholder">https://</string>
     <string name="idea_form_cost_placeholder">0</string>
     <string name="idea_form_cost_per_person">Per person</string>
     <string name="idea_form_cost_total">Total</string>
@@ -204,6 +214,7 @@
     <string name="settings_name_label">Name</string>
     <string name="settings_name_hint">Used as display name in trips, discussions, expenses</string>
     <string name="settings_notifications">NOTIFICATIONS</string>
+    <string name="settings_view_notifications">View notifications</string>
     <string name="settings_danger_zone">DANGER ZONE</string>
     <string name="settings_log_out">Log out</string>
     <string name="settings_delete_profile">Delete profile</string>
@@ -211,6 +222,10 @@
     <string name="settings_delete_dialog_message">All your trips, ideas, expenses, and data will be permanently deleted.</string>
     <string name="settings_photo_changed_toast">Photo updated</string>
     <string name="settings_profile_deleted_toast">Profile deleted</string>
+
+    <!--Notifications-->
+    <string name="notifications_title">Notifications</string>
+    <string name="notifications_empty">No notifications yet</string>
 
     <!--Expenses-->
     <string name="expenses_title">Expenses</string>
@@ -274,6 +289,7 @@
     <string name="activity_details_title">Activity details</string>
     <string name="activity_details_date_time_label">DATE &amp; TIME</string>
     <string name="activity_details_location_label">LOCATION</string>
+    <string name="activity_details_link_label">LINK</string>
     <string name="activity_details_cost_label">COST</string>
     <string name="activity_details_website_label">WEBSITE</string>
     <string name="activity_details_notes_label">NOTES</string>
@@ -281,7 +297,7 @@
     <string name="activity_details_empty">—</string>
     <string name="activity_details_delete">Delete activity</string>
     <string name="activity_details_edit_not_implemented">Editing is not implemented yet</string>
-    <string name="activity_details_open_location_not_implemented">Opening location is not implemented yet</string>
+    <string name="activity_details_open_link_not_implemented">Opening link is not implemented yet</string>
     <string name="activity_details_open_website_not_implemented">Opening website is not implemented yet</string>
     <string name="activity_details_deleted_toast">Activity deleted</string>
 
@@ -294,8 +310,10 @@
     <string name="activity_form_section_time_optional">TIME (OPTIONAL)</string>
     <string name="activity_form_time_placeholder">--:-- --</string>
     <string name="activity_form_section_location_optional">LOCATION (OPTIONAL)</string>
-    <string name="activity_form_location_name_placeholder">e.g., Louvre Museum</string>
-    <string name="activity_form_location_link_placeholder">Map or location link (optional)</string>
+    <string name="activity_form_location_placeholder">Search in trip history or enter any text</string>
+    <string name="activity_form_location_searching">Searching in trip places...</string>
+    <string name="activity_form_section_link_optional">LINK (OPTIONAL)</string>
+    <string name="activity_form_link_placeholder">https://</string>
     <string name="activity_form_section_cost_optional">COST (OPTIONAL)</string>
     <string name="activity_form_cost_placeholder">e.g., 17</string>
     <string name="activity_form_cost_per_person">Per person</string>

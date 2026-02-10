@@ -5,18 +5,23 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import nvk.cotrip.data.network.ApiCaller
+import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.network.dto.ExpenseDto
 import nvk.cotrip.data.network.dto.MemberDto
 import nvk.cotrip.data.network.dto.TripDto
 import nvk.cotrip.data.repository.ExpenseRepository
 import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.data.repository.UserRepository
+import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import nvk.cotrip.ui.trip.form.TripCurrency
@@ -31,6 +36,8 @@ class TripExpensesViewModel @Inject constructor(
     private val tripRepository: TripRepository,
     private val expenseRepository: ExpenseRepository,
     private val userRepository: UserRepository,
+    private val apiCaller: ApiCaller,
+    private val uiErrorMapper: UiErrorMapper,
 ) : ViewModel() {
 
     private val tripId: String =
@@ -46,23 +53,28 @@ class TripExpensesViewModel @Inject constructor(
                 totalPlanned = "€0"
             ),
             spent = emptyList(),
-            planned = emptyList()
+            planned = emptyList(),
+            isRefreshing = false,
         )
     )
     val state = _state.asStateFlow()
+
+    private val _effects = MutableSharedFlow<TripExpensesEffect>()
+    val effects = _effects.asSharedFlow()
 
     private val membersState = MutableStateFlow<List<MemberDto>>(emptyList())
     private val meIdState = MutableStateFlow<String?>(null)
 
     init {
         observeData()
-        refreshExpenses()
+        refreshExpenses(isUserRefresh = false)
     }
 
     fun onEvent(event: TripExpensesEvent) {
         when (event) {
             TripExpensesEvent.OnBackClick -> appNavigator.popBackStack()
-            TripExpensesEvent.OnRefresh -> refreshExpenses()
+            TripExpensesEvent.OnAutoRefresh -> refreshExpenses(isUserRefresh = false)
+            TripExpensesEvent.OnUserRefresh -> refreshExpenses(isUserRefresh = true)
             TripExpensesEvent.OnAddExpenseClick -> appNavigator.navigate(
                 Destination.CreateExpense(tripId)
             )
@@ -155,9 +167,12 @@ class TripExpensesViewModel @Inject constructor(
         }
     }
 
-    private fun refreshExpenses() {
+    private fun refreshExpenses(isUserRefresh: Boolean) {
         viewModelScope.launch {
-            runCatching {
+            if (isUserRefresh) {
+                _state.update { it.copy(isRefreshing = true) }
+            }
+            when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
                     tripRepository.getTrip(tripId)
                     expenseRepository.refreshExpenses(tripId)
@@ -166,7 +181,13 @@ class TripExpensesViewModel @Inject constructor(
                     membersState.value = members
                     meIdState.value = me.id
                 }
+            }) {
+                is ApiResult.Success -> Unit
+                is ApiResult.Failure -> {
+                    _effects.emit(TripExpensesEffect.ShowToastRes(uiErrorMapper.messageRes(result)))
+                }
             }
+            _state.update { it.copy(isRefreshing = false) }
         }
     }
 

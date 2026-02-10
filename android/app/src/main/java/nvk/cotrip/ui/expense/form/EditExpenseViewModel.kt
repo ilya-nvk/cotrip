@@ -13,12 +13,15 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nvk.cotrip.R
+import nvk.cotrip.data.network.ApiCaller
+import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.network.dto.ExpenseDto
 import nvk.cotrip.data.network.dto.ExpenseParticipantInput
 import nvk.cotrip.data.network.dto.ExpenseUpdateRequest
 import nvk.cotrip.data.network.dto.MemberDto
 import nvk.cotrip.data.repository.ExpenseRepository
 import nvk.cotrip.data.repository.TripRepository
+import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import nvk.cotrip.ui.trip.form.TripCurrency
@@ -33,6 +36,8 @@ class EditExpenseViewModel @Inject constructor(
     private val appNavigator: AppNavigator,
     private val tripRepository: TripRepository,
     private val expenseRepository: ExpenseRepository,
+    private val apiCaller: ApiCaller,
+    private val uiErrorMapper: UiErrorMapper,
 ) : ViewModel(), ExpenseFormContract {
 
     private val tripId: String =
@@ -116,7 +121,7 @@ class EditExpenseViewModel @Inject constructor(
 
     private fun loadExpense() {
         viewModelScope.launch {
-            runCatching {
+            when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
                     val expense = expenseRepository.getExpense(expenseId)
                     val trip = tripRepository.getTrip(tripId)
@@ -127,37 +132,43 @@ class EditExpenseViewModel @Inject constructor(
                         currencyCode = trip.currencyCode
                     )
                 }
-            }.onSuccess { payload ->
-                members = payload.members
-                currencyCode = payload.currencyCode
-                val expense = payload.expense
-                selectedDate = expense.date?.let { LocalDate.parse(it) }
-                val participants = payload.members.map { member ->
-                    val participant =
-                        expense.participants.firstOrNull { it.userId == member.userId }
-                    ExpenseParticipantUi(
-                        id = member.userId,
-                        initials = member.initials,
-                        name = member.name,
-                        isSelected = participant?.isIncluded ?: false,
-                        customAmount = participant?.shareAmount?.let { formatAmount(it) }.orEmpty()
-                    )
+            }) {
+                is ApiResult.Success -> {
+                    val payload = result.data
+                    members = payload.members
+                    currencyCode = payload.currencyCode
+                    val expense = payload.expense
+                    selectedDate = expense.date?.let { LocalDate.parse(it) }
+                    val participants = payload.members.map { member ->
+                        val participant =
+                            expense.participants.firstOrNull { it.userId == member.userId }
+                        ExpenseParticipantUi(
+                            id = member.userId,
+                            initials = member.initials,
+                            name = member.name,
+                            isSelected = participant?.isIncluded ?: false,
+                            customAmount = participant?.shareAmount?.let { formatAmount(it) }
+                                .orEmpty()
+                        )
+                    }
+                    _state.update {
+                        it.copy(
+                            title = expense.title,
+                            amount = formatAmount(expense.amount),
+                            currencySymbol = currencySymbolFor(payload.currencyCode),
+                            status = expense.status.toFormStatus(),
+                            paidById = expense.paidById,
+                            dateText = selectedDate?.let { date -> formatDate(date) }.orEmpty(),
+                            participants = participants,
+                            splitType = expense.splitType.toFormSplitType(),
+                            note = expense.note.orEmpty()
+                        )
+                    }
                 }
-                _state.update {
-                    it.copy(
-                        title = expense.title,
-                        amount = formatAmount(expense.amount),
-                        currencySymbol = currencySymbolFor(payload.currencyCode),
-                        status = expense.status.toFormStatus(),
-                        paidById = expense.paidById,
-                        dateText = selectedDate?.let { date -> formatDate(date) }.orEmpty(),
-                        participants = participants,
-                        splitType = expense.splitType.toFormSplitType(),
-                        note = expense.note.orEmpty()
-                    )
+
+                is ApiResult.Failure -> {
+                    emit(ExpenseFormEffect.ShowToastRes(uiErrorMapper.messageRes(result)))
                 }
-            }.onFailure {
-                emit(ExpenseFormEffect.ShowToastRes(R.string.common_error_message))
             }
         }
     }
@@ -196,7 +207,7 @@ class EditExpenseViewModel @Inject constructor(
         }
         _state.update { it.copy(isSaving = true) }
         viewModelScope.launch {
-            runCatching {
+            when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
                     expenseRepository.updateExpense(
                         expenseId = expenseId,
@@ -212,25 +223,33 @@ class EditExpenseViewModel @Inject constructor(
                         )
                     )
                 }
-            }.onSuccess {
-                emit(ExpenseFormEffect.ShowToastRes(R.string.expense_form_saved_toast))
-                appNavigator.popBackStack()
-            }.onFailure {
-                emit(ExpenseFormEffect.ShowToastRes(R.string.common_error_message))
-                _state.update { it.copy(isSaving = false) }
+            }) {
+                is ApiResult.Success -> {
+                    emit(ExpenseFormEffect.ShowToastRes(R.string.expense_form_saved_toast))
+                    appNavigator.popBackStack()
+                }
+
+                is ApiResult.Failure -> {
+                    emit(ExpenseFormEffect.ShowToastRes(uiErrorMapper.messageRes(result)))
+                    _state.update { it.copy(isSaving = false) }
+                }
             }
         }
     }
 
     private fun deleteExpense() {
         viewModelScope.launch {
-            runCatching {
+            when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) { expenseRepository.deleteExpense(expenseId) }
-            }.onSuccess {
-                emit(ExpenseFormEffect.ShowToastRes(R.string.expense_form_deleted_toast))
-                appNavigator.popBackStack()
-            }.onFailure {
-                emit(ExpenseFormEffect.ShowToastRes(R.string.common_error_message))
+            }) {
+                is ApiResult.Success -> {
+                    emit(ExpenseFormEffect.ShowToastRes(R.string.expense_form_deleted_toast))
+                    appNavigator.popBackStack()
+                }
+
+                is ApiResult.Failure -> {
+                    emit(ExpenseFormEffect.ShowToastRes(uiErrorMapper.messageRes(result)))
+                }
             }
         }
     }

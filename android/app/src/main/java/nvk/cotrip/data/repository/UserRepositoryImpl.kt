@@ -10,6 +10,7 @@ import nvk.cotrip.data.cache.UserCacheStore
 import nvk.cotrip.data.network.CoTripApi
 import nvk.cotrip.data.network.dto.UpdateUserRequest
 import nvk.cotrip.data.network.dto.UserDto
+import nvk.cotrip.data.sync.SyncStateStore
 import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 
@@ -21,6 +22,7 @@ class UserRepositoryImpl @Inject constructor(
     private val ideasCacheStore: IdeasCacheStore,
     private val expensesCacheStore: ExpensesCacheStore,
     private val itineraryCacheStore: ItineraryCacheStore,
+    private val syncStateStore: SyncStateStore,
 ) : UserRepository {
 
     override val me: Flow<UserDto?> = userCacheStore.user
@@ -62,5 +64,6 @@ class UserRepositoryImpl @Inject constructor(
         ideasCacheStore.clearAll()
         expensesCacheStore.clearAll()
         itineraryCacheStore.clearAll()
+        syncStateStore.clear()
     }
 }

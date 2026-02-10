@@ -28,6 +28,20 @@
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:scheme="https"
+                    android:host="api.cotrip.site"
+                    android:pathPrefix="/invite" />
+                <data
+                    android:scheme="http"
+                    android:host="api.cotrip.site"
+                    android:pathPrefix="/invite" />
+            </intent-filter>
         </activity>
     </application>
 

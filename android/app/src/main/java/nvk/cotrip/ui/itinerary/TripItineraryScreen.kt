@@ -22,6 +22,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -75,7 +79,7 @@ import nvk.cotrip.ui.theme.TextSecondary
 private const val KEY_HEADER = "header"
 private const val KEY_BOTTOM_SPACER = "bottom_spacer"
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
 @Composable
 fun TripItineraryScreen(
     viewModel: TripItineraryViewModel = hiltViewModel(),
@@ -88,7 +92,7 @@ fun TripItineraryScreen(
     DisposableEffect(lifecycleOwner, viewModel) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                viewModel.onEvent(TripItineraryEvent.OnRefresh)
+                viewModel.onEvent(TripItineraryEvent.OnAutoRefresh)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -114,7 +118,8 @@ fun TripItineraryScreen(
         ) {
             CityPickerSheet(
                 query = currentState.query,
-                cities = currentState.filteredCities,
+                cities = currentState.suggestions,
+                isSearching = currentState.isSearching,
                 onQueryChange = { viewModel.onEvent(TripItineraryEvent.OnCityQueryChange(it)) },
                 onSelect = { viewModel.onEvent(TripItineraryEvent.OnCitySelected(it)) }
             )
@@ -177,71 +182,85 @@ fun TripItineraryScreen(
             }
         }
     ) { padding ->
-        LazyColumn(
+        val pullRefreshState = rememberPullRefreshState(
+            refreshing = state.isRefreshing,
+            onRefresh = { viewModel.onEvent(TripItineraryEvent.OnUserRefresh) }
+        )
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding),
-            contentPadding = PaddingValues(
-                horizontal = CoTripTokens.spacing.x2,
-                vertical = CoTripTokens.spacing.x2
-            ),
-            verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x2)
+                .padding(padding)
+                .pullRefresh(pullRefreshState)
         ) {
-            item(key = KEY_HEADER) {
-                Spacer(Modifier.height(0.dp))
-            }
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(
+                    horizontal = CoTripTokens.spacing.x2,
+                    vertical = CoTripTokens.spacing.x2
+                ),
+                verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x2)
+            ) {
+                item(key = KEY_HEADER) {
+                    Spacer(Modifier.height(0.dp))
+                }
 
-            when (state.mode) {
-                ItineraryMode.Filled -> {
-                    items(state.days, key = { it.id }) { day ->
-                        FilledDaySection(
-                            day = day,
-                            isReordering = state.isReordering,
-                            onChooseCity = {
-                                viewModel.onEvent(
-                                    TripItineraryEvent.OnChooseCityClick(day.id)
-                                )
-                            },
-                            onActivityClick = {
-                                viewModel.onEvent(
-                                    TripItineraryEvent.OnActivityClick(it)
-                                )
-                            },
-                            onReorderMove = { fromIndex, toIndex ->
-                                viewModel.onEvent(
-                                    TripItineraryEvent.OnReorderMove(
-                                        dayId = day.id,
-                                        fromIndex = fromIndex,
-                                        toIndex = toIndex
+                when (state.mode) {
+                    ItineraryMode.Filled -> {
+                        items(state.days, key = { it.id }) { day ->
+                            FilledDaySection(
+                                day = day,
+                                isReordering = state.isReordering,
+                                onChooseCity = {
+                                    viewModel.onEvent(
+                                        TripItineraryEvent.OnChooseCityClick(day.id)
                                     )
-                                )
-                            },
-                            onReorderCommit = {
-                                viewModel.onEvent(TripItineraryEvent.OnReorderCommit(day.id))
-                            },
-                        )
+                                },
+                                onActivityClick = {
+                                    viewModel.onEvent(
+                                        TripItineraryEvent.OnActivityClick(it)
+                                    )
+                                },
+                                onReorderMove = { fromIndex, toIndex ->
+                                    viewModel.onEvent(
+                                        TripItineraryEvent.OnReorderMove(
+                                            dayId = day.id,
+                                            fromIndex = fromIndex,
+                                            toIndex = toIndex
+                                        )
+                                    )
+                                },
+                                onReorderCommit = {
+                                    viewModel.onEvent(TripItineraryEvent.OnReorderCommit(day.id))
+                                },
+                            )
+                        }
+                    }
+
+                    ItineraryMode.Empty -> {
+                        items(state.days, key = { it.id }) { day ->
+                            EmptyDayCard(
+                                day = day,
+                                onChooseCity = {
+                                    viewModel.onEvent(
+                                        TripItineraryEvent.OnChooseCityClick(
+                                            dayId = day.id
+                                        )
+                                    )
+                                }
+                            )
+                        }
                     }
                 }
 
-                ItineraryMode.Empty -> {
-                    items(state.days, key = { it.id }) { day ->
-                        EmptyDayCard(
-                            day = day,
-                            onChooseCity = {
-                                viewModel.onEvent(
-                                    TripItineraryEvent.OnChooseCityClick(
-                                        dayId = day.id
-                                    )
-                                )
-                            }
-                        )
-                    }
+                item(key = KEY_BOTTOM_SPACER) {
+                    Spacer(Modifier.height(96.dp))
                 }
             }
-
-            item(key = KEY_BOTTOM_SPACER) {
-                Spacer(Modifier.height(96.dp))
-            }
+            PullRefreshIndicator(
+                refreshing = state.isRefreshing,
+                state = pullRefreshState,
+                modifier = Modifier.align(Alignment.TopCenter)
+            )
         }
     }
 }
@@ -530,9 +549,10 @@ private fun Divider() {
 @Composable
 private fun CityPickerSheet(
     query: String,
-    cities: List<String>,
+    cities: List<CitySuggestionUi>,
+    isSearching: Boolean,
     onQueryChange: (String) -> Unit,
-    onSelect: (String) -> Unit,
+    onSelect: (CitySuggestionUi) -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -556,6 +576,14 @@ private fun CityPickerSheet(
             modifier = Modifier.fillMaxWidth()
         )
 
+        if (isSearching) {
+            Text(
+                text = stringResource(R.string.itinerary_choose_city_searching),
+                style = MaterialTheme.typography.bodySmall,
+                color = TextSecondary
+            )
+        }
+
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
@@ -563,9 +591,9 @@ private fun CityPickerSheet(
             contentPadding = PaddingValues(vertical = CoTripTokens.spacing.x1),
             verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x0_5)
         ) {
-            items(cities, key = { it }) { city ->
+            items(cities, key = { it.providerId ?: "${it.name}:${it.lat}:${it.lon}" }) { city ->
                 CoTripListItem(
-                    title = city,
+                    title = city.fullText ?: city.name,
                     onClick = { onSelect(city) }
                 )
             }

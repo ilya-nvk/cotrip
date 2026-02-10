@@ -2,6 +2,8 @@ package nvk.cotrip.ui.trip.details
 
 sealed interface TripDetailsEvent {
     data object OnBackClick : TripDetailsEvent
+    data object OnAutoRefresh : TripDetailsEvent
+    data object OnUserRefresh : TripDetailsEvent
     data object OnEditClick : TripDetailsEvent
     data object OnInviteTravelersClick : TripDetailsEvent
     data object OnMembersClick : TripDetailsEvent

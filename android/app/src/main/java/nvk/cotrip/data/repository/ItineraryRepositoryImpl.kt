@@ -13,6 +13,8 @@ import nvk.cotrip.data.network.dto.ReorderActivitiesRequest
 import nvk.cotrip.data.network.dto.TrimOutOfRangeRequest
 import nvk.cotrip.data.network.dto.UpdateActivityRequest
 import nvk.cotrip.data.network.dto.UpdateDayRequest
+import nvk.cotrip.data.network.dto.CitySuggestionDto
+import nvk.cotrip.data.network.dto.PlaceSuggestionDto
 import nvk.cotrip.data.sync.SyncEntities
 import nvk.cotrip.data.sync.SyncQueueRepository
 
@@ -37,13 +39,32 @@ class ItineraryRepositoryImpl @Inject constructor(
         return itinerary
     }
 
+    override suspend fun searchCities(tripId: String, query: String, limit: Int): List<CitySuggestionDto> {
+        return api.searchCities(tripId = tripId, query = query, limit = limit).items
+    }
+
+    override suspend fun searchPlaces(tripId: String, query: String, limit: Int): List<PlaceSuggestionDto> {
+        return api.searchPlaces(tripId = tripId, query = query, limit = limit).items
+    }
+
     override suspend fun updateDay(dayId: String, request: UpdateDayRequest) {
         try {
             api.updateDay(dayId, request)
             val tripId = findTripIdForDay(dayId)
             if (tripId != null) {
                 itineraryCacheStore.updateItinerary(tripId) { days ->
-                    days.map { day -> if (day.id == dayId) day.copy(city = request.city) else day }
+                    days.map { day ->
+                        if (day.id == dayId) {
+                            day.copy(
+                                city = request.city,
+                                cityProviderId = request.cityProviderId,
+                                cityLat = request.cityLat,
+                                cityLon = request.cityLon,
+                            )
+                        } else {
+                            day
+                        }
+                    }
                 }
             }
         } catch (e: IOException) {

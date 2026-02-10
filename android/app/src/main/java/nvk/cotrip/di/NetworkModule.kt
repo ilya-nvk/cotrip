@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
+import androidx.room.Room
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -23,7 +24,7 @@ import nvk.cotrip.data.sync.CoTripDatabase
 import okhttp3.Cache
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
-import androidx.room.Room
+import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import java.io.File
 import java.util.concurrent.TimeUnit
@@ -82,10 +83,19 @@ object NetworkModule {
         httpCache: Cache,
         networkStateProvider: NetworkStateProvider,
     ): OkHttpClient {
+        val loggingInterceptor = HttpLoggingInterceptor().apply {
+            level = if (BuildConfig.DEBUG) {
+                HttpLoggingInterceptor.Level.BODY
+            } else {
+                HttpLoggingInterceptor.Level.NONE
+            }
+            redactHeader("Authorization")
+        }
         return OkHttpClient.Builder()
             .addInterceptor(AuthInterceptor(sessionStore))
             .addInterceptor(OfflineCacheInterceptor(networkStateProvider))
             .addNetworkInterceptor(CacheControlInterceptor())
+            .addInterceptor(loggingInterceptor)
             .cache(httpCache)
             .connectTimeout(20, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)

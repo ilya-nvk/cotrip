@@ -16,6 +16,8 @@ import nvk.cotrip.R
 import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.network.dto.UpdateUserRequest
+import nvk.cotrip.data.network.dto.NotificationSettingDto
+import nvk.cotrip.data.repository.NotificationRepository
 import nvk.cotrip.data.repository.UserRepository
 import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.navigation.AppNavigator
@@ -25,6 +27,7 @@ import nvk.cotrip.ui.navigation.Destination
 class SettingsViewModel @Inject constructor(
     private val appNavigator: AppNavigator,
     private val userRepository: UserRepository,
+    private val notificationRepository: NotificationRepository,
     private val apiCaller: ApiCaller,
     private val uiErrorMapper: UiErrorMapper,
 ) : ViewModel() {
@@ -103,6 +106,7 @@ class SettingsViewModel @Inject constructor(
 
     init {
         loadProfile()
+        loadNotificationSettings()
     }
 
     fun onEvent(event: SettingsEvent) {
@@ -131,7 +135,7 @@ class SettingsViewModel @Inject constructor(
             }
 
             is SettingsEvent.OnToggleNotifications -> _state.update { current ->
-                current.copy(
+                val updated = current.copy(
                     notificationSections = current.notificationSections.map { section ->
                         section.copy(
                             items = section.items.map { item ->
@@ -140,7 +144,11 @@ class SettingsViewModel @Inject constructor(
                         )
                     }
                 )
+                updateNotificationSettings(previous = current, updated = updated)
+                updated
             }
+
+            SettingsEvent.OnNotificationsClick -> appNavigator.navigate(Destination.Notifications)
 
             SettingsEvent.OnLogoutClick -> {
                 userRepository.clearSession()
@@ -177,6 +185,56 @@ class SettingsViewModel @Inject constructor(
                 }
                 is ApiResult.Failure -> {
                     _state.update { it.copy(isLoading = false) }
+                    emit(SettingsEffect.ShowToastRes(uiErrorMapper.messageRes(result)))
+                }
+            }
+        }
+    }
+
+    private fun loadNotificationSettings() {
+        viewModelScope.launch {
+            when (val result = apiCaller.call {
+                withContext(Dispatchers.IO) { notificationRepository.listSettings() }
+            }) {
+                is ApiResult.Success -> applyNotificationSettings(result.data)
+                is ApiResult.Failure ->
+                    emit(SettingsEffect.ShowToastRes(uiErrorMapper.messageRes(result)))
+            }
+        }
+    }
+
+    private fun applyNotificationSettings(settings: List<NotificationSettingDto>) {
+        val byKey = settings.associateBy { it.key }
+        _state.update { current ->
+            current.copy(
+                notificationSections = current.notificationSections.map { section ->
+                    section.copy(
+                        items = section.items.map { item ->
+                            val serverItem = byKey[item.key]
+                            if (serverItem != null) item.copy(enabled = serverItem.enabled) else item
+                        }
+                    )
+                }
+            )
+        }
+    }
+
+    private fun updateNotificationSettings(
+        previous: SettingsState,
+        updated: SettingsState,
+    ) {
+        viewModelScope.launch {
+            val payload = updated.notificationSections.flatMap { section ->
+                section.items.map { item ->
+                    NotificationSettingDto(key = item.key, enabled = item.enabled)
+                }
+            }
+            when (val result = apiCaller.call {
+                withContext(Dispatchers.IO) { notificationRepository.updateSettings(payload) }
+            }) {
+                is ApiResult.Success -> applyNotificationSettings(result.data)
+                is ApiResult.Failure -> {
+                    _state.value = previous
                     emit(SettingsEffect.ShowToastRes(uiErrorMapper.messageRes(result)))
                 }
             }

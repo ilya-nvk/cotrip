@@ -25,8 +25,19 @@ fun loadConfig(config: ApplicationConfig): AppConfig {
     )
 
     val invite = InviteConfig(
-        baseUrl = config.propertyOrNull("ktor.invite.baseUrl")?.getString()
+        baseUrl = System.getenv("INVITE_BASE_URL")
+            ?: config.propertyOrNull("ktor.invite.baseUrl")?.getString()
             ?: "http://localhost:8080/invite",
+    )
+
+    val weather = WeatherConfig(
+        openWeatherApiKey = System.getenv("OPENWEATHER_API_KEY")
+            ?: config.propertyOrNull("ktor.weather.openWeatherApiKey")?.getString(),
+        refreshTtlHours = (
+            System.getenv("WEATHER_REFRESH_TTL_HOURS")?.toIntOrNull()
+                ?: config.propertyOrNull("ktor.weather.refreshTtlHours")?.getString()?.toIntOrNull()
+                ?: 8
+            ).coerceIn(1, 48),
     )
 
     val devAuthEnabled = System.getenv("DEV_AUTH_ENABLED")
@@ -36,5 +47,11 @@ fun loadConfig(config: ApplicationConfig): AppConfig {
             ?.toBooleanStrictOrNull()
         ?: false
 
-    return AppConfig(jwt = jwt, db = db, invite = invite, devAuthEnabled = devAuthEnabled)
+    return AppConfig(
+        jwt = jwt,
+        db = db,
+        invite = invite,
+        weather = weather,
+        devAuthEnabled = devAuthEnabled
+    )
 }

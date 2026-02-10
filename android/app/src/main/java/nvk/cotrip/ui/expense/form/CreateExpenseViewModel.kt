@@ -13,12 +13,15 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nvk.cotrip.R
+import nvk.cotrip.data.network.ApiCaller
+import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.network.dto.ExpenseCreateRequest
 import nvk.cotrip.data.network.dto.ExpenseParticipantInput
 import nvk.cotrip.data.network.dto.MemberDto
 import nvk.cotrip.data.repository.ExpenseRepository
 import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.data.repository.UserRepository
+import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import nvk.cotrip.ui.trip.form.TripCurrency
@@ -34,6 +37,8 @@ class CreateExpenseViewModel @Inject constructor(
     private val tripRepository: TripRepository,
     private val expenseRepository: ExpenseRepository,
     private val userRepository: UserRepository,
+    private val apiCaller: ApiCaller,
+    private val uiErrorMapper: UiErrorMapper,
 ) : ViewModel(), ExpenseFormContract {
 
     private val tripId: String =
@@ -116,7 +121,7 @@ class CreateExpenseViewModel @Inject constructor(
 
     private fun loadMembers() {
         viewModelScope.launch {
-            runCatching {
+            when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
                     val trip = tripRepository.getTrip(tripId)
                     val members = tripRepository.listMembers(tripId)
@@ -127,30 +132,35 @@ class CreateExpenseViewModel @Inject constructor(
                         meId = me.id
                     )
                 }
-            }.onSuccess { payload ->
-                members = payload.members
-                currencyCode = payload.currencyCode
-                meId = payload.meId
-                val participants = payload.members.map { member ->
-                    ExpenseParticipantUi(
-                        id = member.userId,
-                        initials = member.initials,
-                        name = member.name,
-                        isSelected = true,
-                        customAmount = ""
-                    )
+            }) {
+                is ApiResult.Success -> {
+                    val payload = result.data
+                    members = payload.members
+                    currencyCode = payload.currencyCode
+                    meId = payload.meId
+                    val participants = payload.members.map { member ->
+                        ExpenseParticipantUi(
+                            id = member.userId,
+                            initials = member.initials,
+                            name = member.name,
+                            isSelected = true,
+                            customAmount = ""
+                        )
+                    }
+                    val dateText = selectedDate?.let { formatDate(it) }.orEmpty()
+                    _state.update {
+                        it.copy(
+                            currencySymbol = currencySymbolFor(payload.currencyCode),
+                            paidById = payload.meId,
+                            dateText = dateText,
+                            participants = participants
+                        )
+                    }
                 }
-                val dateText = selectedDate?.let { formatDate(it) }.orEmpty()
-                _state.update {
-                    it.copy(
-                        currencySymbol = currencySymbolFor(payload.currencyCode),
-                        paidById = payload.meId,
-                        dateText = dateText,
-                        participants = participants
-                    )
+
+                is ApiResult.Failure -> {
+                    emit(ExpenseFormEffect.ShowToastRes(uiErrorMapper.messageRes(result)))
                 }
-            }.onFailure {
-                emit(ExpenseFormEffect.ShowToastRes(R.string.common_error_message))
             }
         }
     }
@@ -194,7 +204,7 @@ class CreateExpenseViewModel @Inject constructor(
         }
         _state.update { it.copy(isSaving = true) }
         viewModelScope.launch {
-            runCatching {
+            when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
                     expenseRepository.createExpense(
                         tripId = tripId,
@@ -211,12 +221,16 @@ class CreateExpenseViewModel @Inject constructor(
                         )
                     )
                 }
-            }.onSuccess {
-                emit(ExpenseFormEffect.ShowToastRes(R.string.expense_form_created_toast))
-                appNavigator.popBackStack()
-            }.onFailure {
-                emit(ExpenseFormEffect.ShowToastRes(R.string.common_error_message))
-                _state.update { it.copy(isSaving = false) }
+            }) {
+                is ApiResult.Success -> {
+                    emit(ExpenseFormEffect.ShowToastRes(R.string.expense_form_created_toast))
+                    appNavigator.popBackStack()
+                }
+
+                is ApiResult.Failure -> {
+                    emit(ExpenseFormEffect.ShowToastRes(uiErrorMapper.messageRes(result)))
+                    _state.update { it.copy(isSaving = false) }
+                }
             }
         }
     }

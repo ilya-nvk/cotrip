@@ -73,6 +73,7 @@ Error response:
   "authorId": "uuid",
   "title": "string",
   "city": "string|null",
+  "link": "string|null",
   "costAmount": 123.45,
   "costType": "per_person|total|null",
   "website": "string|null",
@@ -89,7 +90,7 @@ Error response:
   "title": "string",
   "timeText": "string|null",
   "locationName": "string|null",
-  "locationLink": "string|null",
+  "link": "string|null",
   "costAmount": 50.0,
   "costType": "per_person|total|null",
   "website": "string|null",
@@ -206,9 +207,21 @@ Response:
 
 `POST /v1/trips/{tripId}/ideas`
 
+Request (key fields):
+
+```json
+{ "title": "string", "city": "string|null", "link": "string|null", "costAmount": 0.0, "costType": "per_person|total|null", "website": "string|null", "notes": "string|null" }
+```
+
 `GET /v1/ideas/{ideaId}`
 
 `PATCH /v1/ideas/{ideaId}`
+
+Request (partial update):
+
+```json
+{ "title": "string|null", "city": "string|null", "link": "string|null", "costAmount": 0.0, "costType": "per_person|total|null", "website": "string|null", "notes": "string|null" }
+```
 
 `DELETE /v1/ideas/{ideaId}`
 
@@ -258,12 +271,32 @@ Delete message:
 
 `GET /v1/trips/{tripId}/itinerary`
 
+`GET /v1/trips/{tripId}/cities/search?query=&limit=`
+
+Search source: OpenWeather Geocoding API.
+
+Response item:
+
+```json
+{ "name": "Paris", "providerId": "owm:48.8566:2.3522", "lat": 48.8566, "lon": 2.3522, "fullText": "Paris, FR" }
+```
+
+`GET /v1/trips/{tripId}/places/search?query=&limit=`
+
+Search source: existing trip data (activities, ideas, cities). No external maps provider required.
+
+Response item:
+
+```json
+{ "name": "Louvre Museum", "placeId": "local:louvre-museum:8f10f0", "fullText": "Louvre Museum" }
+```
+
 `PATCH /v1/itinerary/days/{dayId}`
 
 Request:
 
 ```json
-{ "city": "string|null" }
+{ "city": "string|null", "cityProviderId": "string|null", "cityLat": 48.8566, "cityLon": 2.3522 }
 ```
 
 `POST /v1/itinerary/days/{dayId}/activities`
@@ -307,6 +340,37 @@ Server stores only raw expenses and splits. Balances are computed on the client.
 `GET /v1/trips/{tripId}/weather?city=&start=&end=`
 
 `POST /v1/trips/{tripId}/weather/refresh`
+
+Response:
+
+```json
+{
+  "items": [
+    {
+      "id": "uuid",
+      "tripId": "uuid",
+      "city": "Paris",
+      "date": "2026-02-10",
+      "tempMin": 4.0,
+      "tempMax": 9.0,
+      "description": "light rain",
+      "iconCode": "10d",
+      "source": "openweather",
+      "fetchedAt": "2026-02-10T12:00:00Z"
+    }
+  ],
+  "nextCursor": null,
+  "cacheUsed": true,
+  "availableFrom": "2026-02-10",
+  "availableTo": "2026-02-17",
+  "missingDates": ["2026-02-18"],
+  "nextRefreshAt": "2026-02-10T20:00:00Z"
+}
+```
+
+Notes:
+- Weather refresh is cached on server and limited to one external fetch per city per trip every 8 hours.
+- `missingDates` includes dates that are outside provider window (OpenWeather daily forecast is up to 8 upcoming days) or still missing in cache.
 
 ## AI (Alice AI)
 

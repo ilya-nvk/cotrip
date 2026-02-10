@@ -1,5 +1,6 @@
 package nvk.cotrip.ui.invitation
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -22,6 +23,7 @@ import nvk.cotrip.ui.navigation.Destination
 
 @HiltViewModel
 class JoinTripViewModel @Inject constructor(
+    savedStateHandle: SavedStateHandle,
     private val appNavigator: AppNavigator,
     private val inviteRepository: InviteRepository,
     private val apiCaller: ApiCaller,
@@ -34,6 +36,17 @@ class JoinTripViewModel @Inject constructor(
     private val _effects = MutableSharedFlow<JoinTripEffect>()
     val effects = _effects.asSharedFlow()
 
+    private val deepLinkToken: String? =
+        savedStateHandle[Destination.JoinTrip.ARG_INVITE_TOKEN]
+
+    init {
+        val token = deepLinkToken?.trim()?.takeIf { it.isNotBlank() }
+        if (token != null) {
+            _state.update { it.copy(inviteInput = token) }
+            joinTrip(tokenOverride = token)
+        }
+    }
+
     fun onEvent(event: JoinTripEvent) {
         when (event) {
             JoinTripEvent.OnBackClick -> appNavigator.popBackStack()
@@ -42,8 +55,8 @@ class JoinTripViewModel @Inject constructor(
         }
     }
 
-    private fun joinTrip() {
-        val token = parseToken(_state.value.inviteInput)
+    private fun joinTrip(tokenOverride: String? = null) {
+        val token = tokenOverride ?: parseToken(_state.value.inviteInput)
         if (token.isNullOrBlank()) {
             emit(JoinTripEffect.ShowToastRes(R.string.join_trip_invalid))
             return

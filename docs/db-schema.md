@@ -74,6 +74,7 @@ CREATE TABLE ideas (
   author_id uuid NOT NULL REFERENCES users(id),
   title text NOT NULL,
   city text,
+  link text,
   cost_amount numeric,
   cost_type text CHECK (cost_type IN ('per_person', 'total')),
   website text,
@@ -106,6 +107,9 @@ CREATE TABLE itinerary_days (
   date date NOT NULL,
   day_number int NOT NULL,
   city text,
+  city_provider_id text,
+  city_lat double precision,
+  city_lon double precision,
   is_out_of_range boolean NOT NULL DEFAULT false,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
@@ -121,7 +125,7 @@ CREATE TABLE activities (
   title text NOT NULL,
   time_text text,
   location_name text,
-  location_link text,
+  link text,
   cost_amount numeric,
   cost_type text CHECK (cost_type IN ('per_person', 'total')),
   website text,
@@ -246,4 +250,3 @@ CREATE TABLE notification_settings (
 
 - Every mutable entity includes `updated_at` and optional `deleted_at`.
 - Soft deletion is required for sync.
-

@@ -25,10 +25,14 @@ import nvk.cotrip.data.repository.InviteRepository
 import nvk.cotrip.data.repository.InviteRepositoryImpl
 import nvk.cotrip.data.repository.ItineraryRepository
 import nvk.cotrip.data.repository.ItineraryRepositoryImpl
+import nvk.cotrip.data.repository.NotificationRepository
+import nvk.cotrip.data.repository.NotificationRepositoryImpl
 import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.data.repository.TripRepositoryImpl
 import nvk.cotrip.data.repository.UserRepository
 import nvk.cotrip.data.repository.UserRepositoryImpl
+import nvk.cotrip.data.repository.WeatherRepository
+import nvk.cotrip.data.repository.WeatherRepositoryImpl
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -104,4 +108,16 @@ abstract class RepositoryModule {
     abstract fun bindExpenseRepository(
         impl: ExpenseRepositoryImpl
     ): ExpenseRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindNotificationRepository(
+        impl: NotificationRepositoryImpl
+    ): NotificationRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindWeatherRepository(
+        impl: WeatherRepositoryImpl
+    ): WeatherRepository
 }

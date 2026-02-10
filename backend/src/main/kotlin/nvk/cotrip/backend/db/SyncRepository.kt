@@ -72,6 +72,7 @@ object SyncRepository {
                        'authorId', i.author_id,
                        'title', i.title,
                        'city', i.city,
+                       'link', i.link,
                        'costAmount', i.cost_amount,
                        'costType', i.cost_type,
                        'website', i.website,
@@ -108,6 +109,9 @@ object SyncRepository {
                        'date', to_jsonb(d.date),
                        'dayNumber', d.day_number,
                        'city', d.city,
+                       'cityProviderId', d.city_provider_id,
+                       'cityLat', d.city_lat,
+                       'cityLon', d.city_lon,
                        'isOutOfRange', d.is_out_of_range,
                        'activities', '[]'::jsonb
                    ) AS payload
@@ -140,7 +144,7 @@ object SyncRepository {
                        'title', a.title,
                        'timeText', a.time_text,
                        'locationName', a.location_name,
-                       'locationLink', a.location_link,
+                       'link', a.link,
                        'costAmount', a.cost_amount,
                        'costType', a.cost_type,
                        'website', a.website,

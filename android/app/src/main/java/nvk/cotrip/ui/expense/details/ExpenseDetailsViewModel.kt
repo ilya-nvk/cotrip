@@ -5,11 +5,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import nvk.cotrip.data.network.ApiCaller
+import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.network.dto.ExpenseDto
 import nvk.cotrip.data.network.dto.ExpenseParticipantDto
 import nvk.cotrip.data.network.dto.ExpenseParticipantInput
@@ -19,6 +23,7 @@ import nvk.cotrip.data.network.dto.TripDto
 import nvk.cotrip.data.repository.ExpenseRepository
 import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.data.repository.UserRepository
+import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import nvk.cotrip.ui.trip.form.TripCurrency
@@ -34,6 +39,8 @@ class ExpenseDetailsViewModel @Inject constructor(
     private val tripRepository: TripRepository,
     private val expenseRepository: ExpenseRepository,
     private val userRepository: UserRepository,
+    private val apiCaller: ApiCaller,
+    private val uiErrorMapper: UiErrorMapper,
 ) : ViewModel() {
 
     private val tripId: String =
@@ -63,6 +70,9 @@ class ExpenseDetailsViewModel @Inject constructor(
     )
     val state = _state.asStateFlow()
 
+    private val _effects = MutableSharedFlow<ExpenseDetailsEffect>()
+    val effects = _effects.asSharedFlow()
+
     init {
         loadExpense()
     }
@@ -86,7 +96,7 @@ class ExpenseDetailsViewModel @Inject constructor(
 
     private fun loadExpense() {
         viewModelScope.launch {
-            runCatching {
+            when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
                     val expense = expenseRepository.getExpense(expenseId)
                     val trip = tripRepository.getTrip(tripId)
@@ -94,12 +104,25 @@ class ExpenseDetailsViewModel @Inject constructor(
                     val me = userRepository.getMe()
                     ExpensePayload(expense, trip, members, me.id)
                 }
-            }.onSuccess { payload ->
-                currentExpense = payload.expense
-                currencySymbol = currencySymbolFor(payload.trip.currencyCode)
-                membersById = payload.members.associateBy { it.userId }
-                meId = payload.meId
-                _state.update { payload.expense.toState(payload.meId, membersById, currencySymbol) }
+            }) {
+                is ApiResult.Success -> {
+                    val payload = result.data
+                    currentExpense = payload.expense
+                    currencySymbol = currencySymbolFor(payload.trip.currencyCode)
+                    membersById = payload.members.associateBy { it.userId }
+                    meId = payload.meId
+                    _state.update {
+                        payload.expense.toState(
+                            payload.meId,
+                            membersById,
+                            currencySymbol
+                        )
+                    }
+                }
+
+                is ApiResult.Failure -> {
+                    _effects.emit(ExpenseDetailsEffect.ShowToastRes(uiErrorMapper.messageRes(result)))
+                }
             }
         }
     }
@@ -147,12 +170,15 @@ class ExpenseDetailsViewModel @Inject constructor(
 
     private fun updateExpense(request: ExpenseUpdateRequest) {
         viewModelScope.launch {
-            runCatching {
+            when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
                     expenseRepository.updateExpense(expenseId, request)
                 }
-            }.onSuccess {
-                loadExpense()
+            }) {
+                is ApiResult.Success -> loadExpense()
+                is ApiResult.Failure -> {
+                    _effects.emit(ExpenseDetailsEffect.ShowToastRes(uiErrorMapper.messageRes(result)))
+                }
             }
         }
     }
