@@ -5,4 +5,5 @@ data class TripHeaderUi(
     val title: String,
     val dateRange: String,
     val locationLine: String,
+    val coverUrl: String? = null,
 )

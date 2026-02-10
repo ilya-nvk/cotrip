@@ -52,10 +52,16 @@ fun Route.userRoutes() {
                 return@patch
             }
 
+            val normalizedName = request.name?.trim()?.takeIf { it.isNotBlank() } ?: existing.name
+            val normalizedPhotoUrl = when (val raw = request.photoUrl) {
+                null -> existing.photoUrl
+                else -> raw.trim().takeIf { it.isNotBlank() }
+            }
+
             val updated = UserRepository.updateUser(
                 userId = userId,
-                name = request.name ?: existing.name,
-                photoUrl = request.photoUrl ?: existing.photoUrl,
+                name = normalizedName,
+                photoUrl = normalizedPhotoUrl,
             )
 
             if (updated == null) {

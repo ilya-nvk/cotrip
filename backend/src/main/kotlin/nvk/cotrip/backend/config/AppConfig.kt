@@ -32,11 +32,17 @@ data class AiConfig(
     val maxSuggestions: Int,
 )
 
+data class MediaConfig(
+    val uploadDir: String,
+    val maxUploadBytes: Long,
+)
+
 data class AppConfig(
     val jwt: JwtConfig,
     val db: DbConfig,
     val invite: InviteConfig,
     val weather: WeatherConfig,
     val ai: AiConfig,
+    val media: MediaConfig,
     val devAuthEnabled: Boolean,
 )

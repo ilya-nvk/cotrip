@@ -2,6 +2,8 @@ package nvk.cotrip.ui.trip.form
 
 import android.widget.Toast
 import android.app.DatePickerDialog
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -32,12 +34,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collectLatest
+import coil.compose.AsyncImage
 import nvk.cotrip.R
 import nvk.cotrip.ui.components.CoTripDashedDivider
 import nvk.cotrip.ui.components.CoTripDropdownField
@@ -67,6 +71,11 @@ fun TripFormHost(
     onEvent: (TripFormEvent) -> Unit,
 ) {
     val context = LocalContext.current
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        onEvent(TripFormEvent.OnCoverPicked(uri?.toString()))
+    }
 
     LaunchedEffect(effects) {
         effects.collectLatest { effect ->
@@ -74,6 +83,7 @@ fun TripFormHost(
                 is TripFormEffect.ShowToastRes ->
                     Toast.makeText(context, context.getString(effect.resId), Toast.LENGTH_SHORT)
                         .show()
+                TripFormEffect.OpenImagePicker -> imagePickerLauncher.launch("image/*")
             }
         }
     }
@@ -194,6 +204,7 @@ private fun TripFormScreen(
 
             item {
                 CoverPickerCard(
+                    coverUrl = state.coverUri,
                     onPick = { onEvent(TripFormEvent.OnPickCoverClick) },
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -320,6 +331,7 @@ private fun TripFormScreen(
 
 @Composable
 private fun CoverPickerCard(
+    coverUrl: String?,
     onPick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -330,6 +342,31 @@ private fun CoverPickerCard(
             .background(MaterialTheme.colorScheme.surface),
         contentAlignment = Alignment.Center
     ) {
+        if (!coverUrl.isNullOrBlank()) {
+            AsyncImage(
+                model = coverUrl,
+                contentDescription = null,
+                modifier = Modifier
+                    .matchParentSize()
+                    .clip(RoundedCornerShape(CoTripTokens.radius.large)),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .padding(CoTripTokens.spacing.x1)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .clip(RoundedCornerShape(CoTripTokens.radius.large))
+                        .background(MaterialTheme.colorScheme.surface)
+                )
+                CoTripDashedDivider(modifier = Modifier.matchParentSize())
+            }
+        }
+
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(
                 imageVector = CoTripIcons.PhotoCamera,
@@ -338,22 +375,13 @@ private fun CoverPickerCard(
             )
             Spacer(Modifier.height(CoTripTokens.spacing.x1))
             TertiaryTextButton(
-                text = stringResource(R.string.trip_form_add_cover),
+                text = if (coverUrl.isNullOrBlank()) {
+                    stringResource(R.string.trip_form_add_cover)
+                } else {
+                    stringResource(R.string.trip_form_change_cover)
+                },
                 onClick = onPick
             )
-        }
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .padding(CoTripTokens.spacing.x1)
-        ) {
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .clip(RoundedCornerShape(CoTripTokens.radius.large))
-                    .background(MaterialTheme.colorScheme.surface)
-            )
-            CoTripDashedDivider(modifier = Modifier.matchParentSize())
         }
     }
 }

@@ -4,6 +4,7 @@ data class SettingsProfileUi(
     val name: String,
     val initials: String,
     val hasPhoto: Boolean,
+    val photoUrl: String? = null,
 )
 
 data class SettingsToggleUi(

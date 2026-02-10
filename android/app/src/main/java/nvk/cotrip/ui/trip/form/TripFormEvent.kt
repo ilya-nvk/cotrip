@@ -5,6 +5,7 @@ sealed interface TripFormEvent {
     data object OnCancelClick : TripFormEvent
 
     data object OnPickCoverClick : TripFormEvent
+    data class OnCoverPicked(val uriString: String?) : TripFormEvent
 
     data class OnNameChange(val value: String) : TripFormEvent
     data class OnStartDateSelected(val date: java.time.LocalDate) : TripFormEvent

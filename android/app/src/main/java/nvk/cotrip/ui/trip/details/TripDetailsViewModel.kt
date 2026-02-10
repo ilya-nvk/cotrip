@@ -71,7 +71,11 @@ class TripDetailsViewModel @Inject constructor(
                 Destination.TripMembers(tripId)
             )
 
-            TripDetailsEvent.OnWeatherCityClick -> emitToast(R.string.trip_details_city_picker_stub)
+            TripDetailsEvent.OnWeatherCityClick -> appNavigator.navigate(
+                Destination.TripForecast(
+                    tripId
+                )
+            )
             TripDetailsEvent.OnViewForecastClick -> appNavigator.navigate(
                 Destination.TripForecast(
                     tripId
@@ -110,7 +114,8 @@ class TripDetailsViewModel @Inject constructor(
                 tripId = tripId,
                 title = "",
                 dateRange = "",
-                locationLine = ""
+                locationLine = "",
+                coverUrl = null,
             ),
             travelers = emptyList(),
             peopleCountText = "0 people",
@@ -227,6 +232,7 @@ private fun buildState(loaded: LoadedTrip): TripDetailsState {
             title = trip.title,
             dateRange = dateRange,
             locationLine = trip.locationLine.orEmpty(),
+            coverUrl = trip.coverUrl,
         ),
         travelers = initials,
         peopleCountText = peopleText,

@@ -64,12 +64,12 @@ fun Route.tripRoutes() {
 
             val trip = TripRepository.createTrip(
                 ownerId = userId,
-                title = request.title,
-                description = request.description,
+                title = request.title.trim(),
+                description = request.description?.trim()?.takeIf { it.isNotBlank() },
                 startDate = startDate,
                 endDate = endDate,
-                locationLine = request.locationLine,
-                coverUrl = request.coverUrl,
+                locationLine = request.locationLine?.trim()?.takeIf { it.isNotBlank() },
+                coverUrl = request.coverUrl?.trim()?.takeIf { it.isNotBlank() },
                 currencyCode = request.currencyCode,
             )
 
@@ -155,12 +155,12 @@ fun Route.tripRoutes() {
             }
 
             val update = TripUpdate(
-                title = request.title,
-                description = request.description,
+                title = request.title?.trim()?.takeIf { it.isNotBlank() },
+                description = request.description?.trim()?.takeIf { it.isNotBlank() },
                 startDate = parsedStartDate,
                 endDate = parsedEndDate,
-                locationLine = request.locationLine,
-                coverUrl = request.coverUrl,
+                locationLine = request.locationLine?.trim()?.takeIf { it.isNotBlank() },
+                coverUrl = request.coverUrl?.trim()?.takeIf { it.isNotBlank() },
                 currencyCode = request.currencyCode,
             )
 

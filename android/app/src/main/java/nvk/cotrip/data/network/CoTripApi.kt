@@ -20,6 +20,7 @@ import nvk.cotrip.data.network.dto.ItineraryDayDto
 import nvk.cotrip.data.network.dto.InviteInfoDto
 import nvk.cotrip.data.network.dto.InviteLinkDto
 import nvk.cotrip.data.network.dto.MemberDto
+import nvk.cotrip.data.network.dto.UploadImageResponseDto
 import nvk.cotrip.data.network.dto.NotificationListResponse
 import nvk.cotrip.data.network.dto.NotificationSettingsResponse
 import nvk.cotrip.data.network.dto.NotificationSettingsUpdateRequest
@@ -40,10 +41,13 @@ import nvk.cotrip.data.network.dto.SyncChangesResponse
 import nvk.cotrip.data.network.dto.SyncPullResponse
 import nvk.cotrip.data.network.dto.WeatherForecastResponseDto
 import retrofit2.Response
+import okhttp3.MultipartBody
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.Multipart
 import retrofit2.http.PATCH
+import retrofit2.http.Part
 import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
@@ -60,6 +64,10 @@ interface CoTripApi {
 
     @PATCH("v1/users/me")
     suspend fun updateMe(@Body request: UpdateUserRequest): UserDto
+
+    @Multipart
+    @POST("v1/uploads/images")
+    suspend fun uploadImage(@Part file: MultipartBody.Part): UploadImageResponseDto
 
     @DELETE("v1/users/me")
     suspend fun deleteMe(): Response<Unit>

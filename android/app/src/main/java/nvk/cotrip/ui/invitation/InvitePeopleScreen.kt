@@ -1,5 +1,6 @@
 package nvk.cotrip.ui.invitation
 
+import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
@@ -26,7 +27,9 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -49,6 +52,7 @@ fun InvitePeopleScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
 
     LaunchedEffect(viewModel) {
         viewModel.effects.collectLatest { effect ->
@@ -56,6 +60,19 @@ fun InvitePeopleScreen(
                 is InvitePeopleEffect.ShowToastRes ->
                     Toast.makeText(context, context.getString(effect.resId), Toast.LENGTH_SHORT)
                         .show()
+                is InvitePeopleEffect.CopyToClipboard ->
+                    clipboardManager.setText(AnnotatedString(effect.text))
+                is InvitePeopleEffect.ShareText -> {
+                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, effect.text)
+                    }
+                    val chooser = Intent.createChooser(
+                        shareIntent,
+                        context.getString(R.string.invite_people_share_link)
+                    )
+                    context.startActivity(chooser)
+                }
             }
         }
     }

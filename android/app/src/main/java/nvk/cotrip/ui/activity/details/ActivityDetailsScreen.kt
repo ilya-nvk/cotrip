@@ -1,5 +1,7 @@
 package nvk.cotrip.ui.activity.details
 
+import android.content.Intent
+import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -77,6 +79,19 @@ fun ActivityDetailsScreen(
                 is ActivityDetailsEffect.ShowToastRes ->
                     Toast.makeText(context, context.getString(effect.resId), Toast.LENGTH_SHORT)
                         .show()
+                is ActivityDetailsEffect.OpenExternalLink -> {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(effect.url))
+                    val opened = runCatching {
+                        context.startActivity(intent)
+                    }.isSuccess
+                    if (!opened) {
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.common_error_message),
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
             }
         }
     }

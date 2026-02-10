@@ -73,7 +73,17 @@ class ActivityDetailsViewModel @Inject constructor(
                 Destination.EditActivity(activityId)
             )
 
-            ActivityDetailsEvent.OnOpenLinkClick -> emitToast(R.string.activity_details_open_link_not_implemented)
+            ActivityDetailsEvent.OnOpenLinkClick -> {
+                val link = _state.value.link?.trim().orEmpty()
+                if (link.isNotBlank()) {
+                    val normalized = if (link.startsWith("http://") || link.startsWith("https://")) {
+                        link
+                    } else {
+                        "https://$link"
+                    }
+                    emit(ActivityDetailsEffect.OpenExternalLink(normalized))
+                }
+            }
             ActivityDetailsEvent.OnDeleteClick -> deleteActivity()
         }
     }
@@ -146,6 +156,10 @@ class ActivityDetailsViewModel @Inject constructor(
 
     private fun emitToast(resId: Int) {
         viewModelScope.launch { _effects.emit(ActivityDetailsEffect.ShowToastRes(resId)) }
+    }
+
+    private fun emit(effect: ActivityDetailsEffect) {
+        viewModelScope.launch { _effects.emit(effect) }
     }
 
     private data class ActivityLookup(
