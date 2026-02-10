@@ -5,6 +5,7 @@ import java.time.LocalDate
 data class TripFormState(
     val isLoading: Boolean = false,
     val coverUri: String? = null,
+    val coverPreviewUri: String? = null,
     val name: String = "",
     val startDate: LocalDate? = null,
     val endDate: LocalDate? = null,

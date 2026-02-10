@@ -128,6 +128,7 @@ fun TripDetailsScreen(
                         dateRange = state.header.dateRange,
                         locationLine = state.header.locationLine,
                         coverUrl = state.header.coverUrl,
+                        canEdit = state.isOwner,
                         onBack = { viewModel.onEvent(TripDetailsEvent.OnBackClick) },
                         onEdit = { viewModel.onEvent(TripDetailsEvent.OnEditClick) }
                     )
@@ -219,6 +220,7 @@ private fun Header(
     dateRange: String,
     locationLine: String,
     coverUrl: String?,
+    canEdit: Boolean,
     onBack: () -> Unit,
     onEdit: () -> Unit,
 ) {
@@ -257,16 +259,18 @@ private fun Header(
                 )
             }
 
-            Surface(
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.surface,
-                shadowElevation = CoTripTokens.elevation.cardHover
-            ) {
-                CoTripIconButton(
-                    icon = CoTripIcons.Edit,
-                    contentDescription = stringResource(R.string.trip_details_edit),
-                    onClick = onEdit
-                )
+            if (canEdit) {
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surface,
+                    shadowElevation = CoTripTokens.elevation.cardHover
+                ) {
+                    CoTripIconButton(
+                        icon = CoTripIcons.Edit,
+                        contentDescription = stringResource(R.string.trip_details_edit),
+                        onClick = onEdit
+                    )
+                }
             }
         }
 

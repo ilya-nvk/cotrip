@@ -12,6 +12,7 @@ data class TripMembersState(
 data class TripMemberUi(
     val userId: String,
     val name: String,
+    val photoUrl: String?,
     val initials: String,
     val role: String,
     val status: String,
