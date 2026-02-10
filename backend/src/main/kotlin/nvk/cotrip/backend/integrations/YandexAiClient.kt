@@ -8,8 +8,10 @@ import io.ktor.client.plugins.timeout
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
+import io.ktor.http.isSuccess
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
@@ -87,12 +89,20 @@ object YandexAiClient {
                 "response_format",
                 buildJsonObject {
                     put("type", "json_schema")
-                    put("json_schema", schema)
+                    put(
+                        "json_schema",
+                        buildJsonObject {
+                            put("name", "trip_suggestions")
+                            put("description", "Travel activity suggestions for a trip")
+                            put("schema", schema)
+                            put("strict", true)
+                        }
+                    )
                 }
             )
         }
 
-        val responseBody = httpClient.post(CHAT_COMPLETIONS_URL) {
+        val response = httpClient.post(CHAT_COMPLETIONS_URL) {
             timeout {
                 requestTimeoutMillis = config.requestTimeoutMillis
             }
@@ -100,22 +110,29 @@ object YandexAiClient {
             header(HttpHeaders.Authorization, "Bearer $apiKey")
             header("OpenAI-Project", folderId)
             setBody(requestBody)
-        }.body<JsonObject>()
+        }
+        if (!response.status.isSuccess()) {
+            val errorBody = runCatching { response.bodyAsText() }.getOrDefault("")
+            throw YandexAiException(
+                statusCode = response.status.value,
+                details = "Yandex chat.completions failed with ${response.status.value}: ${errorBody.take(1_000)}",
+            )
+        }
+        val responseBody = response.body<JsonObject>()
 
-        val rawContent = responseBody["choices"]
+        val contentNode = responseBody["choices"]
             ?.jsonArray
             ?.firstOrNull()
             ?.jsonObject
             ?.get("message")
             ?.jsonObject
             ?.get("content")
-            ?.jsonPrimitive
-            ?.contentOrNull
-            ?.trim()
-            .orEmpty()
+        val rawContent = extractMessageContent(contentNode)
 
         if (rawContent.isBlank()) {
-            error("Yandex returned empty suggestion content")
+            throw YandexAiException(
+                details = "Yandex returned empty suggestion content: ${responseBody.toString().take(1_000)}"
+            )
         }
 
         return parseSuggestions(rawContent, prompt.maxSuggestions)
@@ -266,4 +283,27 @@ object YandexAiClient {
             .removeSuffix("```")
             .trim()
     }
+
+    private fun extractMessageContent(contentNode: kotlinx.serialization.json.JsonElement?): String {
+        return when (contentNode) {
+            null -> ""
+            is JsonPrimitive -> contentNode.contentOrNull.orEmpty().trim()
+            is JsonArray -> {
+                contentNode
+                    .mapNotNull { part ->
+                        val obj = part as? JsonObject ?: return@mapNotNull null
+                        obj["text"]?.jsonPrimitive?.contentOrNull
+                            ?: obj["content"]?.jsonPrimitive?.contentOrNull
+                    }
+                    .joinToString(separator = "")
+                    .trim()
+            }
+            else -> contentNode.toString().trim()
+        }
+    }
+
+    class YandexAiException(
+        val statusCode: Int? = null,
+        val details: String,
+    ) : RuntimeException(details)
 }
