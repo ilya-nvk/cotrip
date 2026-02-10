@@ -75,7 +75,6 @@ object SyncRepository {
                        'link', i.link,
                        'costAmount', i.cost_amount,
                        'costType', i.cost_type,
-                       'website', i.website,
                        'notes', i.notes,
                        'status', i.status,
                        'updatedAt', to_jsonb(i.updated_at)
@@ -147,7 +146,6 @@ object SyncRepository {
                        'link', a.link,
                        'costAmount', a.cost_amount,
                        'costType', a.cost_type,
-                       'website', a.website,
                        'notes', a.notes,
                        'orderIndex', a.order_index
                    ) AS payload

@@ -58,7 +58,6 @@ class EditIdeaViewModel @Inject constructor(
             currencySymbol = "€",
             costAmount = "",
             costType = IdeaCostType.PerPerson,
-            website = "",
             notes = "",
             isSaving = false,
         )
@@ -86,7 +85,6 @@ class EditIdeaViewModel @Inject constructor(
             }
 
             is IdeaFormEvent.OnCostTypeChange -> _state.update { it.copy(costType = event.value) }
-            is IdeaFormEvent.OnWebsiteChange -> _state.update { it.copy(website = event.value) }
             is IdeaFormEvent.OnNotesChange -> _state.update { it.copy(notes = event.value) }
         }
     }
@@ -103,7 +101,6 @@ class EditIdeaViewModel @Inject constructor(
                         link = idea.link.orEmpty(),
                         costAmount = idea.costAmount?.let { formatAmount(it) }.orEmpty(),
                         costType = idea.costType.toIdeaCostType(),
-                        website = idea.website.orEmpty(),
                         notes = idea.notes.orEmpty(),
                         currencySymbol = currencySymbolFor(trip.currencyCode),
                     )
@@ -121,7 +118,6 @@ class EditIdeaViewModel @Inject constructor(
                             isCitySearching = false,
                             costAmount = loaded.costAmount,
                             costType = loaded.costType,
-                            website = loaded.website,
                             notes = loaded.notes,
                             currencySymbol = loaded.currencySymbol,
                         )
@@ -211,7 +207,6 @@ class EditIdeaViewModel @Inject constructor(
                             link = snapshot.link.trim().ifBlank { null },
                             costAmount = parseAmount(snapshot.costAmount),
                             costType = snapshot.costAmount.toCostType(snapshot.costType),
-                            website = snapshot.website.trim().ifBlank { null },
                             notes = snapshot.notes.trim().ifBlank { null },
                         )
                     )
@@ -257,7 +252,6 @@ class EditIdeaViewModel @Inject constructor(
         val link: String,
         val costAmount: String,
         val costType: IdeaCostType,
-        val website: String,
         val notes: String,
         val currencySymbol: String,
     )

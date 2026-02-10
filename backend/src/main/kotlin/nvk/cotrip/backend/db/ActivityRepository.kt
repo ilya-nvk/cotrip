@@ -14,7 +14,6 @@ data class ActivityRow(
     val link: String?,
     val costAmount: Double?,
     val costType: String?,
-    val website: String?,
     val notes: String?,
     val orderIndex: Int,
     val createdAt: OffsetDateTime,
@@ -25,7 +24,7 @@ object ActivityRepository {
         if (dayIds.isEmpty()) return@dbQuery emptyList<ActivityRow>()
         val placeholders = dayIds.joinToString(",") { "?" }
         val sql = """
-            SELECT id, day_id, source_idea_id, title, time_text, location_name, link, cost_amount, cost_type, website, notes, order_index, created_at
+            SELECT id, day_id, source_idea_id, title, time_text, location_name, link, cost_amount, cost_type, notes, order_index, created_at
             FROM activities
             WHERE day_id IN ($placeholders) AND deleted_at IS NULL
             ORDER BY day_id, order_index ASC
@@ -70,15 +69,14 @@ object ActivityRepository {
         link: String?,
         costAmount: Double?,
         costType: String?,
-        website: String?,
         notes: String?,
         orderIndex: Int,
     ): ActivityRow = dbQuery { conn ->
         conn.prepareStatement(
             """
-            INSERT INTO activities (day_id, source_idea_id, title, time_text, location_name, link, cost_amount, cost_type, website, notes, order_index)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            RETURNING id, day_id, source_idea_id, title, time_text, location_name, link, cost_amount, cost_type, website, notes, order_index, created_at
+            INSERT INTO activities (day_id, source_idea_id, title, time_text, location_name, link, cost_amount, cost_type, notes, order_index)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            RETURNING id, day_id, source_idea_id, title, time_text, location_name, link, cost_amount, cost_type, notes, order_index, created_at
             """.trimIndent()
         ).use { stmt ->
             stmt.setObject(1, UUID.fromString(dayId))
@@ -89,9 +87,8 @@ object ActivityRepository {
             stmt.setString(6, link)
             if (costAmount == null) stmt.setNull(7, java.sql.Types.NUMERIC) else stmt.setDouble(7, costAmount)
             stmt.setString(8, costType)
-            stmt.setString(9, website)
-            stmt.setString(10, notes)
-            stmt.setInt(11, orderIndex)
+            stmt.setString(9, notes)
+            stmt.setInt(10, orderIndex)
             stmt.executeQuery().use { rs ->
                 rs.next()
                 mapActivity(rs)
@@ -113,7 +110,6 @@ object ActivityRepository {
         link = idea.link,
         costAmount = idea.costAmount,
         costType = idea.costType,
-        website = idea.website,
         notes = idea.notes,
         orderIndex = orderIndex,
     )
@@ -121,7 +117,7 @@ object ActivityRepository {
     fun get(activityId: String): ActivityRow? = dbQuery { conn ->
         conn.prepareStatement(
             """
-            SELECT id, day_id, source_idea_id, title, time_text, location_name, link, cost_amount, cost_type, website, notes, order_index, created_at
+            SELECT id, day_id, source_idea_id, title, time_text, location_name, link, cost_amount, cost_type, notes, order_index, created_at
             FROM activities
             WHERE id = ? AND deleted_at IS NULL
             """.trimIndent()
@@ -141,7 +137,6 @@ object ActivityRepository {
         link: String?,
         costAmount: Double?,
         costType: String?,
-        website: String?,
         notes: String?,
     ): ActivityRow? = dbQuery { conn ->
         conn.prepareStatement(
@@ -153,11 +148,10 @@ object ActivityRepository {
                 link = COALESCE(?, link),
                 cost_amount = COALESCE(?, cost_amount),
                 cost_type = COALESCE(?, cost_type),
-                website = COALESCE(?, website),
                 notes = COALESCE(?, notes),
                 updated_at = now()
             WHERE id = ? AND deleted_at IS NULL
-            RETURNING id, day_id, source_idea_id, title, time_text, location_name, link, cost_amount, cost_type, website, notes, order_index, created_at
+            RETURNING id, day_id, source_idea_id, title, time_text, location_name, link, cost_amount, cost_type, notes, order_index, created_at
             """.trimIndent()
         ).use { stmt ->
             stmt.setString(1, title)
@@ -166,9 +160,8 @@ object ActivityRepository {
             stmt.setString(4, link)
             if (costAmount == null) stmt.setNull(5, java.sql.Types.NUMERIC) else stmt.setDouble(5, costAmount)
             stmt.setString(6, costType)
-            stmt.setString(7, website)
-            stmt.setString(8, notes)
-            stmt.setObject(9, UUID.fromString(activityId))
+            stmt.setString(7, notes)
+            stmt.setObject(8, UUID.fromString(activityId))
             stmt.executeQuery().use { rs ->
                 if (rs.next()) mapActivity(rs) else null
             }
@@ -185,7 +178,7 @@ object ActivityRepository {
             UPDATE activities
             SET day_id = ?, order_index = ?, updated_at = now()
             WHERE id = ? AND deleted_at IS NULL
-            RETURNING id, day_id, source_idea_id, title, time_text, location_name, link, cost_amount, cost_type, website, notes, order_index, created_at
+            RETURNING id, day_id, source_idea_id, title, time_text, location_name, link, cost_amount, cost_type, notes, order_index, created_at
             """.trimIndent()
         ).use { stmt ->
             stmt.setObject(1, UUID.fromString(dayId))
@@ -239,7 +232,6 @@ object ActivityRepository {
             link = rs.getString("link"),
             costAmount = rs.getObject("cost_amount", java.math.BigDecimal::class.java)?.toDouble(),
             costType = rs.getString("cost_type"),
-            website = rs.getString("website"),
             notes = rs.getString("notes"),
             orderIndex = rs.getInt("order_index"),
             createdAt = rs.getObject("created_at", OffsetDateTime::class.java),

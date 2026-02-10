@@ -214,25 +214,6 @@ fun ActivityDetailsScreen(
 
             Divider()
 
-            SectionLabel(text = stringResource(R.string.activity_details_website_label))
-            InfoRow(
-                icon = CoTripIcons.Link,
-                title = state.website ?: stringResource(R.string.activity_details_empty),
-                subtitle = null,
-                trailing = if (state.website != null) {
-                    {
-                        CoTripIconButton(
-                            icon = CoTripIcons.OpenInNew,
-                            contentDescription = null,
-                            onClick = { viewModel.onEvent(ActivityDetailsEvent.OnOpenWebsiteClick) }
-                        )
-                    }
-                } else null,
-                titleColor = if (state.website != null) PrimaryBlue else TextMedium
-            )
-
-            Divider()
-
             SectionLabel(text = stringResource(R.string.activity_details_notes_label))
             Text(
                 text = state.notes ?: stringResource(R.string.activity_details_empty),

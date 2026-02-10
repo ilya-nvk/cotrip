@@ -13,7 +13,6 @@ data class ActivityDto(
     val link: String? = null,
     val costAmount: Double? = null,
     val costType: String? = null,
-    val website: String? = null,
     val notes: String? = null,
     val orderIndex: Int,
 )
@@ -34,7 +33,6 @@ data class CreateActivityRequest(
     val link: String? = null,
     val costAmount: Double? = null,
     val costType: String? = null,
-    val website: String? = null,
     val notes: String? = null,
     val orderIndex: Int? = null,
 )
@@ -47,7 +45,6 @@ data class UpdateActivityRequest(
     val link: String? = null,
     val costAmount: Double? = null,
     val costType: String? = null,
-    val website: String? = null,
     val notes: String? = null,
 )
 

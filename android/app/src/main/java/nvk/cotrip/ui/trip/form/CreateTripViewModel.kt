@@ -117,7 +117,14 @@ class CreateTripViewModel @Inject constructor(
             when (result) {
                 is ApiResult.Success -> {
                     emitToastRes(R.string.create_trip_created_toast)
-                    appNavigator.navigate(Destination.TripDetails(result.data.id))
+                    appNavigator.navigate(
+                        Destination.TripItinerary(
+                            tripId = result.data.id,
+                            requireCities = true,
+                        )
+                    ) {
+                        popUpTo(Destination.CreateTrip.route) { inclusive = true }
+                    }
                 }
 
                 is ApiResult.Failure -> {

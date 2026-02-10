@@ -21,6 +21,7 @@ import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import java.time.LocalDate
+import java.time.temporal.ChronoUnit
 import javax.inject.Inject
 
 @HiltViewModel
@@ -39,6 +40,8 @@ class EditTripViewModel @Inject constructor(
 
     private val _effects = MutableSharedFlow<TripFormEffect>()
     val effects = _effects.asSharedFlow()
+    private var originalStartDate: LocalDate? = null
+    private var originalEndDate: LocalDate? = null
 
     init {
         loadTrip(tripId)
@@ -99,13 +102,17 @@ class EditTripViewModel @Inject constructor(
             when (result) {
                 is ApiResult.Success -> {
                     val trip = result.data
+                    val loadedStart = LocalDate.parse(trip.startDate)
+                    val loadedEnd = LocalDate.parse(trip.endDate)
+                    originalStartDate = loadedStart
+                    originalEndDate = loadedEnd
                     _state.update {
                         it.copy(
                             isLoading = false,
                             coverUri = trip.coverUrl,
                             name = trip.title,
-                            startDate = LocalDate.parse(trip.startDate),
-                            endDate = LocalDate.parse(trip.endDate),
+                            startDate = loadedStart,
+                            endDate = loadedEnd,
                             description = trip.description.orEmpty(),
                             currency = trip.currencyCode.toCurrency(),
                         )
@@ -166,7 +173,32 @@ class EditTripViewModel @Inject constructor(
             when (result) {
                 is ApiResult.Success -> {
                     emitToastRes(R.string.edit_trip_saved_toast)
-                    appNavigator.navigate(Destination.OutOfRangeDays(tripId))
+                    val oldStart = originalStartDate ?: startDate
+                    val oldEnd = originalEndDate ?: endDate
+                    val oldDuration = ChronoUnit.DAYS.between(oldStart, oldEnd)
+                    val newDuration = ChronoUnit.DAYS.between(startDate, endDate)
+                    when {
+                        newDuration > oldDuration -> {
+                            appNavigator.navigate(
+                                Destination.TripItinerary(
+                                    tripId = tripId,
+                                    requireCities = true,
+                                )
+                            ) {
+                                popUpTo(Destination.EditTrip(tripId).route) { inclusive = true }
+                            }
+                        }
+
+                        newDuration < oldDuration -> {
+                            appNavigator.navigate(Destination.OutOfRangeDays(tripId)) {
+                                popUpTo(Destination.EditTrip(tripId).route) { inclusive = true }
+                            }
+                        }
+
+                        else -> {
+                            appNavigator.popBackStack()
+                        }
+                    }
                 }
 
                 is ApiResult.Failure -> {

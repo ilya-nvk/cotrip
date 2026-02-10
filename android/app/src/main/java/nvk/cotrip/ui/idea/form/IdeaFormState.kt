@@ -18,7 +18,6 @@ data class IdeaFormState(
     val currencySymbol: String,
     val costAmount: String,
     val costType: IdeaCostType,
-    val website: String,
     val notes: String,
     val isSaving: Boolean,
 )

@@ -9,7 +9,6 @@ data class IdeaDetailsState(
     val city: String,
     val link: String,
     val cost: String,
-    val website: String,
     val notes: String,
     val status: String,
     val addedDay: Int?,

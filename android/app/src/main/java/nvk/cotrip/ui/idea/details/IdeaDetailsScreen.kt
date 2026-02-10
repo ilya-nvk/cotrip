@@ -301,13 +301,6 @@ private fun IdeaDetailsContent(
             )
             CoTripDivider()
             IdeaInfoRow(
-                icon = CoTripIcons.Link,
-                label = stringResource(R.string.idea_details_website),
-                value = state.website,
-                valueColor = PrimaryBlue
-            )
-            CoTripDivider()
-            IdeaInfoRow(
                 icon = CoTripIcons.Info,
                 label = stringResource(R.string.idea_details_notes),
                 value = state.notes

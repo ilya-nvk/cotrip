@@ -69,6 +69,7 @@ import nvk.cotrip.ui.components.CoTripFab
 import nvk.cotrip.ui.components.CoTripIconButton
 import nvk.cotrip.ui.components.CoTripListItem
 import nvk.cotrip.ui.components.CoTripTextField
+import nvk.cotrip.ui.components.PrimaryButton
 import nvk.cotrip.ui.components.TertiaryTextButton
 import nvk.cotrip.ui.theme.Border
 import nvk.cotrip.ui.theme.CoTripIcons
@@ -77,6 +78,7 @@ import nvk.cotrip.ui.theme.TextPrimary
 import nvk.cotrip.ui.theme.TextSecondary
 
 private const val KEY_HEADER = "header"
+private const val KEY_REQUIRED_CITIES_BANNER = "required_cities_banner"
 private const val KEY_BOTTOM_SPACER = "bottom_spacer"
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
@@ -143,7 +145,7 @@ fun TripItineraryScreen(
                 },
                 actions = {
                     val hasReorderable = state.days.any { it.activities.size > 1 }
-                    if (state.mode == ItineraryMode.Filled && hasReorderable) {
+                    if (!state.isCitySelectionRequired && state.mode == ItineraryMode.Filled && hasReorderable) {
                         CoTripIconButton(
                             icon = if (state.isReordering) CoTripIcons.CheckCircle else CoTripIcons.Reorder,
                             contentDescription = stringResource(
@@ -176,8 +178,38 @@ fun TripItineraryScreen(
                 ),
             )
         },
+        bottomBar = {
+            if (state.isCitySelectionRequired) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(
+                            horizontal = CoTripTokens.spacing.x2,
+                            vertical = CoTripTokens.spacing.x2
+                        ),
+                    verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x1)
+                ) {
+                    Text(
+                        text = stringResource(
+                            R.string.itinerary_city_setup_remaining,
+                            state.pendingCitySelectionCount
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextSecondary
+                    )
+                    PrimaryButton(
+                        text = stringResource(R.string.itinerary_city_setup_continue),
+                        onClick = {
+                            viewModel.onEvent(TripItineraryEvent.OnCompleteRequiredCitySelection)
+                        },
+                        enabled = state.pendingCitySelectionCount == 0,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+        },
         floatingActionButton = {
-            if (state.mode == ItineraryMode.Filled) {
+            if (!state.isCitySelectionRequired && state.mode == ItineraryMode.Filled) {
                 CoTripFab(onClick = { viewModel.onEvent(TripItineraryEvent.OnAddActivityClick) })
             }
         }
@@ -202,6 +234,20 @@ fun TripItineraryScreen(
             ) {
                 item(key = KEY_HEADER) {
                     Spacer(Modifier.height(0.dp))
+                }
+                if (state.isCitySelectionRequired) {
+                    item(key = KEY_REQUIRED_CITIES_BANNER) {
+                        CoTripCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentPadding = PaddingValues(CoTripTokens.spacing.x1_5)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.itinerary_city_setup_banner),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = TextSecondary
+                            )
+                        }
+                    }
                 }
 
                 when (state.mode) {

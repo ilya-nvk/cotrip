@@ -21,7 +21,6 @@ data class ActivityFormState(
     val currencySymbol: String,
     val costAmount: String,
     val costType: CostType,
-    val website: String,
     val notes: String,
     val isSaving: Boolean,
 )

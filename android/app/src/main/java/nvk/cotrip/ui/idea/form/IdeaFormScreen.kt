@@ -225,14 +225,6 @@ private fun IdeaFormScreen(
                 )
             }
 
-            FieldLabel(text = stringResource(R.string.idea_form_website_label))
-            FormTextField(
-                value = state.website,
-                onValueChange = { viewModel.onEvent(IdeaFormEvent.OnWebsiteChange(it)) },
-                placeholder = stringResource(R.string.idea_form_website_placeholder),
-                singleLine = true
-            )
-
             FieldLabel(text = stringResource(R.string.idea_form_notes_label))
             FormTextField(
                 value = state.notes,
