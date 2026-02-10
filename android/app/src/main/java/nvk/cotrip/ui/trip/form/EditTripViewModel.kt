@@ -18,6 +18,7 @@ import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.network.dto.UpdateTripRequest
 import nvk.cotrip.data.repository.ImageUploadRepository
 import nvk.cotrip.data.repository.TripRepository
+import nvk.cotrip.data.repository.UserRepository
 import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
@@ -30,6 +31,7 @@ class EditTripViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val appNavigator: AppNavigator,
     private val tripRepository: TripRepository,
+    private val userRepository: UserRepository,
     private val imageUploadRepository: ImageUploadRepository,
     private val apiCaller: ApiCaller,
     private val uiErrorMapper: UiErrorMapper,
@@ -113,6 +115,16 @@ class EditTripViewModel @Inject constructor(
             when (result) {
                 is ApiResult.Success -> {
                     val trip = result.data
+                    val meId = runCatching {
+                        withContext(Dispatchers.IO) { userRepository.getMe().id }
+                    }.getOrNull()
+                    if (meId == null || trip.ownerId != meId) {
+                        _state.update { it.copy(isLoading = false) }
+                        emitToastRes(R.string.common_error_forbidden)
+                        closeScreen()
+                        return@launch
+                    }
+
                     val loadedStart = LocalDate.parse(trip.startDate)
                     val loadedEnd = LocalDate.parse(trip.endDate)
                     originalStartDate = loadedStart
@@ -121,6 +133,7 @@ class EditTripViewModel @Inject constructor(
                         it.copy(
                             isLoading = false,
                             coverUri = trip.coverUrl,
+                            coverPreviewUri = trip.coverUrl,
                             name = trip.title,
                             startDate = loadedStart,
                             endDate = loadedEnd,
@@ -264,17 +277,23 @@ class EditTripViewModel @Inject constructor(
     private fun uploadCover(uriString: String) {
         if (_state.value.isLoading) return
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true) }
+            _state.update { it.copy(isLoading = true, coverPreviewUri = uriString) }
             when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) { imageUploadRepository.uploadImage(uriString) }
             }) {
                 is ApiResult.Success -> {
-                    _state.update { it.copy(isLoading = false, coverUri = result.data) }
+                    _state.update {
+                        it.copy(
+                            isLoading = false,
+                            coverUri = result.data,
+                            coverPreviewUri = result.data,
+                        )
+                    }
                     emitToastRes(R.string.trip_form_cover_uploaded_toast)
                 }
 
                 is ApiResult.Failure -> {
-                    _state.update { it.copy(isLoading = false) }
+                    _state.update { it.copy(isLoading = false, coverPreviewUri = it.coverUri) }
                     emitToastRes(uiErrorMapper.messageRes(result))
                 }
             }

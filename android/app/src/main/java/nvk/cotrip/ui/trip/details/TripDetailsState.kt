@@ -2,6 +2,7 @@ package nvk.cotrip.ui.trip.details
 
 data class TripDetailsState(
     val isEmpty: Boolean,
+    val isOwner: Boolean,
     val header: TripHeaderUi,
     val travelers: List<String>,
     val peopleCountText: String,

@@ -207,17 +207,23 @@ class CreateTripViewModel @Inject constructor(
     private fun uploadCover(uriString: String) {
         if (_state.value.isLoading) return
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true) }
+            _state.update { it.copy(isLoading = true, coverPreviewUri = uriString) }
             when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) { imageUploadRepository.uploadImage(uriString) }
             }) {
                 is ApiResult.Success -> {
-                    _state.update { it.copy(isLoading = false, coverUri = result.data) }
+                    _state.update {
+                        it.copy(
+                            isLoading = false,
+                            coverUri = result.data,
+                            coverPreviewUri = result.data,
+                        )
+                    }
                     emitToastRes(R.string.trip_form_cover_uploaded_toast)
                 }
 
                 is ApiResult.Failure -> {
-                    _state.update { it.copy(isLoading = false) }
+                    _state.update { it.copy(isLoading = false, coverPreviewUri = it.coverUri) }
                     emitToastRes(uiErrorMapper.messageRes(result))
                 }
             }

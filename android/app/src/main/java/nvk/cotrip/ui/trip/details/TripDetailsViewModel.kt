@@ -22,6 +22,7 @@ import nvk.cotrip.data.network.dto.TripDto
 import nvk.cotrip.data.repository.ExpenseRepository
 import nvk.cotrip.data.repository.IdeaRepository
 import nvk.cotrip.data.repository.TripRepository
+import nvk.cotrip.data.repository.UserRepository
 import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
@@ -36,6 +37,7 @@ class TripDetailsViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val appNavigator: AppNavigator,
     private val tripRepository: TripRepository,
+    private val userRepository: UserRepository,
     private val ideaRepository: IdeaRepository,
     private val expenseRepository: ExpenseRepository,
     private val apiCaller: ApiCaller,
@@ -61,7 +63,11 @@ class TripDetailsViewModel @Inject constructor(
             TripDetailsEvent.OnBackClick -> appNavigator.popBackStack()
             TripDetailsEvent.OnAutoRefresh -> loadTrip(isUserRefresh = false)
             TripDetailsEvent.OnUserRefresh -> loadTrip(isUserRefresh = true)
-            TripDetailsEvent.OnEditClick -> appNavigator.navigate(Destination.EditTrip(tripId))
+            TripDetailsEvent.OnEditClick -> {
+                if (_state.value.isOwner) {
+                    appNavigator.navigate(Destination.EditTrip(tripId))
+                }
+            }
             TripDetailsEvent.OnInviteTravelersClick -> appNavigator.navigate(
                 Destination.InviteTravelers(
                     tripId
@@ -110,6 +116,7 @@ class TripDetailsViewModel @Inject constructor(
     private fun createPlaceholderState(tripId: String): TripDetailsState {
         return TripDetailsState(
             isEmpty = true,
+            isOwner = false,
             header = TripHeaderUi(
                 tripId = tripId,
                 title = "",
@@ -153,6 +160,7 @@ class TripDetailsViewModel @Inject constructor(
                     members = emptyList(),
                     ideas = ideas,
                     expenses = expenses,
+                    isOwner = current.isOwner,
                 )
                 val cacheState = buildState(loaded)
                 val mergedState = if (current.travelers.isNotEmpty()) {
@@ -179,7 +187,14 @@ class TripDetailsViewModel @Inject constructor(
                     val members = tripRepository.listMembers(tripId)
                     val ideas = ideaRepository.refreshIdeas(tripId)
                     val expenses = expenseRepository.refreshExpenses(tripId)
-                    LoadedTrip(trip, members, ideas, expenses)
+                    val meId = runCatching { userRepository.getMe().id }.getOrNull()
+                    LoadedTrip(
+                        trip = trip,
+                        members = members,
+                        ideas = ideas,
+                        expenses = expenses,
+                        isOwner = meId != null && trip.ownerId == meId
+                    )
                 }
             }
 
@@ -205,6 +220,7 @@ private data class LoadedTrip(
     val members: List<MemberDto>,
     val ideas: List<IdeaDto>,
     val expenses: List<ExpenseDto>,
+    val isOwner: Boolean,
 )
 
 private fun buildState(loaded: LoadedTrip): TripDetailsState {
@@ -227,6 +243,7 @@ private fun buildState(loaded: LoadedTrip): TripDetailsState {
 
     return TripDetailsState(
         isEmpty = isEmpty,
+        isOwner = loaded.isOwner,
         header = TripHeaderUi(
             tripId = trip.id,
             title = trip.title,

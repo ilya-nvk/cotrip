@@ -76,6 +76,7 @@ class TripMembersViewModel @Inject constructor(
                             TripMemberUi(
                                 userId = it.userId,
                                 name = it.name,
+                                photoUrl = it.photoUrl,
                                 initials = it.initials,
                                 role = it.role,
                                 status = it.status,

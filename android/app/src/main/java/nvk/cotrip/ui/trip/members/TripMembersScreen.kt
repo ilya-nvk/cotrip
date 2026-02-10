@@ -36,11 +36,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
 import kotlinx.coroutines.flow.collectLatest
 import nvk.cotrip.R
 import nvk.cotrip.ui.components.CoTripIconButton
@@ -145,19 +147,30 @@ private fun MemberRow(
                 .padding(CoTripTokens.spacing.x2),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(PrimaryLight),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = member.initials,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = PrimaryBlue
+            if (!member.photoUrl.isNullOrBlank()) {
+                AsyncImage(
+                    model = member.photoUrl,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape),
+                    contentScale = ContentScale.Crop
                 )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(PrimaryLight),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = member.initials,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = PrimaryBlue
+                    )
+                }
             }
 
             Spacer(Modifier.width(CoTripTokens.spacing.x1_5))

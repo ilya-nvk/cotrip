@@ -204,7 +204,7 @@ private fun TripFormScreen(
 
             item {
                 CoverPickerCard(
-                    coverUrl = state.coverUri,
+                    coverUrl = state.coverPreviewUri ?: state.coverUri,
                     onPick = { onEvent(TripFormEvent.OnPickCoverClick) },
                     modifier = Modifier.fillMaxWidth()
                 )

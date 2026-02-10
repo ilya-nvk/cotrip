@@ -3,10 +3,10 @@ package nvk.cotrip.ui.trip.details
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -36,10 +36,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -101,10 +104,13 @@ fun TripDetailsScreen(
         }
     }
 
+    val density = LocalDensity.current
+    val statusBarTopInset = with(density) { WindowInsets.statusBars.getTop(this).toDp() }
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
-        contentWindowInsets = WindowInsets.statusBars
+        contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { padding ->
         val pullRefreshState = rememberPullRefreshState(
             refreshing = state.isRefreshing,
@@ -128,6 +134,8 @@ fun TripDetailsScreen(
                         dateRange = state.header.dateRange,
                         locationLine = state.header.locationLine,
                         coverUrl = state.header.coverUrl,
+                        statusBarTopInset = statusBarTopInset,
+                        canEdit = state.isOwner,
                         onBack = { viewModel.onEvent(TripDetailsEvent.OnBackClick) },
                         onEdit = { viewModel.onEvent(TripDetailsEvent.OnEditClick) }
                     )
@@ -219,13 +227,15 @@ private fun Header(
     dateRange: String,
     locationLine: String,
     coverUrl: String?,
+    statusBarTopInset: androidx.compose.ui.unit.Dp,
+    canEdit: Boolean,
     onBack: () -> Unit,
     onEdit: () -> Unit,
 ) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(180.dp)
+            .height(220.dp)
             .clip(RoundedCornerShape(CoTripTokens.radius.large))
             .background(tripGradientFromId(tripId))
     ) {
@@ -238,10 +248,30 @@ private fun Header(
             )
         }
 
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .background(
+                    Brush.verticalGradient(
+                        colorStops = arrayOf(
+                            0.0f to Color.Black.copy(alpha = 0.28f),
+                            0.35f to Color.Transparent,
+                            0.72f to Color.Transparent,
+                            1.0f to Color.Black.copy(alpha = 0.42f)
+                        )
+                    )
+                )
+        )
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(CoTripTokens.spacing.x2),
+                .padding(
+                    start = CoTripTokens.spacing.x2,
+                    top = statusBarTopInset + CoTripTokens.spacing.x1_5,
+                    end = CoTripTokens.spacing.x2,
+                    bottom = CoTripTokens.spacing.x2
+                ),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.Top
         ) {
@@ -257,16 +287,18 @@ private fun Header(
                 )
             }
 
-            Surface(
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.surface,
-                shadowElevation = CoTripTokens.elevation.cardHover
-            ) {
-                CoTripIconButton(
-                    icon = CoTripIcons.Edit,
-                    contentDescription = stringResource(R.string.trip_details_edit),
-                    onClick = onEdit
-                )
+            if (canEdit) {
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surface,
+                    shadowElevation = CoTripTokens.elevation.cardHover
+                ) {
+                    CoTripIconButton(
+                        icon = CoTripIcons.Edit,
+                        contentDescription = stringResource(R.string.trip_details_edit),
+                        onClick = onEdit
+                    )
+                }
             }
         }
 

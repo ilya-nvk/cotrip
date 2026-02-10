@@ -1,10 +1,31 @@
 # CoTrip
 
-CoTrip is a multi-platform project consisting of an Android application and a backend service. This repository currently contains the Android client implementation and a placeholder for the backend service.
+CoTrip is a trip planning app with:
+- `android/` - Android client (Kotlin, Compose, Hilt)
+- `backend/` - Kotlin Ktor API + PostgreSQL
 
-- `android/`: Android application written in Kotlin using Jetpack Compose, Hilt, and Clean Architecture principles.
-- `backend/`: Placeholder for the future Kotlin Ktor backend with PostgreSQL.
+## Local Run
 
-## Development
+Backend:
+```bash
+cd backend
+DATABASE_URL="jdbc:postgresql://localhost:5432/cotrip" \
+DATABASE_USER="cotrip" \
+DATABASE_PASSWORD="" \
+DEV_AUTH_ENABLED=true \
+./gradlew run
+```
 
-See the respective directories for more information.
+Android:
+```bash
+cd android
+./gradlew :app:assembleDebug
+```
+
+## Docs
+
+Minimal project docs are in `/docs/README.md`.
+
+## License
+
+Non-commercial only. See `/LICENSE`.
