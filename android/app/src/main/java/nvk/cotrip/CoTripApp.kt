@@ -1,7 +1,7 @@
 package nvk.cotrip
 
-import android.app.Application
 import android.app.Activity
+import android.app.Application
 import android.os.Bundle
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
@@ -17,6 +17,7 @@ import kotlinx.coroutines.launch
 import nvk.cotrip.data.refresh.RefreshScheduler
 import nvk.cotrip.data.repository.PendingTripCreationCleaner
 import nvk.cotrip.notifications.AppRuntimeState
+import nvk.cotrip.notifications.NotificationPollAlarm
 import javax.inject.Inject
 
 @HiltAndroidApp
@@ -77,6 +78,8 @@ class CoTripApp : Application(), Configuration.Provider, ImageLoaderFactory {
         super.onCreate()
         registerActivityLifecycleCallbacks(lifecycleCallbacks)
         refreshScheduler.schedule()
+        refreshScheduler.scheduleImmediate()
+        NotificationPollAlarm.schedule(this)
         appScope.launch {
             pendingTripCreationCleaner.cleanupOnAppStart()
         }

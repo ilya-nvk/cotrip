@@ -3,21 +3,28 @@ package nvk.cotrip.notifications
 import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
-import javax.inject.Inject
-import javax.inject.Singleton
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import nvk.cotrip.MainActivity
 import nvk.cotrip.R
 import nvk.cotrip.data.network.dto.NotificationDto
 import nvk.cotrip.util.AppLogger
+import java.time.Instant
+import java.time.OffsetDateTime
+import java.time.format.DateTimeParseException
+import javax.inject.Inject
+import javax.inject.Singleton
 
 @Singleton
 class SystemNotificationManager @Inject constructor(
@@ -29,6 +36,7 @@ class SystemNotificationManager @Inject constructor(
         ensureChannel()
         val delivered = deliveredIds().toMutableSet()
         val currentIds = items.map { it.id }.toSet()
+        AppLogger.i(TAG, "sync start: server=${items.size}, delivered=${delivered.size}")
 
         items.forEach { item ->
             val id = item.id
@@ -39,6 +47,7 @@ class SystemNotificationManager @Inject constructor(
             }
 
             if (shouldSuppress(item)) {
+                AppLogger.i(TAG, "suppressed in foreground: id=$id type=${item.type}")
                 cancelById(id)
                 delivered.remove(id)
                 return@forEach
@@ -65,7 +74,26 @@ class SystemNotificationManager @Inject constructor(
         saveDelivered(delivered)
     }
 
+    fun onIdeaDiscussionRead(ideaId: String) {
+        prefs.edit().putLong(keyIdeaLastRead(ideaId), System.currentTimeMillis()).apply()
+        AppLogger.i(TAG, "idea discussion read: ideaId=$ideaId")
+    }
+
     private fun shouldSuppress(item: NotificationDto): Boolean {
+        if (item.type == "idea_comment") {
+            val ideaId = payloadValue(item, "ideaId")
+            if (!ideaId.isNullOrBlank()) {
+                val createdAtMillis = parseCreatedAtMillis(item.createdAt)
+                val seenAtMillis = prefs.getLong(keyIdeaLastRead(ideaId), 0L)
+                if (createdAtMillis != null && seenAtMillis > 0L && createdAtMillis <= seenAtMillis) {
+                    AppLogger.i(
+                        TAG,
+                        "suppressed already-read comment: id=${item.id}, ideaId=$ideaId"
+                    )
+                    return true
+                }
+            }
+        }
         if (!AppRuntimeState.isAppForeground()) return false
         if (item.type != "idea_comment") return true
         val ideaId = payloadValue(item, "ideaId")
@@ -73,7 +101,10 @@ class SystemNotificationManager @Inject constructor(
     }
 
     private fun show(item: NotificationDto) {
-        if (!hasNotificationPermission()) return
+        if (!hasNotificationPermission()) {
+            AppLogger.w(TAG, "skip show: notifications permission denied")
+            return
+        }
         val title = buildTitle(item)
         val body = buildBody(item)
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
@@ -83,10 +114,12 @@ class SystemNotificationManager @Inject constructor(
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
+            .setContentIntent(buildContentIntent(item))
             .build()
 
         runCatching {
             NotificationManagerCompat.from(context).notify(platformId(item.id), notification)
+            AppLogger.i(TAG, "shown: id=${item.id} type=${item.type}")
         }.onFailure { error ->
             AppLogger.w(TAG, "Failed to display local notification", error)
         }
@@ -124,6 +157,87 @@ class SystemNotificationManager @Inject constructor(
         return runCatching {
             item.payload.jsonObject[key]?.jsonPrimitive?.contentOrNull
         }.getOrNull()
+    }
+
+    private fun payloadValueAny(item: NotificationDto, vararg keys: String): String? {
+        keys.forEach { key ->
+            val value = payloadValue(item, key)
+            if (!value.isNullOrBlank()) return value
+        }
+        return null
+    }
+
+    private fun parseCreatedAtMillis(raw: String): Long? {
+        return try {
+            Instant.parse(raw).toEpochMilli()
+        } catch (_: DateTimeParseException) {
+            try {
+                OffsetDateTime.parse(raw).toInstant().toEpochMilli()
+            } catch (_: DateTimeParseException) {
+                null
+            }
+        }
+    }
+
+    private fun buildContentIntent(item: NotificationDto): PendingIntent {
+        val deepLinkUri = buildDeepLinkUri(item)
+        val intent = Intent(context, MainActivity::class.java).apply {
+            action = Intent.ACTION_VIEW
+            data = deepLinkUri
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra(NotificationIntentExtras.EXTRA_NOTIFICATION_ID, item.id)
+            putExtra(NotificationIntentExtras.EXTRA_EVENT, item.type)
+            payloadValueAny(item, "tripId", "trip_id", "tripID")?.let {
+                putExtra(
+                    NotificationIntentExtras.EXTRA_TRIP_ID,
+                    it
+                )
+            }
+            payloadValueAny(item, "ideaId", "idea_id", "ideaID")?.let {
+                putExtra(
+                    NotificationIntentExtras.EXTRA_IDEA_ID,
+                    it
+                )
+            }
+            payloadValueAny(item, "expenseId", "expense_id", "expenseID")
+                ?.let { putExtra(NotificationIntentExtras.EXTRA_EXPENSE_ID, it) }
+        }
+        return PendingIntent.getActivity(
+            context,
+            platformId(item.id),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+    }
+
+    private fun buildDeepLinkUri(item: NotificationDto): Uri {
+        val tripId = payloadValueAny(item, "tripId", "trip_id", "tripID")
+        val ideaId = payloadValueAny(item, "ideaId", "idea_id", "ideaID")
+        val expenseId = payloadValueAny(item, "expenseId", "expense_id", "expenseID")
+        val url = when (item.type) {
+            "idea_comment", "idea_created" -> {
+                if (!tripId.isNullOrBlank() && !ideaId.isNullOrBlank()) {
+                    "https://api.cotrip.site/trips/$tripId/ideas/$ideaId"
+                } else {
+                    "https://api.cotrip.site/notifications"
+                }
+            }
+
+            "expense_created", "expense_settlement" -> {
+                when {
+                    !tripId.isNullOrBlank() && !expenseId.isNullOrBlank() ->
+                        "https://api.cotrip.site/trips/$tripId/expenses/$expenseId"
+
+                    !tripId.isNullOrBlank() ->
+                        "https://api.cotrip.site/trips/$tripId/expenses"
+
+                    else -> "https://api.cotrip.site/notifications"
+                }
+            }
+
+            else -> "https://api.cotrip.site/notifications"
+        }
+        return Uri.parse(url)
     }
 
     private fun ensureChannel() {
@@ -167,5 +281,8 @@ class SystemNotificationManager @Inject constructor(
         private const val CHANNEL_ID = "cotrip_updates"
         private const val PREFS_NAME = "cotrip_local_notifications"
         private const val KEY_DELIVERED_IDS = "delivered_ids"
+        private const val KEY_IDEA_LAST_READ_PREFIX = "idea_last_read_"
+
+        private fun keyIdeaLastRead(ideaId: String): String = "$KEY_IDEA_LAST_READ_PREFIX$ideaId"
     }
 }

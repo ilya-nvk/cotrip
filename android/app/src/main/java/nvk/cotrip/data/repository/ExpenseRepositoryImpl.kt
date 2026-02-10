@@ -1,19 +1,19 @@
 package nvk.cotrip.data.repository
 
-import java.io.IOException
-import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import nvk.cotrip.data.cache.ExpensesCacheStore
 import nvk.cotrip.data.network.CoTripApi
 import nvk.cotrip.data.network.NetworkStateProvider
-import nvk.cotrip.data.network.requireSuccess
 import nvk.cotrip.data.network.dto.ExpenseCreateRequest
 import nvk.cotrip.data.network.dto.ExpenseDto
 import nvk.cotrip.data.network.dto.ExpenseUpdateRequest
+import nvk.cotrip.data.network.requireSuccess
 import nvk.cotrip.data.sync.SyncEntities
 import nvk.cotrip.data.sync.SyncQueueRepository
 import nvk.cotrip.util.AppLogger
 import retrofit2.HttpException
+import java.io.IOException
+import javax.inject.Inject
 
 class ExpenseRepositoryImpl @Inject constructor(
     private val api: CoTripApi,
@@ -38,7 +38,15 @@ class ExpenseRepositoryImpl @Inject constructor(
     }
 
     override suspend fun getExpense(expenseId: String): ExpenseDto {
-        return api.getExpense(expenseId)
+        if (!networkStateProvider.isOnline()) {
+            return expensesCacheStore.findExpenseById(expenseId)
+                ?: throw IOException("Expense $expenseId is not available offline")
+        }
+        return try {
+            api.getExpense(expenseId)
+        } catch (e: IOException) {
+            expensesCacheStore.findExpenseById(expenseId) ?: throw e
+        }
     }
 
     override suspend fun createExpense(tripId: String, request: ExpenseCreateRequest): ExpenseDto {

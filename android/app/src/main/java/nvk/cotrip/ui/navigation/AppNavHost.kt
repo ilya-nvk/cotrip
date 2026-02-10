@@ -60,7 +60,13 @@ fun AppNavHost(
             SettingsScreen()
         }
 
-        composable(Destination.Notifications.route) {
+        composable(
+            route = Destination.Notifications.route,
+            deepLinks = listOf(
+                navDeepLink { uriPattern = "https://api.cotrip.site/notifications" },
+                navDeepLink { uriPattern = "http://api.cotrip.site/notifications" },
+            )
+        ) {
             NotificationsScreen()
         }
 
@@ -76,12 +82,8 @@ fun AppNavHost(
             deepLinks = listOf(
                 navDeepLink { uriPattern = "https://api.cotrip.site/invite/{${Destination.JoinTrip.ARG_INVITE_TOKEN}}" },
                 navDeepLink { uriPattern = "http://api.cotrip.site/invite/{${Destination.JoinTrip.ARG_INVITE_TOKEN}}" },
-                navDeepLink { uriPattern = "https://api.cotrip.site/v1/invites/{${Destination.JoinTrip.ARG_INVITE_TOKEN}}" },
-                navDeepLink { uriPattern = "http://api.cotrip.site/v1/invites/{${Destination.JoinTrip.ARG_INVITE_TOKEN}}" },
                 navDeepLink { uriPattern = "https://api.cotrip.site/trips/{${Destination.JoinTrip.ARG_INVITE_TOKEN}}/invite" },
                 navDeepLink { uriPattern = "http://api.cotrip.site/trips/{${Destination.JoinTrip.ARG_INVITE_TOKEN}}/invite" },
-                navDeepLink { uriPattern = "https://api.cotrip.site/v1/trips/{${Destination.JoinTrip.ARG_INVITE_TOKEN}}/invite" },
-                navDeepLink { uriPattern = "http://api.cotrip.site/v1/trips/{${Destination.JoinTrip.ARG_INVITE_TOKEN}}/invite" },
             )
         ) {
             JoinTripScreen()
@@ -91,6 +93,16 @@ fun AppNavHost(
             route = Destination.TripDetails.ROUTE_PATTERN,
             arguments = listOf(
                 navArgument(Destination.TripDetails.ARG_TRIP_ID) { type = NavType.StringType }
+            ),
+            deepLinks = listOf(
+                navDeepLink {
+                    uriPattern =
+                        "https://api.cotrip.site/trips/{${Destination.TripDetails.ARG_TRIP_ID}}"
+                },
+                navDeepLink {
+                    uriPattern =
+                        "http://api.cotrip.site/trips/{${Destination.TripDetails.ARG_TRIP_ID}}"
+                },
             )
         ) {
             TripDetailsScreen()
@@ -127,6 +139,16 @@ fun AppNavHost(
             route = Destination.TripMembers.ROUTE_PATTERN,
             arguments = listOf(
                 navArgument(Destination.TripMembers.ARG_TRIP_ID) { type = NavType.StringType }
+            ),
+            deepLinks = listOf(
+                navDeepLink {
+                    uriPattern =
+                        "https://api.cotrip.site/trips/{${Destination.TripMembers.ARG_TRIP_ID}}/members"
+                },
+                navDeepLink {
+                    uriPattern =
+                        "http://api.cotrip.site/trips/{${Destination.TripMembers.ARG_TRIP_ID}}/members"
+                },
             )
         ) {
             TripMembersScreen()
@@ -136,6 +158,16 @@ fun AppNavHost(
             route = Destination.TripIdeas.ROUTE_PATTERN,
             arguments = listOf(
                 navArgument(Destination.TripIdeas.ARG_TRIP_ID) { type = NavType.StringType }
+            ),
+            deepLinks = listOf(
+                navDeepLink {
+                    uriPattern =
+                        "https://api.cotrip.site/trips/{${Destination.TripIdeas.ARG_TRIP_ID}}/ideas"
+                },
+                navDeepLink {
+                    uriPattern =
+                        "http://api.cotrip.site/trips/{${Destination.TripIdeas.ARG_TRIP_ID}}/ideas"
+                },
             )
         ) {
             TripIdeasScreen()
@@ -146,6 +178,16 @@ fun AppNavHost(
             arguments = listOf(
                 navArgument(Destination.IdeaDetails.ARG_TRIP_ID) { type = NavType.StringType },
                 navArgument(Destination.IdeaDetails.ARG_IDEA_ID) { type = NavType.StringType }
+            ),
+            deepLinks = listOf(
+                navDeepLink {
+                    uriPattern =
+                        "https://api.cotrip.site/trips/{${Destination.IdeaDetails.ARG_TRIP_ID}}/ideas/{${Destination.IdeaDetails.ARG_IDEA_ID}}"
+                },
+                navDeepLink {
+                    uriPattern =
+                        "http://api.cotrip.site/trips/{${Destination.IdeaDetails.ARG_TRIP_ID}}/ideas/{${Destination.IdeaDetails.ARG_IDEA_ID}}"
+                },
             )
         ) {
             IdeaDetailsScreen()
@@ -181,6 +223,16 @@ fun AppNavHost(
                 navArgument(Destination.TripItinerary.ARG_CREATION_FLOW) {
                     type = NavType.BoolType
                     defaultValue = false
+                },
+            ),
+            deepLinks = listOf(
+                navDeepLink {
+                    uriPattern =
+                        "https://api.cotrip.site/trips/{${Destination.TripItinerary.ARG_TRIP_ID}}/itinerary"
+                },
+                navDeepLink {
+                    uriPattern =
+                        "http://api.cotrip.site/trips/{${Destination.TripItinerary.ARG_TRIP_ID}}/itinerary"
                 },
             )
         ) {
@@ -243,6 +295,16 @@ fun AppNavHost(
             route = Destination.Expenses.ROUTE_PATTERN,
             arguments = listOf(
                 navArgument(Destination.Expenses.ARG_TRIP_ID) { type = NavType.StringType }
+            ),
+            deepLinks = listOf(
+                navDeepLink {
+                    uriPattern =
+                        "https://api.cotrip.site/trips/{${Destination.Expenses.ARG_TRIP_ID}}/expenses"
+                },
+                navDeepLink {
+                    uriPattern =
+                        "http://api.cotrip.site/trips/{${Destination.Expenses.ARG_TRIP_ID}}/expenses"
+                },
             )
         ) {
             TripExpensesScreen()
@@ -253,6 +315,16 @@ fun AppNavHost(
             arguments = listOf(
                 navArgument(Destination.ExpenseDetails.ARG_TRIP_ID) { type = NavType.StringType },
                 navArgument(Destination.ExpenseDetails.ARG_EXPENSE_ID) { type = NavType.StringType }
+            ),
+            deepLinks = listOf(
+                navDeepLink {
+                    uriPattern =
+                        "https://api.cotrip.site/trips/{${Destination.ExpenseDetails.ARG_TRIP_ID}}/expenses/{${Destination.ExpenseDetails.ARG_EXPENSE_ID}}"
+                },
+                navDeepLink {
+                    uriPattern =
+                        "http://api.cotrip.site/trips/{${Destination.ExpenseDetails.ARG_TRIP_ID}}/expenses/{${Destination.ExpenseDetails.ARG_EXPENSE_ID}}"
+                },
             )
         ) {
             ExpenseDetailsScreen()

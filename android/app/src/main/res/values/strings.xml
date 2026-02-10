@@ -27,7 +27,7 @@
     <string name="join_trip_invite_label">Invite link or trip ID</string>
     <string name="join_trip_invite_placeholder">https://api.cotrip.site/invite/... or trip ID</string>
     <string name="join_trip_action">Join trip</string>
-    <string name="join_trip_hint">Supported: invite link, /v1/trips/.../invite, or trip ID.</string>
+    <string name="join_trip_hint">Supported: invite link, /trips/.../invite, or trip ID.</string>
     <string name="join_trip_invalid">Invalid invite link or trip ID</string>
     <string name="join_trip_already_joined">You are already in this trip</string>
     <string name="join_trip_success">Joined trip</string>

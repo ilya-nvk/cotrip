@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -47,6 +48,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
@@ -57,10 +59,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import coil.compose.AsyncImage
-import androidx.compose.ui.layout.ContentScale
 import kotlinx.coroutines.flow.collectLatest
 import nvk.cotrip.R
 import nvk.cotrip.notifications.AppRuntimeState
+import nvk.cotrip.notifications.NotificationNavigationState
 import nvk.cotrip.ui.components.CoTripCard
 import nvk.cotrip.ui.components.CoTripDivider
 import nvk.cotrip.ui.components.CoTripIconButton
@@ -103,6 +105,12 @@ fun IdeaDetailsScreen(
                     Toast.makeText(context, context.getString(effect.resId), Toast.LENGTH_SHORT)
                         .show()
             }
+        }
+    }
+
+    LaunchedEffect(state.ideaId) {
+        if (NotificationNavigationState.consumeOpenDiscussion(state.ideaId)) {
+            viewModel.onEvent(IdeaDetailsEvent.OnTabSelected(IdeaDetailsTab.Discussion))
         }
     }
 
@@ -370,8 +378,16 @@ private fun IdeaDiscussionContent(
     state: IdeaDetailsState,
     modifier: Modifier = Modifier,
 ) {
+    val listState = rememberLazyListState()
+    LaunchedEffect(state.discussion.size) {
+        val lastIndex = state.discussion.lastIndex
+        if (lastIndex >= 0) {
+            listState.animateScrollToItem(lastIndex)
+        }
+    }
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
+        state = listState,
         contentPadding = PaddingValues(
             horizontal = CoTripTokens.spacing.x2,
             vertical = CoTripTokens.spacing.x2

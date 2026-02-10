@@ -28,6 +28,14 @@ class ExpensesCacheStoreImpl @Inject constructor(
         return decodeCache(prefs[EXPENSES_KEY]).byTrip[tripId].orEmpty()
     }
 
+    override suspend fun findExpenseById(expenseId: String): ExpenseDto? {
+        val prefs = dataStore.data.first()
+        return decodeCache(prefs[EXPENSES_KEY]).byTrip.values
+            .asSequence()
+            .flatten()
+            .firstOrNull { it.id == expenseId }
+    }
+
     override suspend fun setExpenses(tripId: String, expenses: List<ExpenseDto>) {
         updateCache { cache ->
             cache.copy(byTrip = cache.byTrip.toMutableMap().apply { put(tripId, expenses) })

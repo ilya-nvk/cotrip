@@ -5,17 +5,17 @@ import kotlinx.coroutines.flow.map
 import nvk.cotrip.data.cache.TripsCacheStore
 import nvk.cotrip.data.network.CoTripApi
 import nvk.cotrip.data.network.NetworkStateProvider
-import nvk.cotrip.data.network.requireSuccess
 import nvk.cotrip.data.network.dto.CreateTripRequest
 import nvk.cotrip.data.network.dto.MemberDto
 import nvk.cotrip.data.network.dto.TripDto
 import nvk.cotrip.data.network.dto.UpdateTripRequest
+import nvk.cotrip.data.network.requireSuccess
 import nvk.cotrip.data.sync.SyncEntities
 import nvk.cotrip.data.sync.SyncQueueRepository
-import java.io.IOException
-import javax.inject.Inject
 import nvk.cotrip.util.AppLogger
 import retrofit2.HttpException
+import java.io.IOException
+import javax.inject.Inject
 
 class TripRepositoryImpl @Inject constructor(
     private val api: CoTripApi,
@@ -57,11 +57,19 @@ class TripRepositoryImpl @Inject constructor(
     }
 
     override suspend fun getTrip(tripId: String): TripDto {
-        val trip = api.getTrip(tripId)
-        safeLocalMutation("getTrip.upsertTrip(tripId=$tripId)") {
-            tripsCacheStore.upsertTrip(trip)
+        if (!networkStateProvider.isOnline()) {
+            return tripsCacheStore.getTrips().firstOrNull { it.id == tripId }
+                ?: throw IOException("Trip $tripId is not available offline")
         }
-        return trip
+        return try {
+            val trip = api.getTrip(tripId)
+            safeLocalMutation("getTrip.upsertTrip(tripId=$tripId)") {
+                tripsCacheStore.upsertTrip(trip)
+            }
+            trip
+        } catch (e: IOException) {
+            tripsCacheStore.getTrips().firstOrNull { it.id == tripId } ?: throw e
+        }
     }
 
     override fun observeTrip(tripId: String): Flow<TripDto?> {
