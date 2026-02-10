@@ -26,6 +26,7 @@ data class AiSuggestionRequest(
     val typeOptions: List<String> = emptyList(),
     val timeOfDayOptions: List<String> = emptyList(),
     val budgetOptions: List<String> = emptyList(),
+    val generationToken: String? = null,
 )
 
 fun Route.aiRoutes(aiConfig: AiConfig) {
@@ -42,7 +43,8 @@ fun Route.aiRoutes(aiConfig: AiConfig) {
                 return@post
             }
 
-            if (!TripRepository.isMember(tripId, userId)) {
+            val trip = TripRepository.getTripForUser(userId, tripId)
+            if (trip == null) {
                 call.respond(HttpStatusCode.Forbidden)
                 return@post
             }
@@ -71,6 +73,8 @@ fun Route.aiRoutes(aiConfig: AiConfig) {
                             typeOptions = request.typeOptions,
                             timeOfDayOptions = request.timeOfDayOptions,
                             budgetOptions = request.budgetOptions,
+                            currencyCode = trip.currencyCode,
+                            generationToken = request.generationToken,
                             maxSuggestions = aiConfig.maxSuggestions,
                         ),
                     )
