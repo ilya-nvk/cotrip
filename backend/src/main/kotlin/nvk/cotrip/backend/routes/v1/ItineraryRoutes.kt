@@ -13,18 +13,21 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.patch
 import io.ktor.server.routing.post
 import kotlinx.serialization.Serializable
-import nvk.cotrip.backend.config.AppConfig
+import nvk.cotrip.backend.config.WeatherConfig
 import nvk.cotrip.backend.db.ActivityRepository
 import nvk.cotrip.backend.db.ActivityRow
 import nvk.cotrip.backend.db.DayRepository
 import nvk.cotrip.backend.db.ItineraryDayRepository
+import nvk.cotrip.backend.db.LocalPlacesSearchRepository
 import nvk.cotrip.backend.db.TripRepository
-import nvk.cotrip.backend.integrations.GooglePlacesClient
+import nvk.cotrip.backend.integrations.OpenWeatherClient
 
 @Serializable
 data class UpdateDayRequest(
     val city: String? = null,
-    val cityPlaceId: String? = null,
+    val cityProviderId: String? = null,
+    val cityLat: Double? = null,
+    val cityLon: Double? = null,
 )
 
 @Serializable
@@ -32,7 +35,7 @@ data class CreateActivityRequest(
     val title: String,
     val timeText: String? = null,
     val locationName: String? = null,
-    val locationLink: String? = null,
+    val link: String? = null,
     val costAmount: Double? = null,
     val costType: String? = null,
     val website: String? = null,
@@ -45,7 +48,7 @@ data class UpdateActivityRequest(
     val title: String? = null,
     val timeText: String? = null,
     val locationName: String? = null,
-    val locationLink: String? = null,
+    val link: String? = null,
     val costAmount: Double? = null,
     val costType: String? = null,
     val website: String? = null,
@@ -69,7 +72,7 @@ data class TrimOutOfRangeRequest(
     val dayIds: List<String>,
 )
 
-fun Route.itineraryRoutes(appConfig: AppConfig) {
+fun Route.itineraryRoutes(weatherConfig: WeatherConfig) {
     authenticate("auth-jwt") {
         get("/v1/trips/{tripId}/cities/search") {
             val principal = call.principal<JWTPrincipal>()
@@ -94,22 +97,26 @@ fun Route.itineraryRoutes(appConfig: AppConfig) {
                 return@get
             }
 
-            val apiKey = appConfig.googleMaps.apiKey
+            val apiKey = weatherConfig.openWeatherApiKey
             if (apiKey.isNullOrBlank()) {
                 call.respond(
                     HttpStatusCode.ServiceUnavailable,
-                    mapOf("error" to mapOf("code" to "google_maps_not_configured", "message" to "Google Maps API key is not configured"))
+                    mapOf("error" to mapOf("code" to "weather_provider_unavailable", "message" to "Weather provider is not configured"))
                 )
                 return@get
             }
 
             val limit = call.request.queryParameters["limit"]?.toIntOrNull()?.coerceIn(1, 20) ?: 8
             val suggestions = runCatching {
-                GooglePlacesClient.searchCities(query = query, apiKey = apiKey, limit = limit)
+                OpenWeatherClient.searchCities(
+                    apiKey = apiKey,
+                    query = query,
+                    limit = limit,
+                )
             }.getOrElse {
                 call.respond(
                     HttpStatusCode.BadGateway,
-                    mapOf("error" to mapOf("code" to "google_places_error", "message" to "Unable to fetch city suggestions"))
+                    mapOf("error" to mapOf("code" to "city_search_error", "message" to "Unable to fetch city suggestions"))
                 )
                 return@get
             }
@@ -119,7 +126,9 @@ fun Route.itineraryRoutes(appConfig: AppConfig) {
                     "items" to suggestions.map {
                         CitySuggestionDto(
                             name = it.name,
-                            placeId = it.placeId,
+                            providerId = it.providerId,
+                            lat = it.lat,
+                            lon = it.lon,
                             fullText = it.fullText,
                         )
                     }
@@ -150,22 +159,13 @@ fun Route.itineraryRoutes(appConfig: AppConfig) {
                 return@get
             }
 
-            val apiKey = appConfig.googleMaps.apiKey
-            if (apiKey.isNullOrBlank()) {
-                call.respond(
-                    HttpStatusCode.ServiceUnavailable,
-                    mapOf("error" to mapOf("code" to "google_maps_not_configured", "message" to "Google Maps API key is not configured"))
-                )
-                return@get
-            }
-
             val limit = call.request.queryParameters["limit"]?.toIntOrNull()?.coerceIn(1, 20) ?: 8
             val suggestions = runCatching {
-                GooglePlacesClient.searchPlaces(query = query, apiKey = apiKey, limit = limit)
+                LocalPlacesSearchRepository.searchPlaces(tripId = tripId, query = query, limit = limit)
             }.getOrElse {
                 call.respond(
                     HttpStatusCode.BadGateway,
-                    mapOf("error" to mapOf("code" to "google_places_error", "message" to "Unable to fetch place suggestions"))
+                    mapOf("error" to mapOf("code" to "place_search_error", "message" to "Unable to fetch place suggestions"))
                 )
                 return@get
             }
@@ -211,7 +211,9 @@ fun Route.itineraryRoutes(appConfig: AppConfig) {
                     date = day.date.toString(),
                     dayNumber = day.dayNumber,
                     city = day.city,
-                    cityPlaceId = day.cityPlaceId,
+                    cityProviderId = day.cityProviderId,
+                    cityLat = day.cityLat,
+                    cityLon = day.cityLon,
                     isOutOfRange = day.isOutOfRange,
                     activities = activitiesByDay[day.id].orEmpty().map { it.toDto() },
                 )
@@ -244,7 +246,32 @@ fun Route.itineraryRoutes(appConfig: AppConfig) {
             }
 
             val request = call.receive<UpdateDayRequest>()
-            val updated = ItineraryDayRepository.updateCity(dayId, request.city, request.cityPlaceId)
+            val normalizedCity = request.city?.trim()?.ifBlank { null }
+            val normalizedProviderId = request.cityProviderId?.trim()?.ifBlank { null }
+            val updated = if (normalizedCity == null) {
+                ItineraryDayRepository.updateCity(
+                    dayId = dayId,
+                    city = null,
+                    cityProviderId = null,
+                    cityLat = null,
+                    cityLon = null,
+                )
+            } else {
+                if (request.cityLat == null || request.cityLon == null) {
+                    call.respond(
+                        HttpStatusCode.BadRequest,
+                        mapOf("error" to mapOf("code" to "city_coordinates_required", "message" to "Coordinates are required for selected city"))
+                    )
+                    return@patch
+                }
+                ItineraryDayRepository.updateCity(
+                    dayId = dayId,
+                    city = normalizedCity,
+                    cityProviderId = normalizedProviderId,
+                    cityLat = request.cityLat,
+                    cityLon = request.cityLon,
+                )
+            }
             if (updated == null) {
                 call.respond(HttpStatusCode.NotFound)
                 return@patch
@@ -283,7 +310,7 @@ fun Route.itineraryRoutes(appConfig: AppConfig) {
                 title = request.title,
                 timeText = request.timeText,
                 locationName = request.locationName,
-                locationLink = request.locationLink,
+                link = request.link,
                 costAmount = request.costAmount,
                 costType = request.costType,
                 website = request.website,
@@ -329,7 +356,7 @@ fun Route.itineraryRoutes(appConfig: AppConfig) {
                 title = request.title,
                 timeText = request.timeText,
                 locationName = request.locationName,
-                locationLink = request.locationLink,
+                link = request.link,
                 costAmount = request.costAmount,
                 costType = request.costType,
                 website = request.website,
@@ -502,7 +529,7 @@ private fun ActivityRow.toDto(): ActivityDto = ActivityDto(
     title = title,
     timeText = timeText,
     locationName = locationName,
-    locationLink = locationLink,
+    link = link,
     costAmount = costAmount,
     costType = costType,
     website = website,

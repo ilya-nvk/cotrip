@@ -31,6 +31,8 @@ import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.data.repository.TripRepositoryImpl
 import nvk.cotrip.data.repository.UserRepository
 import nvk.cotrip.data.repository.UserRepositoryImpl
+import nvk.cotrip.data.repository.WeatherRepository
+import nvk.cotrip.data.repository.WeatherRepositoryImpl
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -112,4 +114,10 @@ abstract class RepositoryModule {
     abstract fun bindNotificationRepository(
         impl: NotificationRepositoryImpl
     ): NotificationRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindWeatherRepository(
+        impl: WeatherRepositoryImpl
+    ): WeatherRepository
 }

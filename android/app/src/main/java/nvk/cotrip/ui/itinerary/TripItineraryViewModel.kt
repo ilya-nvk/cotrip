@@ -250,7 +250,9 @@ class TripItineraryViewModel @Inject constructor(
                     val suggestions = result.data.map {
                         CitySuggestionUi(
                             name = it.name,
-                            placeId = it.placeId,
+                            providerId = it.providerId,
+                            lat = it.lat,
+                            lon = it.lon,
                             fullText = it.fullText,
                         )
                     }
@@ -300,7 +302,9 @@ class TripItineraryViewModel @Inject constructor(
                         dayId = picker.dayId,
                         request = UpdateDayRequest(
                             city = city.name,
-                            cityPlaceId = city.placeId,
+                            cityProviderId = city.providerId,
+                            cityLat = city.lat,
+                            cityLon = city.lon,
                         )
                     )
                 }
@@ -328,14 +332,18 @@ private fun collectTripCities(days: List<ItineraryDayDto>): List<CitySuggestionU
     val byName = linkedMapOf<String, CitySuggestionUi>()
     for (day in days) {
         val cityName = day.city?.trim()?.takeIf { it.isNotEmpty() } ?: continue
+        val cityLat = day.cityLat ?: continue
+        val cityLon = day.cityLon ?: continue
         val key = cityName.lowercase(Locale.getDefault())
         val candidate = CitySuggestionUi(
             name = cityName,
-            placeId = day.cityPlaceId,
+            providerId = day.cityProviderId,
+            lat = cityLat,
+            lon = cityLon,
             fullText = cityName,
         )
         val current = byName[key]
-        byName[key] = if (current == null || (current.placeId == null && candidate.placeId != null)) {
+        byName[key] = if (current == null || (current.providerId == null && candidate.providerId != null)) {
             candidate
         } else {
             current

@@ -55,7 +55,12 @@ class ItineraryRepositoryImpl @Inject constructor(
                 itineraryCacheStore.updateItinerary(tripId) { days ->
                     days.map { day ->
                         if (day.id == dayId) {
-                            day.copy(city = request.city, cityPlaceId = request.cityPlaceId)
+                            day.copy(
+                                city = request.city,
+                                cityProviderId = request.cityProviderId,
+                                cityLat = request.cityLat,
+                                cityLon = request.cityLon,
+                            )
                         } else {
                             day
                         }

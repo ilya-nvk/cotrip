@@ -291,6 +291,17 @@ private fun ActivityFormScreen(
 
             CoTripDivider()
 
+            SectionLabel(text = stringResource(R.string.activity_form_section_link_optional))
+            FormTextField(
+                value = state.linkInput,
+                onValueChange = { viewModel.onEvent(ActivityFormEvent.OnLinkChange(it)) },
+                placeholder = stringResource(R.string.activity_form_link_placeholder),
+                singleLine = true,
+                trailingIcon = null
+            )
+
+            CoTripDivider()
+
             SectionLabel(text = stringResource(R.string.activity_form_section_cost_optional))
             Column(
                 verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x1_5)

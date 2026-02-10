@@ -195,6 +195,14 @@ private fun IdeaFormScreen(
                 }
             }
 
+            FieldLabel(text = stringResource(R.string.idea_form_link_label))
+            FormTextField(
+                value = state.link,
+                onValueChange = { viewModel.onEvent(IdeaFormEvent.OnLinkChange(it)) },
+                placeholder = stringResource(R.string.idea_form_link_placeholder),
+                singleLine = true
+            )
+
             FieldLabel(text = stringResource(R.string.idea_form_cost_label))
             Column(verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x1_5)) {
                 FormTextField(

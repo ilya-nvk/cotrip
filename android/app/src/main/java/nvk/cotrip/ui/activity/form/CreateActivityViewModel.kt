@@ -58,6 +58,7 @@ class CreateActivityViewModel @Inject constructor(
             timeText = "",
             locationInput = "",
             locationPlaceId = null,
+            linkInput = "",
             locationSuggestions = emptyList(),
             isLocationSearching = false,
             currencySymbol = "€",
@@ -89,6 +90,9 @@ class CreateActivityViewModel @Inject constructor(
             is ActivityFormEvent.OnTitleChange -> _state.update { it.copy(title = event.value) }
             is ActivityFormEvent.OnLocationInputChange -> onLocationInputChanged(event.value)
             is ActivityFormEvent.OnLocationSuggestionSelected -> onLocationSuggestionSelected(event.value)
+            is ActivityFormEvent.OnLinkChange -> _state.update {
+                it.copy(linkInput = event.value)
+            }
             is ActivityFormEvent.OnCostAmountChange -> _state.update {
                 it.copy(
                     costAmount = moneyInput(
@@ -176,7 +180,7 @@ class CreateActivityViewModel @Inject constructor(
                             title = snapshot.title.trim(),
                             timeText = snapshot.timeText.trim().ifBlank { null },
                             locationName = snapshot.locationInput.trim().ifBlank { null },
-                            locationLink = snapshot.locationPlaceId?.toGoogleMapsPlaceLink(),
+                            link = snapshot.linkInput.trim().ifBlank { null },
                             costAmount = parseAmount(snapshot.costAmount),
                             costType = snapshot.costAmount.toCostType(snapshot.costType),
                             website = snapshot.website.trim().ifBlank { null },

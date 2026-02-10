@@ -8,6 +8,7 @@ data class ActivityDetailsState(
     val dateText: String,
     val timeText: String,
     val locationName: String?,
+    val link: String?,
     val costText: String?,
     val website: String?,
     val notes: String?,

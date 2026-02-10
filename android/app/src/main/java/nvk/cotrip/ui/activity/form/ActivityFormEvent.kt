@@ -15,6 +15,7 @@ sealed interface ActivityFormEvent {
     data class OnTitleChange(val value: String) : ActivityFormEvent
     data class OnLocationInputChange(val value: String) : ActivityFormEvent
     data class OnLocationSuggestionSelected(val value: LocationSuggestionUi) : ActivityFormEvent
+    data class OnLinkChange(val value: String) : ActivityFormEvent
     data class OnCostAmountChange(val value: String) : ActivityFormEvent
     data class OnCostTypeChange(val value: CostType) : ActivityFormEvent
     data class OnWebsiteChange(val value: String) : ActivityFormEvent

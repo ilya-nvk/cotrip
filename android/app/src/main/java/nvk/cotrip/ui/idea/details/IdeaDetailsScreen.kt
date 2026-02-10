@@ -288,6 +288,13 @@ private fun IdeaDetailsContent(
             )
             CoTripDivider()
             IdeaInfoRow(
+                icon = CoTripIcons.Link,
+                label = stringResource(R.string.idea_details_link),
+                value = state.link.ifBlank { stringResource(R.string.activity_details_empty) },
+                valueColor = if (state.link.isBlank()) TextSecondary else PrimaryBlue
+            )
+            CoTripDivider()
+            IdeaInfoRow(
                 icon = CoTripIcons.AccountBalance,
                 label = stringResource(R.string.idea_details_cost),
                 value = state.cost

@@ -12,6 +12,7 @@ data class IdeaFormState(
     val title: String,
     val city: String,
     val cityPlaceId: String?,
+    val link: String,
     val citySuggestions: List<IdeaLocationSuggestionUi>,
     val isCitySearching: Boolean,
     val currencySymbol: String,

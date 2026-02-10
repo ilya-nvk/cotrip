@@ -78,6 +78,7 @@ class IdeaDetailsViewModel @Inject constructor(
             ideaId = ideaId,
             title = "",
             city = "",
+            link = "",
             cost = "",
             website = "",
             notes = "",
@@ -169,6 +170,7 @@ class IdeaDetailsViewModel @Inject constructor(
                         current.copy(
                             title = idea.title,
                             city = idea.city.orEmpty(),
+                            link = idea.link.orEmpty(),
                             cost = idea.costAmount?.let { formatCost(it, currencySymbol) }
                                 .orEmpty(),
                             website = idea.website.orEmpty(),

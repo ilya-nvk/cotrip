@@ -30,9 +30,14 @@ fun loadConfig(config: ApplicationConfig): AppConfig {
             ?: "http://localhost:8080/invite",
     )
 
-    val googleMaps = GoogleMapsConfig(
-        apiKey = System.getenv("GOOGLE_MAPS_API_KEY")
-            ?: config.propertyOrNull("ktor.googleMaps.apiKey")?.getString(),
+    val weather = WeatherConfig(
+        openWeatherApiKey = System.getenv("OPENWEATHER_API_KEY")
+            ?: config.propertyOrNull("ktor.weather.openWeatherApiKey")?.getString(),
+        refreshTtlHours = (
+            System.getenv("WEATHER_REFRESH_TTL_HOURS")?.toIntOrNull()
+                ?: config.propertyOrNull("ktor.weather.refreshTtlHours")?.getString()?.toIntOrNull()
+                ?: 8
+            ).coerceIn(1, 48),
     )
 
     val devAuthEnabled = System.getenv("DEV_AUTH_ENABLED")
@@ -46,7 +51,7 @@ fun loadConfig(config: ApplicationConfig): AppConfig {
         jwt = jwt,
         db = db,
         invite = invite,
-        googleMaps = googleMaps,
+        weather = weather,
         devAuthEnabled = devAuthEnabled
     )
 }

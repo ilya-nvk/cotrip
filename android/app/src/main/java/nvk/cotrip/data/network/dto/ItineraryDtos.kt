@@ -9,7 +9,7 @@ data class ActivityDto(
     val title: String,
     val timeText: String? = null,
     val locationName: String? = null,
-    val locationLink: String? = null,
+    val link: String? = null,
     val costAmount: Double? = null,
     val costType: String? = null,
     val website: String? = null,
@@ -20,7 +20,9 @@ data class ActivityDto(
 @Serializable
 data class UpdateDayRequest(
     val city: String? = null,
-    val cityPlaceId: String? = null,
+    val cityProviderId: String? = null,
+    val cityLat: Double? = null,
+    val cityLon: Double? = null,
 )
 
 @Serializable
@@ -28,7 +30,7 @@ data class CreateActivityRequest(
     val title: String,
     val timeText: String? = null,
     val locationName: String? = null,
-    val locationLink: String? = null,
+    val link: String? = null,
     val costAmount: Double? = null,
     val costType: String? = null,
     val website: String? = null,
@@ -41,7 +43,7 @@ data class UpdateActivityRequest(
     val title: String? = null,
     val timeText: String? = null,
     val locationName: String? = null,
-    val locationLink: String? = null,
+    val link: String? = null,
     val costAmount: Double? = null,
     val costType: String? = null,
     val website: String? = null,
@@ -66,7 +68,9 @@ data class ItineraryDayDto(
     val date: String,
     val dayNumber: Int,
     val city: String? = null,
-    val cityPlaceId: String? = null,
+    val cityProviderId: String? = null,
+    val cityLat: Double? = null,
+    val cityLon: Double? = null,
     val isOutOfRange: Boolean,
     val activities: List<ActivityDto> = emptyList(),
 )
@@ -74,7 +78,9 @@ data class ItineraryDayDto(
 @Serializable
 data class CitySuggestionDto(
     val name: String,
-    val placeId: String,
+    val providerId: String? = null,
+    val lat: Double,
+    val lon: Double,
     val fullText: String,
 )
 

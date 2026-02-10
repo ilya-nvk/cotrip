@@ -63,6 +63,7 @@ class EditActivityViewModel @Inject constructor(
             timeText = "",
             locationInput = "",
             locationPlaceId = null,
+            linkInput = "",
             locationSuggestions = emptyList(),
             isLocationSearching = false,
             currencySymbol = "€",
@@ -94,6 +95,9 @@ class EditActivityViewModel @Inject constructor(
             is ActivityFormEvent.OnTitleChange -> _state.update { it.copy(title = event.value) }
             is ActivityFormEvent.OnLocationInputChange -> onLocationInputChanged(event.value)
             is ActivityFormEvent.OnLocationSuggestionSelected -> onLocationSuggestionSelected(event.value)
+            is ActivityFormEvent.OnLinkChange -> _state.update {
+                it.copy(linkInput = event.value)
+            }
             is ActivityFormEvent.OnCostAmountChange -> _state.update { it.copy(costAmount = moneyInput(event.value)) }
             is ActivityFormEvent.OnCostTypeChange -> _state.update { it.copy(costType = event.value) }
             is ActivityFormEvent.OnWebsiteChange -> _state.update { it.copy(website = event.value) }
@@ -121,7 +125,8 @@ class EditActivityViewModel @Inject constructor(
                             dateText = formatDate(LocalDate.parse(info.day.date)),
                             timeText = info.activity.timeText.orEmpty(),
                             locationInput = info.activity.locationName.orEmpty(),
-                            locationPlaceId = extractGooglePlaceId(info.activity.locationLink),
+                            locationPlaceId = null,
+                            linkInput = info.activity.link.orEmpty(),
                             locationSuggestions = emptyList(),
                             isLocationSearching = false,
                             costAmount = info.activity.costAmount?.let { amount ->
@@ -186,7 +191,7 @@ class EditActivityViewModel @Inject constructor(
                             title = snapshot.title.trim(),
                             timeText = snapshot.timeText.trim().ifBlank { null },
                             locationName = snapshot.locationInput.trim().ifBlank { null },
-                            locationLink = snapshot.locationPlaceId?.toGoogleMapsPlaceLink(),
+                            link = snapshot.linkInput.trim().ifBlank { null },
                             costAmount = parseAmount(snapshot.costAmount),
                             costType = snapshot.costAmount.toCostType(snapshot.costType),
                             website = snapshot.website.trim().ifBlank { null },

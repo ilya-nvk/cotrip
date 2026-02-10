@@ -36,6 +36,7 @@ import nvk.cotrip.data.network.dto.PlaceSuggestionDto
 import nvk.cotrip.data.network.dto.SyncChangesRequest
 import nvk.cotrip.data.network.dto.SyncChangesResponse
 import nvk.cotrip.data.network.dto.SyncPullResponse
+import nvk.cotrip.data.network.dto.WeatherForecastResponseDto
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
@@ -230,6 +231,22 @@ interface CoTripApi {
         @Path("tripId") tripId: String,
         @Body request: TrimOutOfRangeRequest,
     ): Unit
+
+    @GET("v1/trips/{tripId}/weather")
+    suspend fun getWeather(
+        @Path("tripId") tripId: String,
+        @Query("city") city: String,
+        @Query("start") start: String? = null,
+        @Query("end") end: String? = null,
+    ): WeatherForecastResponseDto
+
+    @POST("v1/trips/{tripId}/weather/refresh")
+    suspend fun refreshWeather(
+        @Path("tripId") tripId: String,
+        @Query("city") city: String,
+        @Query("start") start: String? = null,
+        @Query("end") end: String? = null,
+    ): WeatherForecastResponseDto
 
     @POST("v1/sync/changes")
     suspend fun postSyncChanges(@Body request: SyncChangesRequest): SyncChangesResponse

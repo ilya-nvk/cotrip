@@ -11,6 +11,7 @@ data class IdeaRow(
     val authorId: String,
     val title: String,
     val city: String?,
+    val link: String?,
     val costAmount: Double?,
     val costType: String?,
     val website: String?,
@@ -66,7 +67,7 @@ object IdeaRepository {
         }
 
         val sql = """
-            SELECT id, trip_id, author_id, title, city, cost_amount, cost_type, website, notes, status, updated_at
+            SELECT id, trip_id, author_id, title, city, link, cost_amount, cost_type, website, notes, status, updated_at
             FROM ideas
             WHERE ${conditions.joinToString(" AND ")}
             ORDER BY updated_at DESC
@@ -94,7 +95,7 @@ object IdeaRepository {
     fun get(ideaId: String): IdeaRow? = dbQuery { conn ->
         conn.prepareStatement(
             """
-            SELECT id, trip_id, author_id, title, city, cost_amount, cost_type, website, notes, status, updated_at
+            SELECT id, trip_id, author_id, title, city, link, cost_amount, cost_type, website, notes, status, updated_at
             FROM ideas
             WHERE id = ? AND deleted_at IS NULL
             """.trimIndent()
@@ -111,6 +112,7 @@ object IdeaRepository {
         authorId: String,
         title: String,
         city: String?,
+        link: String?,
         costAmount: Double?,
         costType: String?,
         website: String?,
@@ -118,19 +120,20 @@ object IdeaRepository {
     ): IdeaRow = dbQuery { conn ->
         conn.prepareStatement(
             """
-            INSERT INTO ideas (trip_id, author_id, title, city, cost_amount, cost_type, website, notes, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending')
-            RETURNING id, trip_id, author_id, title, city, cost_amount, cost_type, website, notes, status, updated_at
+            INSERT INTO ideas (trip_id, author_id, title, city, link, cost_amount, cost_type, website, notes, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
+            RETURNING id, trip_id, author_id, title, city, link, cost_amount, cost_type, website, notes, status, updated_at
             """.trimIndent()
         ).use { stmt ->
             stmt.setObject(1, UUID.fromString(tripId))
             stmt.setObject(2, UUID.fromString(authorId))
             stmt.setString(3, title)
             stmt.setString(4, city)
-            if (costAmount == null) stmt.setNull(5, java.sql.Types.NUMERIC) else stmt.setDouble(5, costAmount)
-            stmt.setString(6, costType)
-            stmt.setString(7, website)
-            stmt.setString(8, notes)
+            stmt.setString(5, link)
+            if (costAmount == null) stmt.setNull(6, java.sql.Types.NUMERIC) else stmt.setDouble(6, costAmount)
+            stmt.setString(7, costType)
+            stmt.setString(8, website)
+            stmt.setString(9, notes)
             stmt.executeQuery().use { rs ->
                 rs.next()
                 mapIdea(rs)
@@ -142,6 +145,7 @@ object IdeaRepository {
         ideaId: String,
         title: String?,
         city: String?,
+        link: String?,
         costAmount: Double?,
         costType: String?,
         website: String?,
@@ -152,22 +156,24 @@ object IdeaRepository {
             UPDATE ideas
             SET title = COALESCE(?, title),
                 city = COALESCE(?, city),
+                link = COALESCE(?, link),
                 cost_amount = COALESCE(?, cost_amount),
                 cost_type = COALESCE(?, cost_type),
                 website = COALESCE(?, website),
                 notes = COALESCE(?, notes),
                 updated_at = now()
             WHERE id = ? AND deleted_at IS NULL
-            RETURNING id, trip_id, author_id, title, city, cost_amount, cost_type, website, notes, status, updated_at
+            RETURNING id, trip_id, author_id, title, city, link, cost_amount, cost_type, website, notes, status, updated_at
             """.trimIndent()
         ).use { stmt ->
             stmt.setString(1, title)
             stmt.setString(2, city)
-            if (costAmount == null) stmt.setNull(3, java.sql.Types.NUMERIC) else stmt.setDouble(3, costAmount)
-            stmt.setString(4, costType)
-            stmt.setString(5, website)
-            stmt.setString(6, notes)
-            stmt.setObject(7, UUID.fromString(ideaId))
+            stmt.setString(3, link)
+            if (costAmount == null) stmt.setNull(4, java.sql.Types.NUMERIC) else stmt.setDouble(4, costAmount)
+            stmt.setString(5, costType)
+            stmt.setString(6, website)
+            stmt.setString(7, notes)
+            stmt.setObject(8, UUID.fromString(ideaId))
             stmt.executeQuery().use { rs ->
                 if (rs.next()) mapIdea(rs) else null
             }
@@ -180,7 +186,7 @@ object IdeaRepository {
             UPDATE ideas
             SET status = ?, updated_at = now()
             WHERE id = ? AND deleted_at IS NULL
-            RETURNING id, trip_id, author_id, title, city, cost_amount, cost_type, website, notes, status, updated_at
+            RETURNING id, trip_id, author_id, title, city, link, cost_amount, cost_type, website, notes, status, updated_at
             """.trimIndent()
         ).use { stmt ->
             stmt.setString(1, status)
@@ -211,6 +217,7 @@ object IdeaRepository {
             authorId = rs.getObject("author_id", UUID::class.java).toString(),
             title = rs.getString("title"),
             city = rs.getString("city"),
+            link = rs.getString("link"),
             costAmount = rs.getObject("cost_amount", java.math.BigDecimal::class.java)?.toDouble(),
             costType = rs.getString("cost_type"),
             website = rs.getString("website"),

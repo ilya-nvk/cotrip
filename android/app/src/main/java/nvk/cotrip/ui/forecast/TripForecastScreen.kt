@@ -138,7 +138,7 @@ fun TripForecastScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         TertiaryTextButton(
-                            text = state.city,
+                            text = state.city.ifBlank { stringResource(R.string.weather_forecast_city_missing) },
                             onClick = { viewModel.onEvent(TripForecastEvent.OnCityClick) }
                         )
                         Icon(
@@ -149,16 +149,40 @@ fun TripForecastScreen(
                     }
                 }
 
+                state.coverageMessage?.let { message ->
+                    item {
+                        Text(
+                            text = message,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = TextSecondary,
+                            modifier = Modifier.padding(horizontal = CoTripTokens.spacing.x0_5)
+                        )
+                    }
+                }
+
                 item(key = KEY_CARD) {
-                    CoTripCard(
-                        modifier = Modifier.fillMaxWidth(),
-                        contentPadding = PaddingValues(0.dp)
-                    ) {
-                        state.days.forEachIndexed { index, day ->
-                            ForecastRow(
-                                day = day,
-                                showDivider = index != state.days.lastIndex
+                    if (state.days.isEmpty()) {
+                        CoTripCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentPadding = PaddingValues(CoTripTokens.spacing.x2)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.weather_forecast_empty),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = TextSecondary
                             )
+                        }
+                    } else {
+                        CoTripCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentPadding = PaddingValues(0.dp)
+                        ) {
+                            state.days.forEachIndexed { index, day ->
+                                ForecastRow(
+                                    day = day,
+                                    showDivider = index != state.days.lastIndex
+                                )
+                            }
                         }
                     }
                 }
@@ -167,7 +191,9 @@ fun TripForecastScreen(
                     Footer(
                         disclaimer = stringResource(R.string.weather_forecast_disclaimer),
                         source = stringResource(R.string.weather_forecast_source, state.source),
-                        updated = stringResource(R.string.weather_forecast_updated, state.lastUpdated)
+                        updated = state.lastUpdated.takeIf { it.isNotBlank() }?.let { value ->
+                            stringResource(R.string.weather_forecast_updated, value)
+                        }
                     )
                 }
             }
@@ -304,7 +330,7 @@ private fun ColumnRight(
 private fun Footer(
     disclaimer: String,
     source: String,
-    updated: String
+    updated: String?
 ) {
     Column(
         modifier = Modifier
@@ -325,11 +351,13 @@ private fun Footer(
             color = TextSecondary,
             textAlign = TextAlign.Center
         )
-        Text(
-            text = updated,
-            style = MaterialTheme.typography.bodySmall,
-            color = TextSecondary,
-            textAlign = TextAlign.Center
-        )
+        updated?.let { value ->
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodySmall,
+                color = TextSecondary,
+                textAlign = TextAlign.Center
+            )
+        }
     }
 }

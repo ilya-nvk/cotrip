@@ -18,14 +18,15 @@ data class InviteConfig(
     val baseUrl: String,
 )
 
-data class GoogleMapsConfig(
-    val apiKey: String? = null,
+data class WeatherConfig(
+    val openWeatherApiKey: String?,
+    val refreshTtlHours: Int,
 )
 
 data class AppConfig(
     val jwt: JwtConfig,
     val db: DbConfig,
     val invite: InviteConfig,
-    val googleMaps: GoogleMapsConfig,
+    val weather: WeatherConfig,
     val devAuthEnabled: Boolean,
 )

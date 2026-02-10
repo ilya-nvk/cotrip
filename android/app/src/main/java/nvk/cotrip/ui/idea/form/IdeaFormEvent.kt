@@ -7,6 +7,7 @@ sealed interface IdeaFormEvent {
     data class OnCitySelected(val city: IdeaLocationSuggestionUi) : IdeaFormEvent
     data class OnTitleChange(val value: String) : IdeaFormEvent
     data class OnCityChange(val value: String) : IdeaFormEvent
+    data class OnLinkChange(val value: String) : IdeaFormEvent
     data class OnCostAmountChange(val value: String) : IdeaFormEvent
     data class OnCostTypeChange(val value: IdeaCostType) : IdeaFormEvent
     data class OnWebsiteChange(val value: String) : IdeaFormEvent

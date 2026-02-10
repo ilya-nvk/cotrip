@@ -15,6 +15,7 @@ data class ActivityFormState(
     val timeText: String,
     val locationInput: String,
     val locationPlaceId: String?,
+    val linkInput: String,
     val locationSuggestions: List<LocationSuggestionUi>,
     val isLocationSearching: Boolean,
     val currencySymbol: String,

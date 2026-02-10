@@ -591,7 +591,7 @@ private fun CityPickerSheet(
             contentPadding = PaddingValues(vertical = CoTripTokens.spacing.x1),
             verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x0_5)
         ) {
-            items(cities, key = { it.placeId ?: it.name }) { city ->
+            items(cities, key = { it.providerId ?: "${it.name}:${it.lat}:${it.lon}" }) { city ->
                 CoTripListItem(
                     title = city.fullText ?: city.name,
                     onClick = { onSelect(city) }

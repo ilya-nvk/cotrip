@@ -52,6 +52,7 @@ class EditIdeaViewModel @Inject constructor(
             title = "",
             city = "",
             cityPlaceId = null,
+            link = "",
             citySuggestions = emptyList(),
             isCitySearching = false,
             currencySymbol = "€",
@@ -79,6 +80,7 @@ class EditIdeaViewModel @Inject constructor(
             is IdeaFormEvent.OnCitySelected -> onCitySuggestionSelected(event.city)
             is IdeaFormEvent.OnTitleChange -> _state.update { it.copy(title = event.value) }
             is IdeaFormEvent.OnCityChange -> onCityInputChanged(event.value)
+            is IdeaFormEvent.OnLinkChange -> _state.update { it.copy(link = event.value) }
             is IdeaFormEvent.OnCostAmountChange -> _state.update {
                 it.copy(costAmount = event.value.filter { c -> c.isDigit() || c == '.' || c == ',' })
             }
@@ -98,6 +100,7 @@ class EditIdeaViewModel @Inject constructor(
                     LoadedIdea(
                         title = idea.title,
                         city = idea.city.orEmpty(),
+                        link = idea.link.orEmpty(),
                         costAmount = idea.costAmount?.let { formatAmount(it) }.orEmpty(),
                         costType = idea.costType.toIdeaCostType(),
                         website = idea.website.orEmpty(),
@@ -113,6 +116,7 @@ class EditIdeaViewModel @Inject constructor(
                             title = loaded.title,
                             city = loaded.city,
                             cityPlaceId = null,
+                            link = loaded.link,
                             citySuggestions = emptyList(),
                             isCitySearching = false,
                             costAmount = loaded.costAmount,
@@ -204,6 +208,7 @@ class EditIdeaViewModel @Inject constructor(
                         request = UpdateIdeaRequest(
                             title = snapshot.title.trim(),
                             city = snapshot.city.trim().ifBlank { null },
+                            link = snapshot.link.trim().ifBlank { null },
                             costAmount = parseAmount(snapshot.costAmount),
                             costType = snapshot.costAmount.toCostType(snapshot.costType),
                             website = snapshot.website.trim().ifBlank { null },
@@ -249,6 +254,7 @@ class EditIdeaViewModel @Inject constructor(
     private data class LoadedIdea(
         val title: String,
         val city: String,
+        val link: String,
         val costAmount: String,
         val costType: IdeaCostType,
         val website: String,

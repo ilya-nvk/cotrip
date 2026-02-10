@@ -2,7 +2,9 @@ package nvk.cotrip.ui.itinerary
 
 data class CitySuggestionUi(
     val name: String,
-    val placeId: String? = null,
+    val providerId: String? = null,
+    val lat: Double,
+    val lon: Double,
     val fullText: String? = null,
 )
 

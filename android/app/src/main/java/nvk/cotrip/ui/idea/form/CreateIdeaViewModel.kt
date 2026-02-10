@@ -50,6 +50,7 @@ class CreateIdeaViewModel @Inject constructor(
             title = "",
             city = "",
             cityPlaceId = null,
+            link = "",
             citySuggestions = emptyList(),
             isCitySearching = false,
             currencySymbol = "€",
@@ -78,6 +79,7 @@ class CreateIdeaViewModel @Inject constructor(
 
             is IdeaFormEvent.OnTitleChange -> _state.update { it.copy(title = event.value) }
             is IdeaFormEvent.OnCityChange -> onCityInputChanged(event.value)
+            is IdeaFormEvent.OnLinkChange -> _state.update { it.copy(link = event.value) }
             is IdeaFormEvent.OnCostAmountChange -> _state.update {
                 it.copy(costAmount = event.value.filter { c -> c.isDigit() || c == '.' || c == ',' })
             }
@@ -183,6 +185,7 @@ class CreateIdeaViewModel @Inject constructor(
                         request = CreateIdeaRequest(
                             title = snapshot.title.trim(),
                             city = snapshot.city.trim().ifBlank { null },
+                            link = snapshot.link.trim().ifBlank { null },
                             costAmount = parseAmount(snapshot.costAmount),
                             costType = snapshot.costAmount.toCostType(snapshot.costType),
                             website = snapshot.website.trim().ifBlank { null },
