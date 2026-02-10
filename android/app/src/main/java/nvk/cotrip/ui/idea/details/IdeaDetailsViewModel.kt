@@ -217,11 +217,9 @@ class IdeaDetailsViewModel @Inject constructor(
     private fun handleCommentCreated(payload: CommentCreatedPayload) {
         if (payload.ideaId != ideaId) return
         _state.update { current ->
-            val exists = current.discussion.any { item ->
-                item is IdeaDiscussionItemUi.Message && item.id == payload.id
-            }
+            val exists = current.discussion.any { item -> item.id == payload.id }
             if (exists) return@update current
-            val message = payload.toDiscussion(meId, membersById)
+            val message = payload.toDiscussionItem(meId, membersById)
             current.copy(
                 discussion = current.discussion + message,
                 commentsCount = current.commentsCount + 1
@@ -231,9 +229,7 @@ class IdeaDetailsViewModel @Inject constructor(
 
     private fun handleCommentDeleted(commentId: String) {
         _state.update { current ->
-            val updated = current.discussion.filterNot {
-                it is IdeaDiscussionItemUi.Message && it.id == commentId
-            }
+            val updated = current.discussion.filterNot { it.id == commentId }
             if (updated.size == current.discussion.size) return@update current
             current.copy(
                 discussion = updated,
@@ -361,7 +357,14 @@ class IdeaDetailsViewModel @Inject constructor(
 private fun CommentDto.toDiscussion(
     meId: String?,
     membersById: Map<String, MemberDto>,
-): IdeaDiscussionItemUi.Message {
+): IdeaDiscussionItemUi {
+    if (type.equals("system", ignoreCase = true)) {
+        return IdeaDiscussionItemUi.System(
+            id = id,
+            text = body,
+            time = formatTimestamp(createdAt),
+        )
+    }
     val member = membersById[authorId]
     val name = member?.name ?: "Unknown"
     val initials = member?.initials ?: initialsFromName(name)
@@ -390,6 +393,21 @@ private fun CommentCreatedPayload.toDiscussion(
         time = formatTimestamp(createdAt),
         isMe = authorId == meId
     )
+}
+
+private fun CommentCreatedPayload.toDiscussionItem(
+    meId: String?,
+    membersById: Map<String, MemberDto>,
+): IdeaDiscussionItemUi {
+    return if (type.equals("system", ignoreCase = true)) {
+        IdeaDiscussionItemUi.System(
+            id = id,
+            text = body,
+            time = formatTimestamp(createdAt),
+        )
+    } else {
+        toDiscussion(meId, membersById)
+    }
 }
 
 private fun ItineraryDayDto.toDayOption(): IdeaDayOptionUi {

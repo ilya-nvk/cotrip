@@ -6,11 +6,9 @@ import io.ktor.server.websocket.webSocket
 import io.ktor.websocket.CloseReason
 import io.ktor.websocket.Frame
 import io.ktor.websocket.close
-import io.ktor.websocket.send
 import io.ktor.websocket.readText
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.encodeToString
 import nvk.cotrip.backend.auth.JwtService
 import nvk.cotrip.backend.db.CommentRepository
 import nvk.cotrip.backend.db.IdeaRepository
@@ -63,16 +61,7 @@ private suspend fun handleTextFrame(tripId: String, userId: String, text: String
             if (!TripRepository.isMember(tripId, userId)) return
 
             val stored = CommentRepository.create(ideaId, userId, body)
-            val created = CommentCreatedMessage(
-                payload = CommentCreatedPayload(
-                    id = stored.id,
-                    ideaId = stored.ideaId,
-                    authorId = stored.authorId,
-                    body = stored.body,
-                    createdAt = stored.createdAt.toString(),
-                )
-            )
-            broadcast(tripId, json.encodeToString(created))
+            publishCommentCreated(tripId, stored)
         }
         else -> Unit
     }
@@ -80,10 +69,3 @@ private suspend fun handleTextFrame(tripId: String, userId: String, text: String
 
 @Serializable
 private data class WsEnvelope(val type: String)
-
-private suspend fun broadcast(tripId: String, payload: String) {
-    val sessions = CommentsHub.sessions(tripId)
-    sessions.forEach { session ->
-        runCatching { session.send(Frame.Text(payload)) }
-    }
-}
