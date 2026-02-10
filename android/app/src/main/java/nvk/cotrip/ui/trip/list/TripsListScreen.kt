@@ -104,7 +104,7 @@ fun TripsListScreen(
     DisposableEffect(lifecycleOwner, viewModel) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                viewModel.onEvent(TripsListEvent.OnRefresh)
+                viewModel.onEvent(TripsListEvent.OnAutoRefresh)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -170,7 +170,7 @@ fun TripsListScreen(
             is TripsListUiState.Content -> {
                 val pullRefreshState = rememberPullRefreshState(
                     refreshing = currentState.isRefreshing,
-                    onRefresh = { viewModel.onEvent(TripsListEvent.OnRefresh) }
+                    onRefresh = { viewModel.onEvent(TripsListEvent.OnUserRefresh) }
                 )
 
                 Box(

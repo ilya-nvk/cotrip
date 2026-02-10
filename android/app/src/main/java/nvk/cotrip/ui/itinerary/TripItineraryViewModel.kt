@@ -56,6 +56,7 @@ class TripItineraryViewModel @Inject constructor(
             days = emptyList(),
             cityPicker = null,
             isReordering = false,
+            isRefreshing = false,
         )
     )
     val state = _state.asStateFlow()
@@ -65,13 +66,14 @@ class TripItineraryViewModel @Inject constructor(
 
     init {
         observeData()
-        refreshItinerary()
+        refreshItinerary(isUserRefresh = false)
     }
 
     fun onEvent(event: TripItineraryEvent) {
         when (event) {
             TripItineraryEvent.OnBackClick -> appNavigator.popBackStack()
-            TripItineraryEvent.OnRefresh -> refreshItinerary()
+            TripItineraryEvent.OnAutoRefresh -> refreshItinerary(isUserRefresh = false)
+            TripItineraryEvent.OnUserRefresh -> refreshItinerary(isUserRefresh = true)
             TripItineraryEvent.OnToggleReorder -> toggleReorder()
             TripItineraryEvent.OnAddActivityClick -> appNavigator.navigate(
                 Destination.CreateActivity(tripId)
@@ -132,8 +134,11 @@ class TripItineraryViewModel @Inject constructor(
         }
     }
 
-    private fun refreshItinerary() {
+    private fun refreshItinerary(isUserRefresh: Boolean) {
         viewModelScope.launch {
+            if (isUserRefresh) {
+                _state.update { it.copy(isRefreshing = true) }
+            }
             when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
                     tripRepository.getTrip(tripId)
@@ -143,6 +148,7 @@ class TripItineraryViewModel @Inject constructor(
                 is ApiResult.Success -> Unit
                 is ApiResult.Failure -> emitToast(uiErrorMapper.messageRes(result))
             }
+            _state.update { it.copy(isRefreshing = false) }
         }
     }
 
@@ -197,7 +203,7 @@ class TripItineraryViewModel @Inject constructor(
                 is ApiResult.Success -> Unit
                 is ApiResult.Failure -> {
                     emitToast(uiErrorMapper.messageRes(result))
-                    refreshItinerary()
+                    refreshItinerary(isUserRefresh = false)
                 }
             }
         }

@@ -5,5 +5,5 @@ data class TripForecastState(
     val days: List<ForecastDayUi>,
     val source: String,
     val lastUpdated: String,
+    val isRefreshing: Boolean = false,
 )
-

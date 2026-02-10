@@ -53,7 +53,8 @@ class TripExpensesViewModel @Inject constructor(
                 totalPlanned = "€0"
             ),
             spent = emptyList(),
-            planned = emptyList()
+            planned = emptyList(),
+            isRefreshing = false,
         )
     )
     val state = _state.asStateFlow()
@@ -66,13 +67,14 @@ class TripExpensesViewModel @Inject constructor(
 
     init {
         observeData()
-        refreshExpenses()
+        refreshExpenses(isUserRefresh = false)
     }
 
     fun onEvent(event: TripExpensesEvent) {
         when (event) {
             TripExpensesEvent.OnBackClick -> appNavigator.popBackStack()
-            TripExpensesEvent.OnRefresh -> refreshExpenses()
+            TripExpensesEvent.OnAutoRefresh -> refreshExpenses(isUserRefresh = false)
+            TripExpensesEvent.OnUserRefresh -> refreshExpenses(isUserRefresh = true)
             TripExpensesEvent.OnAddExpenseClick -> appNavigator.navigate(
                 Destination.CreateExpense(tripId)
             )
@@ -165,8 +167,11 @@ class TripExpensesViewModel @Inject constructor(
         }
     }
 
-    private fun refreshExpenses() {
+    private fun refreshExpenses(isUserRefresh: Boolean) {
         viewModelScope.launch {
+            if (isUserRefresh) {
+                _state.update { it.copy(isRefreshing = true) }
+            }
             when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
                     tripRepository.getTrip(tripId)
@@ -182,6 +187,7 @@ class TripExpensesViewModel @Inject constructor(
                     _effects.emit(TripExpensesEffect.ShowToastRes(uiErrorMapper.messageRes(result)))
                 }
             }
+            _state.update { it.copy(isRefreshing = false) }
         }
     }
 

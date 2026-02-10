@@ -21,6 +21,10 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -63,7 +67,7 @@ private const val KEY_SPENT_HEADER = "spent_header"
 private const val KEY_PLANNED_HEADER = "planned_header"
 private const val KEY_BOTTOM_SPACER = "bottom_spacer"
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
 @Composable
 fun TripExpensesScreen(
     viewModel: TripExpensesViewModel = hiltViewModel(),
@@ -75,7 +79,7 @@ fun TripExpensesScreen(
     DisposableEffect(lifecycleOwner, viewModel) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                viewModel.onEvent(TripExpensesEvent.OnRefresh)
+                viewModel.onEvent(TripExpensesEvent.OnAutoRefresh)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -124,45 +128,59 @@ fun TripExpensesScreen(
             CoTripFab(onClick = { viewModel.onEvent(TripExpensesEvent.OnAddExpenseClick) })
         }
     ) { padding ->
-        LazyColumn(
+        val pullRefreshState = rememberPullRefreshState(
+            refreshing = state.isRefreshing,
+            onRefresh = { viewModel.onEvent(TripExpensesEvent.OnUserRefresh) }
+        )
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding),
-            contentPadding = PaddingValues(
-                horizontal = CoTripTokens.spacing.x2,
-                vertical = CoTripTokens.spacing.x2
-            ),
-            verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x2)
+                .padding(padding)
+                .pullRefresh(pullRefreshState)
         ) {
-            item(key = KEY_SUMMARY) {
-                SummaryBlock(summary = state.summary)
-            }
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(
+                    horizontal = CoTripTokens.spacing.x2,
+                    vertical = CoTripTokens.spacing.x2
+                ),
+                verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x2)
+            ) {
+                item(key = KEY_SUMMARY) {
+                    SummaryBlock(summary = state.summary)
+                }
 
-            item(key = KEY_SPENT_HEADER) {
-                SectionTitle(text = stringResource(R.string.expenses_spent_section))
-            }
+                item(key = KEY_SPENT_HEADER) {
+                    SectionTitle(text = stringResource(R.string.expenses_spent_section))
+                }
 
-            items(state.spent, key = { it.id }) { expense ->
-                ExpenseCard(
-                    expense = expense,
-                    onClick = { viewModel.onEvent(TripExpensesEvent.OnExpenseClick(expense.id)) }
-                )
-            }
+                items(state.spent, key = { it.id }) { expense ->
+                    ExpenseCard(
+                        expense = expense,
+                        onClick = { viewModel.onEvent(TripExpensesEvent.OnExpenseClick(expense.id)) }
+                    )
+                }
 
-            item(key = KEY_PLANNED_HEADER) {
-                SectionTitle(text = stringResource(R.string.expenses_planned_section))
-            }
+                item(key = KEY_PLANNED_HEADER) {
+                    SectionTitle(text = stringResource(R.string.expenses_planned_section))
+                }
 
-            items(state.planned, key = { it.id }) { expense ->
-                ExpenseCard(
-                    expense = expense,
-                    onClick = { viewModel.onEvent(TripExpensesEvent.OnExpenseClick(expense.id)) }
-                )
-            }
+                items(state.planned, key = { it.id }) { expense ->
+                    ExpenseCard(
+                        expense = expense,
+                        onClick = { viewModel.onEvent(TripExpensesEvent.OnExpenseClick(expense.id)) }
+                    )
+                }
 
-            item(key = KEY_BOTTOM_SPACER) {
-                Spacer(Modifier.height(96.dp))
+                item(key = KEY_BOTTOM_SPACER) {
+                    Spacer(Modifier.height(96.dp))
+                }
             }
+            PullRefreshIndicator(
+                refreshing = state.isRefreshing,
+                state = pullRefreshState,
+                modifier = Modifier.align(Alignment.TopCenter)
+            )
         }
     }
 }

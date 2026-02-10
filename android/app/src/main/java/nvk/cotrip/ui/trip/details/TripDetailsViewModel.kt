@@ -51,12 +51,14 @@ class TripDetailsViewModel @Inject constructor(
     val effects = _effects.asSharedFlow()
 
     init {
-        loadTrip()
+        loadTrip(isUserRefresh = false)
     }
 
     fun onEvent(event: TripDetailsEvent) {
         when (event) {
             TripDetailsEvent.OnBackClick -> appNavigator.popBackStack()
+            TripDetailsEvent.OnAutoRefresh -> loadTrip(isUserRefresh = false)
+            TripDetailsEvent.OnUserRefresh -> loadTrip(isUserRefresh = true)
             TripDetailsEvent.OnEditClick -> appNavigator.navigate(Destination.EditTrip(tripId))
             TripDetailsEvent.OnInviteTravelersClick -> appNavigator.navigate(
                 Destination.InviteTravelers(
@@ -123,12 +125,16 @@ class TripDetailsViewModel @Inject constructor(
                 ideasSubtitle = "",
                 expensesAmount = "",
                 expensesSubtitle = ""
-            )
+            ),
+            isRefreshing = false,
         )
     }
 
-    private fun loadTrip() {
+    private fun loadTrip(isUserRefresh: Boolean) {
         viewModelScope.launch {
+            if (isUserRefresh) {
+                _state.value = _state.value.copy(isRefreshing = true)
+            }
             val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
                     val trip = tripRepository.getTrip(tripId)
@@ -145,8 +151,11 @@ class TripDetailsViewModel @Inject constructor(
                 }
 
                 is ApiResult.Failure -> {
+                    _state.value = _state.value.copy(isRefreshing = false)
                     emitToast(uiErrorMapper.messageRes(result))
-                    appNavigator.popBackStack()
+                    if (_state.value.header.title.isBlank()) {
+                        appNavigator.popBackStack()
+                    }
                 }
             }
         }

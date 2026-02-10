@@ -2,7 +2,8 @@ package nvk.cotrip.ui.itinerary
 
 sealed interface TripItineraryEvent {
     data object OnBackClick : TripItineraryEvent
-    data object OnRefresh : TripItineraryEvent
+    data object OnAutoRefresh : TripItineraryEvent
+    data object OnUserRefresh : TripItineraryEvent
     data object OnToggleReorder : TripItineraryEvent
     data object OnDismissCityPicker : TripItineraryEvent
     data object OnAddActivityClick : TripItineraryEvent

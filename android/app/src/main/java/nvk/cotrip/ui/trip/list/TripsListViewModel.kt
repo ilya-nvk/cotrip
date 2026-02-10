@@ -40,7 +40,7 @@ class TripsListViewModel @Inject constructor(
 
     init {
         observeTrips()
-        refreshTrips(isRefresh = false)
+        refreshTrips(isUserRefresh = false)
     }
 
     fun onEvent(event: TripsListEvent) {
@@ -48,7 +48,8 @@ class TripsListViewModel @Inject constructor(
             TripsListEvent.OnSettingsClick -> appNavigator.navigate(Destination.Settings)
             TripsListEvent.OnCreateTripClick -> appNavigator.navigate(Destination.CreateTrip)
             TripsListEvent.OnJoinTripClick -> appNavigator.navigate(Destination.JoinTrip())
-            TripsListEvent.OnRefresh -> refreshTrips(isRefresh = true)
+            TripsListEvent.OnAutoRefresh -> refreshTrips(isUserRefresh = false)
+            TripsListEvent.OnUserRefresh -> refreshTrips(isUserRefresh = true)
             is TripsListEvent.OnTripClick -> appNavigator.navigate(Destination.TripDetails(event.id))
             TripsListEvent.OnTogglePast -> _state.update {
                 val current = it as? TripsListUiState.Content ?: return@update it
@@ -79,10 +80,10 @@ class TripsListViewModel @Inject constructor(
         }
     }
 
-    private fun refreshTrips(isRefresh: Boolean) {
+    private fun refreshTrips(isUserRefresh: Boolean) {
         viewModelScope.launch {
             val currentContent = _state.value as? TripsListUiState.Content
-            if (isRefresh) {
+            if (isUserRefresh) {
                 isRefreshing.value = true
             } else if (currentContent == null) {
                 _state.value = TripsListUiState.Loading

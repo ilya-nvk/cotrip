@@ -16,6 +16,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -24,17 +28,21 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import kotlinx.coroutines.flow.collectLatest
 import nvk.cotrip.R
 import nvk.cotrip.ui.components.CoTripCard
@@ -48,13 +56,24 @@ import nvk.cotrip.ui.theme.TextSecondary
 private const val KEY_CARD = "forecast_card"
 private const val KEY_FOOTER = "footer"
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
 @Composable
 fun TripForecastScreen(
     viewModel: TripForecastViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    DisposableEffect(lifecycleOwner, viewModel) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.onEvent(TripForecastEvent.OnAutoRefresh)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     LaunchedEffect(viewModel) {
         viewModel.effects.collectLatest { effect ->
@@ -93,56 +112,71 @@ fun TripForecastScreen(
             )
         }
     ) { padding ->
-        LazyColumn(
+        val pullRefreshState = rememberPullRefreshState(
+            refreshing = state.isRefreshing,
+            onRefresh = { viewModel.onEvent(TripForecastEvent.OnUserRefresh) },
+        )
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding),
-            contentPadding = PaddingValues(
-                horizontal = CoTripTokens.spacing.x2,
-                vertical = CoTripTokens.spacing.x2
-            ),
-            verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x2)
+                .padding(padding)
+                .pullRefresh(pullRefreshState)
         ) {
-            item {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = CoTripTokens.spacing.x0_5),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    TertiaryTextButton(
-                        text = state.city,
-                        onClick = { viewModel.onEvent(TripForecastEvent.OnCityClick) }
-                    )
-                    Icon(
-                        imageVector = CoTripIcons.ExpandMore,
-                        contentDescription = null,
-                        tint = TextSecondary
-                    )
-                }
-            }
-
-            item(key = KEY_CARD) {
-                CoTripCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    contentPadding = PaddingValues(0.dp)
-                ) {
-                    state.days.forEachIndexed { index, day ->
-                        ForecastRow(
-                            day = day,
-                            showDivider = index != state.days.lastIndex
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(
+                    horizontal = CoTripTokens.spacing.x2,
+                    vertical = CoTripTokens.spacing.x2
+                ),
+                verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x2)
+            ) {
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = CoTripTokens.spacing.x0_5),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TertiaryTextButton(
+                            text = state.city,
+                            onClick = { viewModel.onEvent(TripForecastEvent.OnCityClick) }
+                        )
+                        Icon(
+                            imageVector = CoTripIcons.ExpandMore,
+                            contentDescription = null,
+                            tint = TextSecondary
                         )
                     }
                 }
+
+                item(key = KEY_CARD) {
+                    CoTripCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        state.days.forEachIndexed { index, day ->
+                            ForecastRow(
+                                day = day,
+                                showDivider = index != state.days.lastIndex
+                            )
+                        }
+                    }
+                }
+
+                item(key = KEY_FOOTER) {
+                    Footer(
+                        disclaimer = stringResource(R.string.weather_forecast_disclaimer),
+                        source = stringResource(R.string.weather_forecast_source, state.source),
+                        updated = stringResource(R.string.weather_forecast_updated, state.lastUpdated)
+                    )
+                }
             }
 
-            item(key = KEY_FOOTER) {
-                Footer(
-                    disclaimer = stringResource(R.string.weather_forecast_disclaimer),
-                    source = stringResource(R.string.weather_forecast_source, state.source),
-                    updated = stringResource(R.string.weather_forecast_updated, state.lastUpdated)
-                )
-            }
+            PullRefreshIndicator(
+                refreshing = state.isRefreshing,
+                state = pullRefreshState,
+                modifier = Modifier.align(Alignment.TopCenter)
+            )
         }
     }
 }

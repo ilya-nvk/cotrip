@@ -5,4 +5,5 @@ data class TripExpensesState(
     val summary: ExpenseSummaryUi,
     val spent: List<ExpenseListItemUi>,
     val planned: List<ExpenseListItemUi>,
+    val isRefreshing: Boolean = false,
 )

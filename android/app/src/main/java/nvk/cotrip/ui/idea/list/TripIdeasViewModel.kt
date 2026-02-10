@@ -67,19 +67,21 @@ class TripIdeasViewModel @Inject constructor(
         TripIdeasState(
             tripId = tripId,
             ideas = emptyList(),
-            dayPicker = null
+            dayPicker = null,
+            isRefreshing = false,
         )
     )
     val state = _state.asStateFlow()
 
     private val _effects = MutableSharedFlow<TripIdeasEffect>()
     val effects = _effects.asSharedFlow()
+    private val isRefreshing = MutableStateFlow(false)
 
     init {
         observeSocket()
         connectSocket()
         observeData()
-        refreshIdeas()
+        refreshIdeas(isUserRefresh = false)
     }
 
     override fun onCleared() {
@@ -90,7 +92,8 @@ class TripIdeasViewModel @Inject constructor(
     fun onEvent(event: TripIdeasEvent) {
         when (event) {
             TripIdeasEvent.OnBackClick -> appNavigator.popBackStack()
-            TripIdeasEvent.OnRefresh -> refreshIdeas()
+            TripIdeasEvent.OnAutoRefresh -> refreshIdeas(isUserRefresh = false)
+            TripIdeasEvent.OnUserRefresh -> refreshIdeas(isUserRefresh = true)
             TripIdeasEvent.OnAddIdeaClick -> appNavigator.navigate(
                 Destination.CreateIdea(tripId)
             )
@@ -110,10 +113,11 @@ class TripIdeasViewModel @Inject constructor(
             combine(
                 ideaRepository.observeIdeas(tripId),
                 tripRepository.observeTrip(tripId),
-                itineraryRepository.observeItinerary(tripId)
-            ) { ideas, trip, itinerary ->
-                Triple(ideas, trip, itinerary)
-            }.collect { (ideas, trip, itinerary) ->
+                itineraryRepository.observeItinerary(tripId),
+                isRefreshing,
+            ) { ideas, trip, itinerary, refreshing ->
+                Quadruple(ideas, trip, itinerary, refreshing)
+            }.collect { (ideas, trip, itinerary, refreshing) ->
                 if (trip != null) {
                     currencySymbol = currencySymbolFor(trip.currencyCode)
                 }
@@ -127,15 +131,19 @@ class TripIdeasViewModel @Inject constructor(
                         ideas = ideas.map { idea ->
                             idea.toUi(currencySymbol, addedDays[idea.id])
                         },
-                        dayPicker = updatedPicker
+                        dayPicker = updatedPicker,
+                        isRefreshing = refreshing,
                     )
                 }
             }
         }
     }
 
-    private fun refreshIdeas() {
+    private fun refreshIdeas(isUserRefresh: Boolean) {
         viewModelScope.launch {
+            if (isUserRefresh) {
+                isRefreshing.value = true
+            }
             when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
                     tripRepository.getTrip(tripId)
@@ -149,9 +157,10 @@ class TripIdeasViewModel @Inject constructor(
                         uiErrorMapper.messageRes(
                             result
                         )
-                    )
+                        )
                 )
             }
+            isRefreshing.value = false
         }
     }
 
@@ -290,3 +299,10 @@ private fun formatCost(amount: Double, currencySymbol: String): String {
     }
     return "$currencySymbol$display"
 }
+
+private data class Quadruple<A, B, C, D>(
+    val first: A,
+    val second: B,
+    val third: C,
+    val fourth: D,
+)

@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -16,6 +17,9 @@ import nvk.cotrip.ui.theme.CoTripIcons
 import nvk.cotrip.ui.theme.Info
 import nvk.cotrip.ui.theme.TextSecondary
 import nvk.cotrip.ui.theme.Warning
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import javax.inject.Inject
 
 
@@ -154,7 +158,8 @@ class TripForecastViewModel @Inject constructor(
                 ),
             ),
             source = "OpenWeather",
-            lastUpdated = "Jan 30, 2026"
+            lastUpdated = "Jan 30, 2026",
+            isRefreshing = false,
         )
     )
     val state = _state.asStateFlow()
@@ -165,11 +170,28 @@ class TripForecastViewModel @Inject constructor(
     fun onEvent(event: TripForecastEvent) {
         when (event) {
             TripForecastEvent.OnBackClick -> appNavigator.popBackStack()
+            TripForecastEvent.OnAutoRefresh -> refreshForecast(isUserRefresh = false)
+            TripForecastEvent.OnUserRefresh -> refreshForecast(isUserRefresh = true)
             TripForecastEvent.OnCityClick -> emitToast(R.string.weather_forecast_city_not_implemented)
         }
     }
 
     private fun emitToast(resId: Int) {
         viewModelScope.launch { _effects.emit(TripForecastEffect.ShowToastRes(resId)) }
+    }
+
+    private fun refreshForecast(isUserRefresh: Boolean) {
+        viewModelScope.launch {
+            if (isUserRefresh) {
+                _state.value = _state.value.copy(isRefreshing = true)
+            }
+            delay(350)
+            val updated = LocalDateTime.now()
+                .format(DateTimeFormatter.ofPattern("MMM d, yyyy HH:mm", Locale.getDefault()))
+            _state.value = _state.value.copy(
+                lastUpdated = updated,
+                isRefreshing = false,
+            )
+        }
     }
 }

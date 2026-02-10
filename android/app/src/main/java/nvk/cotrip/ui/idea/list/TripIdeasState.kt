@@ -6,4 +6,5 @@ data class TripIdeasState(
     val tripId: String,
     val ideas: List<IdeaListItemUi>,
     val dayPicker: IdeaDayPickerState?,
+    val isRefreshing: Boolean = false,
 )

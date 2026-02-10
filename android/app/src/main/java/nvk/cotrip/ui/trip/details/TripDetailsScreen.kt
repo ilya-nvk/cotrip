@@ -20,6 +20,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -27,6 +31,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -34,11 +39,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import kotlinx.coroutines.flow.collectLatest
 import nvk.cotrip.R
 import nvk.cotrip.ui.components.AvatarsStack
@@ -62,13 +70,24 @@ private const val KEY_OVERVIEW = "overview"
 private const val KEY_CTA = "cta"
 private const val KEY_SPACER = "spacer"
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
 @Composable
 fun TripDetailsScreen(
     viewModel: TripDetailsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    DisposableEffect(lifecycleOwner, viewModel) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.onEvent(TripDetailsEvent.OnAutoRefresh)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     LaunchedEffect(viewModel) {
         viewModel.effects.collectLatest { effect ->
@@ -85,93 +104,107 @@ fun TripDetailsScreen(
         containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets.statusBars
     ) { padding ->
-        LazyColumn(
+        val pullRefreshState = rememberPullRefreshState(
+            refreshing = state.isRefreshing,
+            onRefresh = { viewModel.onEvent(TripDetailsEvent.OnUserRefresh) }
+        )
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding),
-            contentPadding = PaddingValues(bottom = CoTripTokens.spacing.x2),
-            verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x2)
+                .padding(padding)
+                .pullRefresh(pullRefreshState)
         ) {
-            item {
-                Header(
-                    tripId = state.header.tripId,
-                    title = state.header.title,
-                    dateRange = state.header.dateRange,
-                    locationLine = state.header.locationLine,
-                    onBack = { viewModel.onEvent(TripDetailsEvent.OnBackClick) },
-                    onEdit = { viewModel.onEvent(TripDetailsEvent.OnEditClick) }
-                )
-            }
-
-            item(key = KEY_TRAVELERS) {
-                TravelersSection(
-                    title = stringResource(R.string.trip_details_travelers),
-                    travelers = state.travelers,
-                    peopleCountText = state.peopleCountText,
-                    isEmpty = state.isEmpty,
-                    onInvite = { viewModel.onEvent(TripDetailsEvent.OnInviteTravelersClick) },
-                    onMembers = { viewModel.onEvent(TripDetailsEvent.OnMembersClick) }
-                )
-            }
-
-            if (!state.isEmpty) {
-                item(key = KEY_WEATHER) {
-                    WeatherCard(
-                        city = state.weather.city,
-                        days = state.weather.days,
-                        onCityClick = { viewModel.onEvent(TripDetailsEvent.OnWeatherCityClick) },
-                        onViewForecast = { viewModel.onEvent(TripDetailsEvent.OnViewForecastClick) }
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = CoTripTokens.spacing.x2),
+                verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x2)
+            ) {
+                item {
+                    Header(
+                        tripId = state.header.tripId,
+                        title = state.header.title,
+                        dateRange = state.header.dateRange,
+                        locationLine = state.header.locationLine,
+                        onBack = { viewModel.onEvent(TripDetailsEvent.OnBackClick) },
+                        onEdit = { viewModel.onEvent(TripDetailsEvent.OnEditClick) }
                     )
                 }
 
-                item(key = KEY_NEXT) {
-                    NextInTripCard(
-                        title = stringResource(R.string.trip_details_next_in_trip),
-                        subtitle = state.nextInTrip.subtitle,
-                        lines = state.nextInTrip.lines,
-                        onViewItinerary = { viewModel.onEvent(TripDetailsEvent.OnViewItineraryClick) }
+                item(key = KEY_TRAVELERS) {
+                    TravelersSection(
+                        title = stringResource(R.string.trip_details_travelers),
+                        travelers = state.travelers,
+                        peopleCountText = state.peopleCountText,
+                        isEmpty = state.isEmpty,
+                        onInvite = { viewModel.onEvent(TripDetailsEvent.OnInviteTravelersClick) },
+                        onMembers = { viewModel.onEvent(TripDetailsEvent.OnMembersClick) }
                     )
                 }
-            } else {
-                item(key = KEY_START_PLANNING) {
-                    StartPlanningCard(
-                        title = stringResource(R.string.trip_details_start_planning),
-                        text = stringResource(R.string.trip_details_start_planning_text),
-                        actionText = stringResource(R.string.trip_details_browse_ideas),
-                        onClick = { viewModel.onEvent(TripDetailsEvent.OnBrowseIdeasClick) }
+
+                if (!state.isEmpty) {
+                    item(key = KEY_WEATHER) {
+                        WeatherCard(
+                            city = state.weather.city,
+                            days = state.weather.days,
+                            onCityClick = { viewModel.onEvent(TripDetailsEvent.OnWeatherCityClick) },
+                            onViewForecast = { viewModel.onEvent(TripDetailsEvent.OnViewForecastClick) }
+                        )
+                    }
+
+                    item(key = KEY_NEXT) {
+                        NextInTripCard(
+                            title = stringResource(R.string.trip_details_next_in_trip),
+                            subtitle = state.nextInTrip.subtitle,
+                            lines = state.nextInTrip.lines,
+                            onViewItinerary = { viewModel.onEvent(TripDetailsEvent.OnViewItineraryClick) }
+                        )
+                    }
+                } else {
+                    item(key = KEY_START_PLANNING) {
+                        StartPlanningCard(
+                            title = stringResource(R.string.trip_details_start_planning),
+                            text = stringResource(R.string.trip_details_start_planning_text),
+                            actionText = stringResource(R.string.trip_details_browse_ideas),
+                            onClick = { viewModel.onEvent(TripDetailsEvent.OnBrowseIdeasClick) }
+                        )
+                    }
+                }
+
+                item(key = KEY_OVERVIEW) {
+                    OverviewSection(
+                        title = stringResource(R.string.trip_details_overview),
+                        ideasCount = state.overview.ideasCount,
+                        ideasSubtitle = state.overview.ideasSubtitle,
+                        expensesAmount = state.overview.expensesAmount,
+                        expensesSubtitle = state.overview.expensesSubtitle,
+                        onIdeasClick = { viewModel.onEvent(TripDetailsEvent.OnIdeasClick) },
+                        onExpensesClick = { viewModel.onEvent(TripDetailsEvent.OnExpensesClick) }
                     )
                 }
-            }
 
-            item(key = KEY_OVERVIEW) {
-                OverviewSection(
-                    title = stringResource(R.string.trip_details_overview),
-                    ideasCount = state.overview.ideasCount,
-                    ideasSubtitle = state.overview.ideasSubtitle,
-                    expensesAmount = state.overview.expensesAmount,
-                    expensesSubtitle = state.overview.expensesSubtitle,
-                    onIdeasClick = { viewModel.onEvent(TripDetailsEvent.OnIdeasClick) },
-                    onExpensesClick = { viewModel.onEvent(TripDetailsEvent.OnExpensesClick) }
-                )
-            }
+                item(key = KEY_CTA) {
+                    PrimaryButton(
+                        text = if (state.isEmpty)
+                            stringResource(R.string.trip_details_build_route)
+                        else
+                            stringResource(R.string.trip_details_get_route_suggestions),
+                        onClick = { viewModel.onEvent(TripDetailsEvent.OnPrimaryCtaClick) },
+                        enabled = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = CoTripTokens.spacing.x2)
+                    )
+                }
 
-            item(key = KEY_CTA) {
-                PrimaryButton(
-                    text = if (state.isEmpty)
-                        stringResource(R.string.trip_details_build_route)
-                    else
-                        stringResource(R.string.trip_details_get_route_suggestions),
-                    onClick = { viewModel.onEvent(TripDetailsEvent.OnPrimaryCtaClick) },
-                    enabled = true,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = CoTripTokens.spacing.x2)
-                )
+                item(key = KEY_SPACER) {
+                    Spacer(Modifier.height(80.dp))
+                }
             }
-
-            item(key = KEY_SPACER) {
-                Spacer(Modifier.height(80.dp))
-            }
+            PullRefreshIndicator(
+                refreshing = state.isRefreshing,
+                state = pullRefreshState,
+                modifier = Modifier.align(Alignment.TopCenter)
+            )
         }
     }
 }

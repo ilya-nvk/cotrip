@@ -8,4 +8,5 @@ data class TripDetailsState(
     val weather: WeatherCardUi,
     val nextInTrip: NextInTripUi,
     val overview: TripOverviewUi,
+    val isRefreshing: Boolean = false,
 )
