@@ -84,7 +84,12 @@ fun Route.aiRoutes(aiConfig: AiConfig) {
                 }
             }.getOrElse { error ->
                 AiRepository.updateRequestStatus(aiRequest.id, "error", error.message?.take(1_000))
-                val isUnavailable = provider == "yandex" && error is IllegalStateException
+                val yandexError = error as? YandexAiClient.YandexAiException
+                val isUnavailable = provider == "yandex" && (
+                    ((yandexError != null) && (yandexError.statusCode == 401 || yandexError.statusCode == 403 || yandexError.statusCode == 429 || yandexError.statusCode == 503)) ||
+                        (error.message?.contains("YC_AI_API_KEY", ignoreCase = true) == true) ||
+                        (error.message?.contains("YC_FOLDER_ID", ignoreCase = true) == true)
+                    )
                 call.respond(
                     if (isUnavailable) HttpStatusCode.ServiceUnavailable else HttpStatusCode.BadGateway,
                     mapOf(
