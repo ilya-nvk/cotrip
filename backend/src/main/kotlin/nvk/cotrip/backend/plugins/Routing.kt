@@ -5,6 +5,7 @@ import io.ktor.server.application.install
 import io.ktor.server.routing.Routing
 import io.ktor.server.routing.routing
 import nvk.cotrip.backend.config.AppConfig
+import nvk.cotrip.backend.routes.appLinksRoutes
 import nvk.cotrip.backend.routes.healthRoutes
 import nvk.cotrip.backend.routes.v1.authRoutes
 import nvk.cotrip.backend.routes.v1.aiRoutes
@@ -26,6 +27,7 @@ fun Application.configureRouting(appConfig: AppConfig) {
     install(Routing)
     routing {
         healthRoutes()
+        appLinksRoutes(appConfig.appLinks)
         authRoutes(appConfig)
         userRoutes()
         tripRoutes()
