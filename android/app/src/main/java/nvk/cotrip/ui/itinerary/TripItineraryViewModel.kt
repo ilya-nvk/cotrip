@@ -353,7 +353,20 @@ class TripItineraryViewModel @Inject constructor(
                     }
                 }
 
-                is ApiResult.Failure -> emitToast(uiErrorMapper.messageRes(result))
+                is ApiResult.Failure -> {
+                    val appliedOnServer = withContext(Dispatchers.IO) {
+                        runCatching {
+                            itineraryRepository.refreshItinerary(tripId).any { day ->
+                                day.id == picker.dayId &&
+                                    day.city?.trim()?.equals(selectedCityName.trim(), ignoreCase = true) == true
+                            }
+                        }.getOrDefault(false)
+                    }
+
+                    if (!appliedOnServer) {
+                        emitToast(uiErrorMapper.messageRes(result))
+                    }
+                }
             }
         }
     }

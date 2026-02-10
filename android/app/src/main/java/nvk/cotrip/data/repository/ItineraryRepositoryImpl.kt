@@ -50,25 +50,27 @@ class ItineraryRepositoryImpl @Inject constructor(
     override suspend fun updateDay(dayId: String, request: UpdateDayRequest) {
         try {
             api.updateDay(dayId, request)
-            val tripId = findTripIdForDay(dayId)
-            if (tripId != null) {
-                itineraryCacheStore.updateItinerary(tripId) { days ->
-                    days.map { day ->
-                        if (day.id == dayId) {
-                            day.copy(
-                                city = request.city,
-                                cityProviderId = request.cityProviderId,
-                                cityLat = request.cityLat,
-                                cityLon = request.cityLon,
-                            )
-                        } else {
-                            day
-                        }
+        } catch (e: IOException) {
+            syncQueueRepository.enqueueUpsert(SyncEntities.DAY, dayId, request)
+            return
+        }
+
+        runCatching {
+            val tripId = findTripIdForDay(dayId) ?: return
+            itineraryCacheStore.updateItinerary(tripId) { days ->
+                days.map { day ->
+                    if (day.id == dayId) {
+                        day.copy(
+                            city = request.city,
+                            cityProviderId = request.cityProviderId,
+                            cityLat = request.cityLat,
+                            cityLon = request.cityLon,
+                        )
+                    } else {
+                        day
                     }
                 }
             }
-        } catch (e: IOException) {
-            syncQueueRepository.enqueueUpsert(SyncEntities.DAY, dayId, request)
         }
     }
 
