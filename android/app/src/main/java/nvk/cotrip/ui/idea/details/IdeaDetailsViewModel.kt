@@ -152,11 +152,18 @@ class IdeaDetailsViewModel @Inject constructor(
                     meId = me.id
                     dayOptions = itinerary.filter { !it.isOutOfRange }.map { it.toDayOption() }
                     val isOwner = trip.ownerId == me.id
+                    val addedDay = itinerary
+                        .sortedBy { it.dayNumber }
+                        .firstOrNull { day ->
+                            day.activities.any { activity -> activity.sourceIdeaId == idea.id }
+                        }
+                        ?.dayNumber
 
                     IdeaDetailsPayload(
                         idea = idea,
                         comments = comments,
                         isOwner = isOwner,
+                        addedDay = addedDay,
                     )
                 }
             }) {
@@ -176,6 +183,7 @@ class IdeaDetailsViewModel @Inject constructor(
                             website = idea.website.orEmpty(),
                             notes = idea.notes.orEmpty(),
                             status = idea.status,
+                            addedDay = payload.addedDay,
                             isOwner = payload.isOwner,
                             commentsCount = discussion.size,
                             discussion = discussion
@@ -265,6 +273,9 @@ class IdeaDetailsViewModel @Inject constructor(
                 }
             }) {
                 is ApiResult.Success -> {
+                    withContext(Dispatchers.IO) {
+                        itineraryRepository.refreshItinerary(tripId)
+                    }
                     _state.update { it.copy(addedDay = day.dayNumber) }
                     emit(IdeaDetailsEffect.ShowToastRes(R.string.idea_details_added_toast))
                 }
@@ -345,6 +356,7 @@ class IdeaDetailsViewModel @Inject constructor(
         val idea: IdeaDto,
         val comments: List<CommentDto>,
         val isOwner: Boolean,
+        val addedDay: Int?,
     )
 }
 

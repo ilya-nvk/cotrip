@@ -526,6 +526,7 @@ fun Route.itineraryRoutes(weatherConfig: WeatherConfig) {
 private fun ActivityRow.toDto(): ActivityDto = ActivityDto(
     id = id,
     dayId = dayId,
+    sourceIdeaId = sourceIdeaId,
     title = title,
     timeText = timeText,
     locationName = locationName,

@@ -73,7 +73,7 @@ class OutOfRangeDaysViewModel @Inject constructor(
             when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
                     val trip = tripRepository.getTrip(tripId)
-                    val itinerary = itineraryRepository.getItinerary(tripId)
+                    val itinerary = itineraryRepository.refreshItinerary(tripId)
                     LoadedOutOfRange(
                         tripStart = LocalDate.parse(trip.startDate),
                         tripEnd = LocalDate.parse(trip.endDate),

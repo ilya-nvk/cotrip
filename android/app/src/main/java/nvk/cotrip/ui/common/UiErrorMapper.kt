@@ -14,6 +14,10 @@ class UiErrorMapper @Inject constructor() {
             "invite_invalid",
             "invite_expired",
                 -> R.string.join_trip_invalid
+            "city_coordinates_required" -> R.string.common_error_city_coordinates_required
+            "city_search_error" -> R.string.common_error_city_search
+            "weather_provider_unavailable" -> R.string.common_error_weather_unavailable
+            "weather_refresh_failed" -> R.string.common_error_weather_refresh
 
             else -> when {
                 failure.httpCode == 401 -> R.string.common_error_unauthorized

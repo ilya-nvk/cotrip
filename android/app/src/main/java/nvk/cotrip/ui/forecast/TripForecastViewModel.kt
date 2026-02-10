@@ -49,6 +49,8 @@ class TripForecastViewModel @Inject constructor(
     private val _state = MutableStateFlow(
         TripForecastState(
             city = "",
+            cityOptions = emptyList(),
+            isCityPickerVisible = false,
             days = emptyList(),
             source = "OpenWeather",
             lastUpdated = "",
@@ -71,7 +73,22 @@ class TripForecastViewModel @Inject constructor(
             TripForecastEvent.OnBackClick -> appNavigator.popBackStack()
             TripForecastEvent.OnAutoRefresh -> refreshForecast(isUserRefresh = false)
             TripForecastEvent.OnUserRefresh -> refreshForecast(isUserRefresh = true)
-            TripForecastEvent.OnCityClick -> emitToast(R.string.weather_forecast_city_not_implemented)
+            TripForecastEvent.OnCityClick -> {
+                if (_state.value.cityOptions.isEmpty()) {
+                    emitToast(R.string.weather_forecast_city_missing)
+                } else {
+                    _state.value = _state.value.copy(isCityPickerVisible = true)
+                }
+            }
+            TripForecastEvent.OnDismissCityPicker ->
+                _state.value = _state.value.copy(isCityPickerVisible = false)
+            is TripForecastEvent.OnCitySelected -> {
+                _state.value = _state.value.copy(
+                    city = event.city,
+                    isCityPickerVisible = false,
+                )
+                refreshForecast(isUserRefresh = false)
+            }
         }
     }
 
@@ -87,22 +104,38 @@ class TripForecastViewModel @Inject constructor(
                 withContext(Dispatchers.IO) {
                     val trip = tripRepository.getTrip(tripId)
                     val itinerary = itineraryRepository.refreshItinerary(tripId)
-                    val selectedCity = selectCity(itinerary)
+                    val cityOptions = collectCityOptions(itinerary)
+                    val selectedCity = selectCity(itinerary, _state.value.city)
                     if (selectedCity == null) {
                         WeatherLoadResult(
                             city = "",
+                            cityOptions = cityOptions,
                             response = WeatherForecastResponseDto(items = emptyList()),
                             hasSelectedCity = false,
                         )
                     } else {
-                        val response = weatherRepository.refreshWeather(
-                            tripId = tripId,
-                            city = selectedCity.city,
-                            start = trip.startDate,
-                            end = trip.endDate,
-                        )
+                        val shouldRefresh =
+                            isUserRefresh ||
+                                _state.value.days.isEmpty() ||
+                                !_state.value.city.equals(selectedCity.city, ignoreCase = true)
+                        val response = if (shouldRefresh) {
+                            weatherRepository.refreshWeather(
+                                tripId = tripId,
+                                city = selectedCity.city,
+                                start = trip.startDate,
+                                end = trip.endDate,
+                            )
+                        } else {
+                            weatherRepository.getWeather(
+                                tripId = tripId,
+                                city = selectedCity.city,
+                                start = trip.startDate,
+                                end = trip.endDate,
+                            )
+                        }
                         WeatherLoadResult(
                             city = selectedCity.city,
+                            cityOptions = cityOptions,
                             response = response,
                             hasSelectedCity = true,
                         )
@@ -124,6 +157,8 @@ class TripForecastViewModel @Inject constructor(
 
                     _state.value = _state.value.copy(
                         city = loaded.city,
+                        cityOptions = loaded.cityOptions,
+                        isCityPickerVisible = false,
                         days = mappedDays,
                         source = source,
                         lastUpdated = lastUpdated,
@@ -171,6 +206,36 @@ class TripForecastViewModel @Inject constructor(
             ?.let { day -> SelectedCity(city = day.city.orEmpty()) }
     }
 
+    private fun selectCity(
+        days: List<ItineraryDayDto>,
+        preferredCity: String?,
+    ): SelectedCity? {
+        val normalizedPreferred = preferredCity?.trim()?.takeIf { it.isNotEmpty() }
+        val sorted = days.sortedBy { it.dayNumber }
+        if (normalizedPreferred != null) {
+            val preferredDay = sorted.firstOrNull { day ->
+                !day.city.isNullOrBlank() &&
+                    day.cityLat != null &&
+                    day.cityLon != null &&
+                    day.city.equals(normalizedPreferred, ignoreCase = true)
+            }
+            if (preferredDay != null) {
+                return SelectedCity(city = preferredDay.city.orEmpty())
+            }
+        }
+        return selectCity(sorted)
+    }
+
+    private fun collectCityOptions(days: List<ItineraryDayDto>): List<String> {
+        val seen = linkedSetOf<String>()
+        days.sortedBy { it.dayNumber }.forEach { day ->
+            val city = day.city?.trim()?.takeIf { it.isNotEmpty() } ?: return@forEach
+            if (day.cityLat == null || day.cityLon == null) return@forEach
+            seen.add(city)
+        }
+        return seen.toList()
+    }
+
     private fun emitToast(resId: Int) {
         viewModelScope.launch { _effects.emit(TripForecastEffect.ShowToastRes(resId)) }
     }
@@ -181,6 +246,7 @@ class TripForecastViewModel @Inject constructor(
 
     private data class WeatherLoadResult(
         val city: String,
+        val cityOptions: List<String>,
         val response: WeatherForecastResponseDto,
         val hasSelectedCity: Boolean,
     )

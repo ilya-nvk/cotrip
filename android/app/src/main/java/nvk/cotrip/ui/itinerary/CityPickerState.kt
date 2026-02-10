@@ -10,6 +10,8 @@ data class CitySuggestionUi(
 
 data class CityPickerState(
     val dayId: String,
+    val dayNumber: Int,
+    val dayDate: String,
     val query: String,
     val localSuggestions: List<CitySuggestionUi>,
     val suggestions: List<CitySuggestionUi>,

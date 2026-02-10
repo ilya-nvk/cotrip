@@ -88,6 +88,7 @@ data class IdeaDto(
 data class ActivityDto(
     val id: String,
     val dayId: String,
+    val sourceIdeaId: String? = null,
     val title: String,
     val timeText: String? = null,
     val locationName: String? = null,
