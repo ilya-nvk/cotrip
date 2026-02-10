@@ -54,6 +54,7 @@ class TripItineraryViewModel @Inject constructor(
     private var currencySymbol: String = "€"
     private var citySearchJob: Job? = null
     private var isCancellingCreation: Boolean = false
+    private var hasRetriedInitialCreationRefresh: Boolean = false
 
     private val _state = MutableStateFlow(
         TripItineraryState(
@@ -204,7 +205,23 @@ class TripItineraryViewModel @Inject constructor(
                 }
             }) {
                 is ApiResult.Success -> Unit
-                is ApiResult.Failure -> emitToast(uiErrorMapper.messageRes(result))
+                is ApiResult.Failure -> {
+                    val shouldSuppressInitialError = !isUserRefresh &&
+                        isCreationFlow &&
+                        !hasRetriedInitialCreationRefresh
+                    AppLogger.w(
+                        TAG,
+                        "refreshItinerary failed tripId=$tripId userRefresh=$isUserRefresh code=${result.httpCode} apiCode=${result.error?.code.orEmpty()} suppress=$shouldSuppressInitialError",
+                        result.cause
+                    )
+                    if (shouldSuppressInitialError) {
+                        hasRetriedInitialCreationRefresh = true
+                        delay(400)
+                        refreshItinerary(isUserRefresh = false)
+                    } else {
+                        emitToast(uiErrorMapper.messageRes(result))
+                    }
+                }
             }
             _state.update { it.copy(isRefreshing = false) }
         }
