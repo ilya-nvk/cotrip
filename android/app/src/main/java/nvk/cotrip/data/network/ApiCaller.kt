@@ -3,6 +3,7 @@ package nvk.cotrip.data.network
 import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import retrofit2.HttpException
@@ -23,6 +24,8 @@ class ApiCaller @Inject constructor(
             )
         } catch (e: IOException) {
             ApiResult.Failure(cause = e)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             ApiResult.Failure(cause = e)
         }
