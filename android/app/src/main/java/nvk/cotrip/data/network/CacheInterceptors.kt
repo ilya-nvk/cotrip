@@ -25,13 +25,19 @@ class OfflineCacheInterceptor(
 
 class CacheControlInterceptor : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
-        val response = chain.proceed(chain.request())
-        return if (chain.request().method == "GET") {
+        val request = chain.request()
+        val response = chain.proceed(request)
+        if (request.method != "GET") return response
+
+        val isAuthorizedRequest = !request.header("Authorization").isNullOrBlank()
+        return if (isAuthorizedRequest) {
+            response.newBuilder()
+                .header("Cache-Control", "no-cache, no-store, must-revalidate")
+                .build()
+        } else {
             response.newBuilder()
                 .header("Cache-Control", "public, max-age=120")
                 .build()
-        } else {
-            response
         }
     }
 }
