@@ -41,6 +41,12 @@ jobs:
           ssh -o StrictHostKeyChecking=no "${DEPLOY_USER}@${DEPLOY_HOST}" << 'SSH'
             set -euo pipefail
 
+            sudo systemctl stop cotrip
+            if sudo systemctl is-active --quiet cotrip; then
+              echo "cotrip service is still active after stop"
+              exit 1
+            fi
+
             sudo -u postgres psql -X -d postgres -v ON_ERROR_STOP=1 << 'SQL'
               REVOKE CONNECT ON DATABASE cotrip FROM public;
               SELECT pg_terminate_backend(pid)
@@ -48,7 +54,7 @@ jobs:
               WHERE datname = 'cotrip';
               DROP DATABASE cotrip;
               CREATE DATABASE cotrip OWNER cotrip;
-SQL
+          SQL
 
             sudo systemctl restart cotrip
             sudo systemctl is-active --quiet cotrip
