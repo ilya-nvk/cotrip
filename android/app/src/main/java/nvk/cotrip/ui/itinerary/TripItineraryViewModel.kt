@@ -27,6 +27,7 @@ import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import nvk.cotrip.ui.trip.form.TripCurrency
+import nvk.cotrip.util.AppLogger
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -121,13 +122,29 @@ class TripItineraryViewModel @Inject constructor(
         isCancellingCreation = true
         viewModelScope.launch {
             _state.update { it.copy(isRefreshing = true) }
+            AppLogger.i(TAG, "cancelTripCreation started for tripId=$tripId")
             when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
                     tripRepository.deleteTrip(tripId)
                 }
             }) {
-                is ApiResult.Success -> appNavigator.popBackStack()
-                is ApiResult.Failure -> emitToast(uiErrorMapper.messageRes(result))
+                is ApiResult.Success -> {
+                    AppLogger.i(TAG, "cancelTripCreation succeeded for tripId=$tripId")
+                    appNavigator.popBackStack()
+                }
+                is ApiResult.Failure -> {
+                    if (result.httpCode == 404) {
+                        AppLogger.i(TAG, "cancelTripCreation got 404 for tripId=$tripId, closing screen")
+                        appNavigator.popBackStack()
+                    } else {
+                        AppLogger.w(
+                            TAG,
+                            "cancelTripCreation failed for tripId=$tripId code=${result.httpCode} apiCode=${result.error?.code.orEmpty()}",
+                            result.cause
+                        )
+                        emitToast(uiErrorMapper.messageRes(result))
+                    }
+                }
             }
             _state.update { it.copy(isRefreshing = false) }
             isCancellingCreation = false
@@ -339,60 +356,147 @@ class TripItineraryViewModel @Inject constructor(
     private fun selectCity(city: CitySuggestionUi) {
         val picker = _state.value.cityPicker ?: return
         val selectedCityName = city.fullText?.trim().takeUnless { it.isNullOrBlank() } ?: city.name
+        val request = UpdateDayRequest(
+            city = selectedCityName,
+            cityProviderId = city.providerId,
+            cityLat = city.lat,
+            cityLon = city.lon,
+        )
         citySearchJob?.cancel()
         _state.update { it.copy(cityPicker = null) }
+        AppLogger.i(
+            TAG,
+            "selectCity started tripId=$tripId dayId=${picker.dayId} dayDate=${picker.dayDate} city=$selectedCityName"
+        )
         viewModelScope.launch {
-            when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    itineraryRepository.updateDay(
-                        dayId = picker.dayId,
-                        request = UpdateDayRequest(
-                            city = selectedCityName,
-                            cityProviderId = city.providerId,
-                            cityLat = city.lat,
-                            cityLon = city.lon,
-                        )
-                    )
-                }
-            }) {
+            var targetDayId = picker.dayId
+            var lastFailure: ApiResult.Failure? = null
+
+            when (val initialResult = updateDayOnServer(dayId = targetDayId, request = request)) {
                 is ApiResult.Success -> {
-                    _state.update { st ->
-                        val days = st.days.map { d ->
-                            if (d.id == picker.dayId) {
-                                d.copy(city = selectedCityName)
-                            } else {
-                                d
-                            }
-                        }
-                        st.copy(
-                            days = days,
-                            pendingCitySelectionCount = if (st.isCitySelectionRequired) {
-                                days.count { it.city.isNullOrBlank() }
-                            } else {
-                                st.pendingCitySelectionCount
-                            }
-                        )
-                    }
-                    withContext(Dispatchers.IO) {
-                        runCatching { itineraryRepository.refreshItinerary(tripId) }
-                    }
+                    AppLogger.i(TAG, "selectCity initial update succeeded for dayId=$targetDayId")
+                    applySelectedCityLocally(
+                        targetDayId = targetDayId,
+                        dayDate = picker.dayDate,
+                        dayNumber = picker.dayNumber,
+                        cityName = selectedCityName,
+                    )
+                    return@launch
                 }
 
                 is ApiResult.Failure -> {
-                    val appliedOnServer = withContext(Dispatchers.IO) {
-                        runCatching {
-                            itineraryRepository.refreshItinerary(tripId).any { day ->
-                                day.id == picker.dayId &&
-                                    day.city?.trim()?.equals(selectedCityName.trim(), ignoreCase = true) == true
-                            }
-                        }.getOrDefault(false)
+                    AppLogger.w(
+                        TAG,
+                        "selectCity initial update failed dayId=$targetDayId code=${initialResult.httpCode} apiCode=${initialResult.error?.code.orEmpty()}",
+                        initialResult.cause
+                    )
+                    lastFailure = initialResult
+                }
+            }
+
+            val latestDays = withContext(Dispatchers.IO) {
+                runCatching { itineraryRepository.refreshItinerary(tripId) }.getOrNull()
+            }.orEmpty()
+            val resolvedDay = latestDays.firstOrNull { it.date == picker.dayDate }
+                ?: latestDays.firstOrNull { it.dayNumber == picker.dayNumber }
+            if (resolvedDay != null && resolvedDay.id != targetDayId) {
+                AppLogger.i(
+                    TAG,
+                    "selectCity retrying with resolved dayId=${resolvedDay.id} (from $targetDayId)"
+                )
+                targetDayId = resolvedDay.id
+                when (val retryResult = updateDayOnServer(dayId = targetDayId, request = request)) {
+                    is ApiResult.Success -> {
+                        AppLogger.i(TAG, "selectCity retry update succeeded for dayId=$targetDayId")
+                        applySelectedCityLocally(
+                            targetDayId = targetDayId,
+                            dayDate = picker.dayDate,
+                            dayNumber = picker.dayNumber,
+                            cityName = selectedCityName,
+                        )
+                        return@launch
                     }
 
-                    if (!appliedOnServer) {
-                        emitToast(uiErrorMapper.messageRes(result))
+                    is ApiResult.Failure -> {
+                        AppLogger.w(
+                            TAG,
+                            "selectCity retry update failed dayId=$targetDayId code=${retryResult.httpCode} apiCode=${retryResult.error?.code.orEmpty()}",
+                            retryResult.cause
+                        )
+                        lastFailure = retryResult
                     }
                 }
             }
+
+            val appliedOnServer = withContext(Dispatchers.IO) {
+                runCatching {
+                    itineraryRepository.refreshItinerary(tripId).any { day ->
+                        (day.id == targetDayId ||
+                            day.date == picker.dayDate ||
+                            day.dayNumber == picker.dayNumber) &&
+                            day.city?.trim()?.equals(selectedCityName.trim(), ignoreCase = true) == true
+                    }
+                }.getOrDefault(false)
+            }
+
+            if (appliedOnServer) {
+                AppLogger.i(TAG, "selectCity confirmed on server for dayId=$targetDayId")
+                applySelectedCityLocally(
+                    targetDayId = targetDayId,
+                    dayDate = picker.dayDate,
+                    dayNumber = picker.dayNumber,
+                    cityName = selectedCityName,
+                )
+            } else {
+                val failure = checkNotNull(lastFailure) {
+                    "selectCity failed without failure context for dayId=$targetDayId"
+                }
+                AppLogger.w(
+                    TAG,
+                    "selectCity failed after retries for dayId=$targetDayId code=${failure.httpCode} apiCode=${failure.error?.code.orEmpty()}",
+                    failure.cause
+                )
+                emitToast(uiErrorMapper.messageRes(failure))
+            }
+        }
+    }
+
+    private suspend fun updateDayOnServer(
+        dayId: String,
+        request: UpdateDayRequest,
+    ): ApiResult<Unit> {
+        return apiCaller.call {
+            withContext(Dispatchers.IO) {
+                itineraryRepository.updateDay(dayId = dayId, request = request)
+            }
+        }
+    }
+
+    private suspend fun applySelectedCityLocally(
+        targetDayId: String,
+        dayDate: String,
+        dayNumber: Int,
+        cityName: String,
+    ) {
+        _state.update { st ->
+            val days = st.days.map { d ->
+                if (d.id == targetDayId || d.dateIso == dayDate || d.dayNumber == dayNumber) {
+                    d.copy(city = cityName)
+                } else {
+                    d
+                }
+            }
+            st.copy(
+                days = days,
+                pendingCitySelectionCount = if (st.isCitySelectionRequired) {
+                    days.count { it.city.isNullOrBlank() }
+                } else {
+                    st.pendingCitySelectionCount
+                }
+            )
+        }
+        withContext(Dispatchers.IO) {
+            runCatching { itineraryRepository.refreshItinerary(tripId) }
         }
     }
 
@@ -411,6 +515,10 @@ class TripItineraryViewModel @Inject constructor(
 
     private fun emitToast(resId: Int) {
         viewModelScope.launch { _effects.emit(TripItineraryEffect.ShowToastRes(resId)) }
+    }
+
+    private companion object {
+        private const val TAG = "TripItineraryVM"
     }
 }
 

@@ -17,12 +17,18 @@ import nvk.cotrip.data.network.dto.CitySuggestionDto
 import nvk.cotrip.data.network.dto.PlaceSuggestionDto
 import nvk.cotrip.data.sync.SyncEntities
 import nvk.cotrip.data.sync.SyncQueueRepository
+import nvk.cotrip.util.AppLogger
+import retrofit2.HttpException
 
 class ItineraryRepositoryImpl @Inject constructor(
     private val api: CoTripApi,
     private val syncQueueRepository: SyncQueueRepository,
     private val itineraryCacheStore: ItineraryCacheStore,
 ) : ItineraryRepository {
+    private companion object {
+        private const val TAG = "ItineraryRepository"
+    }
+
     override fun observeItinerary(tripId: String): Flow<List<ItineraryDayDto>> {
         return itineraryCacheStore.observeItinerary(tripId)
     }
@@ -35,7 +41,9 @@ class ItineraryRepositoryImpl @Inject constructor(
 
     override suspend fun refreshItinerary(tripId: String): List<ItineraryDayDto> {
         val itinerary = api.getItinerary(tripId).items
-        itineraryCacheStore.setItinerary(tripId, itinerary)
+        safeLocalMutation("refreshItinerary.setItinerary(tripId=$tripId)") {
+            itineraryCacheStore.setItinerary(tripId, itinerary)
+        }
         return itinerary
     }
 
@@ -55,8 +63,8 @@ class ItineraryRepositoryImpl @Inject constructor(
             return
         }
 
-        runCatching {
-            val tripId = findTripIdForDay(dayId) ?: return
+        safeLocalMutation("updateDay.updateItinerary(dayId=$dayId)") {
+            val tripId = findTripIdForDay(dayId) ?: return@safeLocalMutation
             itineraryCacheStore.updateItinerary(tripId) { days ->
                 days.map { day ->
                     if (day.id == dayId) {
@@ -76,8 +84,8 @@ class ItineraryRepositoryImpl @Inject constructor(
 
     override suspend fun createActivity(dayId: String, request: CreateActivityRequest): ActivityDto {
         val activity = api.createActivity(dayId, request)
-        val tripId = findTripIdForDay(dayId)
-        if (tripId != null) {
+        safeLocalMutation("createActivity.updateItinerary(dayId=$dayId, activityId=${activity.id})") {
+            val tripId = findTripIdForDay(dayId) ?: return@safeLocalMutation
             itineraryCacheStore.updateItinerary(tripId) { days ->
                 days.map { day ->
                     if (day.id == dayId) {
@@ -90,71 +98,83 @@ class ItineraryRepositoryImpl @Inject constructor(
     }
 
     override suspend fun updateActivity(activityId: String, request: UpdateActivityRequest) {
+        val updated = try {
+            api.updateActivity(activityId, request)
+        } catch (e: IOException) {
+            syncQueueRepository.enqueueUpsert(SyncEntities.ACTIVITY, activityId, request)
+            return
+        }
+        safeLocalMutation("updateActivity.updateItinerary(activityId=$activityId)") {
+            val tripId = findTripIdForDay(updated.dayId) ?: return@safeLocalMutation
+            itineraryCacheStore.updateItinerary(tripId) { days ->
+                days.map { day ->
+                    if (day.id == updated.dayId) {
+                        val updatedActivities = day.activities.map { activity ->
+                            if (activity.id == updated.id) updated else activity
+                        }
+                        day.copy(activities = updatedActivities)
+                    } else {
+                        day
+                    }
+                }
+            }
+        }
+    }
+
+    override suspend fun moveActivity(activityId: String, request: MoveActivityRequest) {
+        val moved = try {
+            api.moveActivity(activityId, request)
+        } catch (e: IOException) {
+            syncQueueRepository.enqueueUpsert(SyncEntities.ACTIVITY, activityId, request)
+            return
+        }
+        safeLocalMutation("moveActivity.updateItinerary(activityId=$activityId)") {
+            val tripId = findTripIdForDay(request.dayId) ?: return@safeLocalMutation
+            itineraryCacheStore.updateItinerary(tripId) { days ->
+                val without = days.map { day ->
+                    day.copy(activities = day.activities.filterNot { it.id == activityId })
+                }
+                without.map { day ->
+                    if (day.id == moved.dayId) {
+                        day.copy(activities = (day.activities + moved).sortedBy { it.orderIndex })
+                    } else day
+                }
+            }
+        }
+    }
+
+    override suspend fun deleteActivity(activityId: String) {
+        val lookup = runCatching { findTripAndDayForActivity(activityId) }
+            .onFailure { AppLogger.w(TAG, "deleteActivity lookup failed for activityId=$activityId", it) }
+            .getOrNull()
         try {
-            val updated = api.updateActivity(activityId, request)
-            val tripId = findTripIdForDay(updated.dayId)
-            if (tripId != null) {
-                itineraryCacheStore.updateItinerary(tripId) { days ->
+            api.deleteActivity(activityId)
+        } catch (e: IOException) {
+            syncQueueRepository.enqueueDelete(SyncEntities.ACTIVITY, activityId)
+            return
+        } catch (e: HttpException) {
+            if (e.code() != 404) throw e
+            AppLogger.i(TAG, "deleteActivity got 404 for activityId=$activityId, treating as already deleted")
+        }
+        if (lookup != null) {
+            safeLocalMutation("deleteActivity.updateItinerary(activityId=$activityId)") {
+                itineraryCacheStore.updateItinerary(lookup.first) { days ->
                     days.map { day ->
-                        if (day.id == updated.dayId) {
-                            val updatedActivities = day.activities.map { activity ->
-                                if (activity.id == updated.id) updated else activity
-                            }
-                            day.copy(activities = updatedActivities)
+                        if (day.id == lookup.second) {
+                            day.copy(activities = day.activities.filterNot { it.id == activityId })
                         } else {
                             day
                         }
                     }
                 }
             }
-        } catch (e: IOException) {
-            syncQueueRepository.enqueueUpsert(SyncEntities.ACTIVITY, activityId, request)
-        }
-    }
-
-    override suspend fun moveActivity(activityId: String, request: MoveActivityRequest) {
-        try {
-            val moved = api.moveActivity(activityId, request)
-            val tripId = findTripIdForDay(request.dayId)
-            if (tripId != null) {
-                itineraryCacheStore.updateItinerary(tripId) { days ->
-                    val without = days.map { day ->
-                        day.copy(activities = day.activities.filterNot { it.id == activityId })
-                    }
-                    without.map { day ->
-                        if (day.id == moved.dayId) {
-                            day.copy(activities = (day.activities + moved).sortedBy { it.orderIndex })
-                        } else day
-                    }
-                }
-            }
-        } catch (e: IOException) {
-            syncQueueRepository.enqueueUpsert(SyncEntities.ACTIVITY, activityId, request)
-        }
-    }
-
-    override suspend fun deleteActivity(activityId: String) {
-        try {
-            api.deleteActivity(activityId)
-            val lookup = findTripAndDayForActivity(activityId)
-            if (lookup != null) {
-                itineraryCacheStore.updateItinerary(lookup.first) { days ->
-                    days.map { day ->
-                        if (day.id == lookup.second) {
-                            day.copy(activities = day.activities.filterNot { it.id == activityId })
-                        } else day
-                    }
-                }
-            }
-        } catch (e: IOException) {
-            syncQueueRepository.enqueueDelete(SyncEntities.ACTIVITY, activityId)
         }
     }
 
     override suspend fun reorderActivities(dayId: String, orderedIds: List<String>) {
         api.reorderActivities(dayId, ReorderActivitiesRequest(orderedIds))
-        val tripId = findTripIdForDay(dayId)
-        if (tripId != null) {
+        safeLocalMutation("reorderActivities.updateItinerary(dayId=$dayId)") {
+            val tripId = findTripIdForDay(dayId) ?: return@safeLocalMutation
             itineraryCacheStore.updateItinerary(tripId) { days ->
                 days.map { day ->
                     if (day.id != dayId) return@map day
