@@ -18,6 +18,8 @@ class UiErrorMapper @Inject constructor() {
             "city_search_error" -> R.string.common_error_city_search
             "weather_provider_unavailable" -> R.string.common_error_weather_unavailable
             "weather_refresh_failed" -> R.string.common_error_weather_refresh
+            "ai_provider_unavailable" -> R.string.common_error_ai_unavailable
+            "ai_generation_failed" -> R.string.common_error_ai_generation
 
             else -> when {
                 failure.httpCode == 401 -> R.string.common_error_unauthorized

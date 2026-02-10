@@ -23,10 +23,20 @@ data class WeatherConfig(
     val refreshTtlHours: Int,
 )
 
+data class AiConfig(
+    val provider: String,
+    val yandexApiKey: String?,
+    val yandexFolderId: String?,
+    val yandexModel: String,
+    val requestTimeoutMillis: Long,
+    val maxSuggestions: Int,
+)
+
 data class AppConfig(
     val jwt: JwtConfig,
     val db: DbConfig,
     val invite: InviteConfig,
     val weather: WeatherConfig,
+    val ai: AiConfig,
     val devAuthEnabled: Boolean,
 )

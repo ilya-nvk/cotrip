@@ -44,6 +44,8 @@
     <string name="common_error_city_search">Unable to load city suggestions.</string>
     <string name="common_error_weather_unavailable">Weather service is not configured on server.</string>
     <string name="common_error_weather_refresh">Unable to refresh weather forecast.</string>
+    <string name="common_error_ai_unavailable">AI provider is not configured on server.</string>
+    <string name="common_error_ai_generation">Unable to generate AI suggestions right now.</string>
     <string name="create_trip_title">Create trip</string>
     <string name="create_trip_primary_button">Create trip</string>
     <string name="create_trip_created_toast">Trip created</string>

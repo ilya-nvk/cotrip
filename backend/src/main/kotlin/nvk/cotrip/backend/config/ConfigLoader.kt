@@ -40,6 +40,35 @@ fun loadConfig(config: ApplicationConfig): AppConfig {
             ).coerceIn(1, 48),
     )
 
+    val yandexApiKey = System.getenv("YC_AI_API_KEY")
+        ?: config.propertyOrNull("ktor.ai.yandexApiKey")?.getString()
+    val yandexFolderId = System.getenv("YC_FOLDER_ID")
+        ?: config.propertyOrNull("ktor.ai.yandexFolderId")?.getString()
+    val aiProvider = (
+        System.getenv("ALICE_AI_PROVIDER")
+            ?: config.propertyOrNull("ktor.ai.provider")?.getString()
+            ?: if (!yandexApiKey.isNullOrBlank() && !yandexFolderId.isNullOrBlank()) "yandex" else "mock"
+        ).trim().lowercase()
+
+    val ai = AiConfig(
+        provider = aiProvider,
+        yandexApiKey = yandexApiKey,
+        yandexFolderId = yandexFolderId,
+        yandexModel = System.getenv("YC_AI_MODEL")
+            ?: config.propertyOrNull("ktor.ai.yandexModel")?.getString()
+            ?: "yandexgpt/latest",
+        requestTimeoutMillis = (
+            System.getenv("YC_AI_TIMEOUT_MS")?.toLongOrNull()
+                ?: config.propertyOrNull("ktor.ai.requestTimeoutMillis")?.getString()?.toLongOrNull()
+                ?: 25_000L
+            ).coerceIn(3_000L, 120_000L),
+        maxSuggestions = (
+            System.getenv("YC_AI_MAX_SUGGESTIONS")?.toIntOrNull()
+                ?: config.propertyOrNull("ktor.ai.maxSuggestions")?.getString()?.toIntOrNull()
+                ?: 5
+            ).coerceIn(1, 8),
+    )
+
     val devAuthEnabled = System.getenv("DEV_AUTH_ENABLED")
         ?.toBooleanStrictOrNull()
         ?: config.propertyOrNull("ktor.devAuthEnabled")
@@ -52,6 +81,7 @@ fun loadConfig(config: ApplicationConfig): AppConfig {
         db = db,
         invite = invite,
         weather = weather,
+        ai = ai,
         devAuthEnabled = devAuthEnabled
     )
 }
