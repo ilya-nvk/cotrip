@@ -16,6 +16,7 @@ import kotlinx.serialization.Serializable
 import nvk.cotrip.backend.db.TripRepository
 import nvk.cotrip.backend.db.TripUpdate
 import java.time.LocalDate
+import java.util.UUID
 
 @Serializable
 data class CreateTripRequest(
@@ -234,6 +235,38 @@ fun Route.tripRoutes() {
             }
 
             call.respond(HttpStatusCode.NoContent)
+        }
+
+        post("/v1/trips/{tripId}/join") {
+            val principal = call.principal<JWTPrincipal>()
+            val userId = principal?.getClaim("userId", String::class) ?: run {
+                call.respond(HttpStatusCode.Unauthorized)
+                return@post
+            }
+
+            val tripId = call.parameters["tripId"] ?: run {
+                call.respond(HttpStatusCode.BadRequest)
+                return@post
+            }
+            val normalizedTripId = runCatching { UUID.fromString(tripId).toString() }.getOrElse {
+                call.respond(
+                    HttpStatusCode.BadRequest,
+                    mapOf("error" to mapOf("code" to "invalid_trip_id", "message" to "tripId must be a valid UUID"))
+                )
+                return@post
+            }
+
+            val trip = TripRepository.getTripById(normalizedTripId) ?: run {
+                call.respond(
+                    HttpStatusCode.NotFound,
+                    mapOf("error" to mapOf("code" to "trip_not_found", "message" to "Trip not found"))
+                )
+                return@post
+            }
+
+            val role = if (trip.ownerId == userId) "owner" else "member"
+            TripRepository.upsertMemberAccepted(normalizedTripId, userId, role)
+            call.respond(mapOf("tripId" to normalizedTripId))
         }
     }
 }

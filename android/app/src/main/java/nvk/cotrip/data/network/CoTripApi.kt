@@ -98,6 +98,9 @@ interface CoTripApi {
     @POST("v1/invites/{token}/accept")
     suspend fun acceptInvite(@Path("token") token: String): Map<String, String>
 
+    @POST("v1/trips/{tripId}/join")
+    suspend fun joinTripById(@Path("tripId") tripId: String): Map<String, String>
+
     @GET("v1/trips/{tripId}/members")
     suspend fun listMembers(@Path("tripId") tripId: String): ApiListResponse<MemberDto>
 

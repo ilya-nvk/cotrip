@@ -41,6 +41,30 @@
                     android:scheme="http"
                     android:host="api.cotrip.site"
                     android:pathPrefix="/invite" />
+                <data
+                    android:scheme="https"
+                    android:host="api.cotrip.site"
+                    android:pathPrefix="/v1/invites" />
+                <data
+                    android:scheme="http"
+                    android:host="api.cotrip.site"
+                    android:pathPrefix="/v1/invites" />
+                <data
+                    android:scheme="https"
+                    android:host="api.cotrip.site"
+                    android:pathPattern="/trips/.*/invite" />
+                <data
+                    android:scheme="http"
+                    android:host="api.cotrip.site"
+                    android:pathPattern="/trips/.*/invite" />
+                <data
+                    android:scheme="https"
+                    android:host="api.cotrip.site"
+                    android:pathPattern="/v1/trips/.*/invite" />
+                <data
+                    android:scheme="http"
+                    android:host="api.cotrip.site"
+                    android:pathPattern="/v1/trips/.*/invite" />
             </intent-filter>
         </activity>
     </application>
