@@ -10,6 +10,5 @@ data class ActivityDetailsState(
     val locationName: String?,
     val link: String?,
     val costText: String?,
-    val website: String?,
     val notes: String?,
 )

@@ -167,7 +167,11 @@ fun AppNavHost(
         composable(
             route = Destination.TripItinerary.ROUTE_PATTERN,
             arguments = listOf(
-                navArgument(Destination.TripItinerary.ARG_TRIP_ID) { type = NavType.StringType }
+                navArgument(Destination.TripItinerary.ARG_TRIP_ID) { type = NavType.StringType },
+                navArgument(Destination.TripItinerary.ARG_REQUIRE_CITIES) {
+                    type = NavType.BoolType
+                    defaultValue = false
+                },
             )
         ) {
             TripItineraryScreen()

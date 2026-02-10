@@ -4,6 +4,7 @@ import java.sql.ResultSet
 import java.sql.Connection
 import java.time.LocalDate
 import java.time.OffsetDateTime
+import java.time.temporal.ChronoUnit
 import java.util.UUID
 
 data class TripRow(
@@ -203,6 +204,17 @@ object TripRepository {
             }
         }
 
+        val oldDurationDays = inclusiveDurationDays(existing.startDate, existing.endDate)
+        val newDurationDays = inclusiveDurationDays(updatedTrip.startDate, updatedTrip.endDate)
+        if (oldDurationDays == newDurationDays) {
+            val shiftDays = ChronoUnit.DAYS.between(existing.startDate, updatedTrip.startDate)
+            shiftItineraryDays(
+                conn = conn,
+                tripId = updatedTrip.id,
+                shiftDays = shiftDays,
+            )
+        }
+
         reconcileItineraryDays(
             conn = conn,
             tripId = updatedTrip.id,
@@ -267,6 +279,26 @@ object TripRepository {
             """.trimIndent()
         ).use { stmt ->
             stmt.setObject(1, UUID.fromString(tripId))
+            stmt.executeUpdate()
+        }
+    }
+
+    private fun shiftItineraryDays(
+        conn: Connection,
+        tripId: String,
+        shiftDays: Long,
+    ) {
+        if (shiftDays == 0L) return
+        conn.prepareStatement(
+            """
+            UPDATE itinerary_days
+            SET date = date + (?::int),
+                updated_at = now()
+            WHERE trip_id = ?
+            """.trimIndent()
+        ).use { stmt ->
+            stmt.setInt(1, shiftDays.toInt())
+            stmt.setObject(2, UUID.fromString(tripId))
             stmt.executeUpdate()
         }
     }
@@ -418,6 +450,10 @@ object TripRepository {
             updatedAt = rs.getObject("updated_at", OffsetDateTime::class.java),
         )
     }
+}
+
+private fun inclusiveDurationDays(start: LocalDate, end: LocalDate): Long {
+    return ChronoUnit.DAYS.between(start, end) + 1
 }
 
 data class TripUpdate(

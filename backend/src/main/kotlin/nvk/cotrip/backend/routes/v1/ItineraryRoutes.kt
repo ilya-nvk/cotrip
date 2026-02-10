@@ -38,7 +38,6 @@ data class CreateActivityRequest(
     val link: String? = null,
     val costAmount: Double? = null,
     val costType: String? = null,
-    val website: String? = null,
     val notes: String? = null,
     val orderIndex: Int? = null,
 )
@@ -51,7 +50,6 @@ data class UpdateActivityRequest(
     val link: String? = null,
     val costAmount: Double? = null,
     val costType: String? = null,
-    val website: String? = null,
     val notes: String? = null,
 )
 
@@ -313,7 +311,6 @@ fun Route.itineraryRoutes(weatherConfig: WeatherConfig) {
                 link = request.link,
                 costAmount = request.costAmount,
                 costType = request.costType,
-                website = request.website,
                 notes = request.notes,
                 orderIndex = orderIndex,
             )
@@ -359,7 +356,6 @@ fun Route.itineraryRoutes(weatherConfig: WeatherConfig) {
                 link = request.link,
                 costAmount = request.costAmount,
                 costType = request.costType,
-                website = request.website,
                 notes = request.notes,
             )
 
@@ -533,7 +529,6 @@ private fun ActivityRow.toDto(): ActivityDto = ActivityDto(
     link = link,
     costAmount = costAmount,
     costType = costType,
-    website = website,
     notes = notes,
     orderIndex = orderIndex,
 )

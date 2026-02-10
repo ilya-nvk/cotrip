@@ -341,17 +341,6 @@ private fun ActivityFormScreen(
 
             CoTripDivider()
 
-            SectionLabel(text = stringResource(R.string.activity_form_section_website_optional))
-            FormTextField(
-                value = state.website,
-                onValueChange = { viewModel.onEvent(ActivityFormEvent.OnWebsiteChange(it)) },
-                placeholder = stringResource(R.string.activity_form_website_placeholder),
-                singleLine = true,
-                trailingIcon = null
-            )
-
-            CoTripDivider()
-
             SectionLabel(text = stringResource(R.string.activity_form_section_notes_optional))
             FormTextField(
                 value = state.notes,

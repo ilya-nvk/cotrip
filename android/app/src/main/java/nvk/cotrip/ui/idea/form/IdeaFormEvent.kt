@@ -10,6 +10,5 @@ sealed interface IdeaFormEvent {
     data class OnLinkChange(val value: String) : IdeaFormEvent
     data class OnCostAmountChange(val value: String) : IdeaFormEvent
     data class OnCostTypeChange(val value: IdeaCostType) : IdeaFormEvent
-    data class OnWebsiteChange(val value: String) : IdeaFormEvent
     data class OnNotesChange(val value: String) : IdeaFormEvent
 }

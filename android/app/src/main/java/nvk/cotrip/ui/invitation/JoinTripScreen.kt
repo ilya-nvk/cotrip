@@ -44,6 +44,11 @@ fun JoinTripScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
+    val inviteErrorText = if (state.inviteInput.isNotBlank() && !state.isInviteValid) {
+        stringResource(R.string.join_trip_invalid)
+    } else {
+        null
+    }
 
     LaunchedEffect(viewModel) {
         viewModel.effects.collectLatest { effect ->
@@ -104,6 +109,8 @@ fun JoinTripScreen(
                 onValueChange = { viewModel.onEvent(JoinTripEvent.OnInviteInputChange(it)) },
                 label = stringResource(R.string.join_trip_invite_label),
                 placeholder = stringResource(R.string.join_trip_invite_placeholder),
+                helperText = if (inviteErrorText == null) stringResource(R.string.join_trip_hint) else null,
+                errorText = inviteErrorText,
                 singleLine = true
             )
 
@@ -112,14 +119,8 @@ fun JoinTripScreen(
             PrimaryButton(
                 text = stringResource(R.string.join_trip_action),
                 onClick = { viewModel.onEvent(JoinTripEvent.OnJoinClick) },
-                enabled = !state.isLoading,
+                enabled = state.isInviteValid && !state.isLoading,
                 modifier = Modifier.fillMaxWidth()
-            )
-
-            Text(
-                text = stringResource(R.string.join_trip_hint),
-                style = MaterialTheme.typography.bodySmall,
-                color = TextSecondary
             )
         }
     }

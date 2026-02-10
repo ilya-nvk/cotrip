@@ -116,12 +116,16 @@ sealed interface Destination {
         }
     }
 
-    data class TripItinerary(val tripId: String) : Destination {
-        override val route: String = "trips/$tripId/itinerary"
+    data class TripItinerary(
+        val tripId: String,
+        val requireCities: Boolean = false,
+    ) : Destination {
+        override val route: String = "trips/$tripId/itinerary?requireCities=$requireCities"
 
         companion object {
-            const val ROUTE_PATTERN = "trips/{tripId}/itinerary"
+            const val ROUTE_PATTERN = "trips/{tripId}/itinerary?requireCities={requireCities}"
             const val ARG_TRIP_ID = "tripId"
+            const val ARG_REQUIRE_CITIES = "requireCities"
         }
     }
 

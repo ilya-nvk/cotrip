@@ -27,7 +27,6 @@ data class CreateIdeaRequest(
     val link: String? = null,
     val costAmount: Double? = null,
     val costType: String? = null,
-    val website: String? = null,
     val notes: String? = null,
 )
 
@@ -38,7 +37,6 @@ data class UpdateIdeaRequest(
     val link: String? = null,
     val costAmount: Double? = null,
     val costType: String? = null,
-    val website: String? = null,
     val notes: String? = null,
 )
 
@@ -108,7 +106,6 @@ fun Route.ideaRoutes() {
                 link = request.link,
                 costAmount = request.costAmount,
                 costType = request.costType,
-                website = request.website,
                 notes = request.notes,
             )
 
@@ -174,7 +171,6 @@ fun Route.ideaRoutes() {
                 link = request.link,
                 costAmount = request.costAmount,
                 costType = request.costType,
-                website = request.website,
                 notes = request.notes,
             )
 
@@ -343,7 +339,6 @@ private fun IdeaRow.toDto(commentsCount: Int = 0): IdeaDto = IdeaDto(
     link = link,
     costAmount = costAmount,
     costType = costType,
-    website = website,
     notes = notes,
     status = status,
     updatedAt = updatedAt.toString(),

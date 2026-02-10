@@ -56,7 +56,6 @@ class CreateIdeaViewModel @Inject constructor(
             currencySymbol = "€",
             costAmount = "",
             costType = IdeaCostType.PerPerson,
-            website = "",
             notes = "",
             isSaving = false,
         )
@@ -85,7 +84,6 @@ class CreateIdeaViewModel @Inject constructor(
             }
 
             is IdeaFormEvent.OnCostTypeChange -> _state.update { it.copy(costType = event.value) }
-            is IdeaFormEvent.OnWebsiteChange -> _state.update { it.copy(website = event.value) }
             is IdeaFormEvent.OnNotesChange -> _state.update { it.copy(notes = event.value) }
         }
     }
@@ -188,7 +186,6 @@ class CreateIdeaViewModel @Inject constructor(
                             link = snapshot.link.trim().ifBlank { null },
                             costAmount = parseAmount(snapshot.costAmount),
                             costType = snapshot.costAmount.toCostType(snapshot.costType),
-                            website = snapshot.website.trim().ifBlank { null },
                             notes = snapshot.notes.trim().ifBlank { null },
                         )
                     )

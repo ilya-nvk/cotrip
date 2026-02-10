@@ -52,7 +52,6 @@ class ActivityDetailsViewModel @Inject constructor(
             locationName = null,
             link = null,
             costText = null,
-            website = null,
             notes = null,
         )
     )
@@ -75,7 +74,6 @@ class ActivityDetailsViewModel @Inject constructor(
             )
 
             ActivityDetailsEvent.OnOpenLinkClick -> emitToast(R.string.activity_details_open_link_not_implemented)
-            ActivityDetailsEvent.OnOpenWebsiteClick -> emitToast(R.string.activity_details_open_website_not_implemented)
             ActivityDetailsEvent.OnDeleteClick -> deleteActivity()
         }
     }
@@ -105,7 +103,6 @@ class ActivityDetailsViewModel @Inject constructor(
                         locationName = info.activity.locationName,
                         link = info.activity.link,
                         costText = info.activity.costAmount?.let { formatCost(it, currencySymbol) },
-                        website = info.activity.website,
                         notes = info.activity.notes,
                     )
                 }

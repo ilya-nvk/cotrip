@@ -18,6 +18,5 @@ sealed interface ActivityFormEvent {
     data class OnLinkChange(val value: String) : ActivityFormEvent
     data class OnCostAmountChange(val value: String) : ActivityFormEvent
     data class OnCostTypeChange(val value: CostType) : ActivityFormEvent
-    data class OnWebsiteChange(val value: String) : ActivityFormEvent
     data class OnNotesChange(val value: String) : ActivityFormEvent
 }

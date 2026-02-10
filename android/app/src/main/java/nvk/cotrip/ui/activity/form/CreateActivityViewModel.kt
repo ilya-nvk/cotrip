@@ -64,7 +64,6 @@ class CreateActivityViewModel @Inject constructor(
             currencySymbol = "€",
             costAmount = "",
             costType = CostType.PerPerson,
-            website = "",
             notes = "",
             isSaving = false
         )
@@ -101,7 +100,6 @@ class CreateActivityViewModel @Inject constructor(
                 )
             }
             is ActivityFormEvent.OnCostTypeChange -> _state.update { it.copy(costType = event.value) }
-            is ActivityFormEvent.OnWebsiteChange -> _state.update { it.copy(website = event.value) }
             is ActivityFormEvent.OnNotesChange -> _state.update { it.copy(notes = event.value) }
         }
     }
@@ -183,7 +181,6 @@ class CreateActivityViewModel @Inject constructor(
                             link = snapshot.linkInput.trim().ifBlank { null },
                             costAmount = parseAmount(snapshot.costAmount),
                             costType = snapshot.costAmount.toCostType(snapshot.costType),
-                            website = snapshot.website.trim().ifBlank { null },
                             notes = snapshot.notes.trim().ifBlank { null },
                         )
                     )

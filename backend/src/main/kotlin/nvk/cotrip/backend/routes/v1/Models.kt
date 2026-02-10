@@ -77,7 +77,6 @@ data class IdeaDto(
     val link: String? = null,
     val costAmount: Double? = null,
     val costType: String? = null,
-    val website: String? = null,
     val notes: String? = null,
     val status: String,
     val updatedAt: String,
@@ -95,7 +94,6 @@ data class ActivityDto(
     val link: String? = null,
     val costAmount: Double? = null,
     val costType: String? = null,
-    val website: String? = null,
     val notes: String? = null,
     val orderIndex: Int,
 )

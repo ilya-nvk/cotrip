@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import nvk.cotrip.R
 import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.network.dto.ActivityDto
@@ -43,6 +44,8 @@ class TripItineraryViewModel @Inject constructor(
 
     private val tripId: String =
         checkNotNull(savedStateHandle[Destination.TripItinerary.ARG_TRIP_ID])
+    private val requireCitySelection: Boolean =
+        savedStateHandle[Destination.TripItinerary.ARG_REQUIRE_CITIES] ?: false
 
     private var allCities: List<CitySuggestionUi> = emptyList()
     private var currencySymbol: String = "€"
@@ -56,6 +59,8 @@ class TripItineraryViewModel @Inject constructor(
             days = emptyList(),
             cityPicker = null,
             isReordering = false,
+            isCitySelectionRequired = requireCitySelection,
+            pendingCitySelectionCount = 0,
             isRefreshing = false,
         )
     )
@@ -71,7 +76,14 @@ class TripItineraryViewModel @Inject constructor(
 
     fun onEvent(event: TripItineraryEvent) {
         when (event) {
-            TripItineraryEvent.OnBackClick -> appNavigator.popBackStack()
+            TripItineraryEvent.OnBackClick -> {
+                if (_state.value.isCitySelectionRequired && _state.value.pendingCitySelectionCount > 0) {
+                    emitToast(R.string.itinerary_city_setup_required_toast)
+                } else {
+                    appNavigator.popBackStack()
+                }
+            }
+            TripItineraryEvent.OnCompleteRequiredCitySelection -> completeRequiredCitySelection()
             TripItineraryEvent.OnAutoRefresh -> refreshItinerary(isUserRefresh = false)
             TripItineraryEvent.OnUserRefresh -> refreshItinerary(isUserRefresh = true)
             TripItineraryEvent.OnToggleReorder -> toggleReorder()
@@ -108,6 +120,9 @@ class TripItineraryViewModel @Inject constructor(
                         currencySymbol = currencySymbolFor(trip.currencyCode)
                     }
                     allCities = collectTripCities(itinerary)
+                    val pendingCitySelectionCount = itinerary.count {
+                        !it.isOutOfRange && it.city.isNullOrBlank()
+                    }
 
                     val dayUis = itinerary.map { it.toUi(currencySymbol) }
                     val dateRange = trip?.let { formatRange(it.startDate, it.endDate) }
@@ -128,6 +143,7 @@ class TripItineraryViewModel @Inject constructor(
                             mode = if (dayUis.isEmpty()) ItineraryMode.Empty else ItineraryMode.Filled,
                             days = dayUis,
                             cityPicker = updatedPicker,
+                            pendingCitySelectionCount = if (requireCitySelection) pendingCitySelectionCount else 0,
                         )
                     }
                 }
@@ -171,6 +187,7 @@ class TripItineraryViewModel @Inject constructor(
     }
 
     private fun toggleReorder() {
+        if (_state.value.isCitySelectionRequired) return
         _state.update { it.copy(isReordering = !it.isReordering) }
     }
 
@@ -302,13 +319,8 @@ class TripItineraryViewModel @Inject constructor(
         viewModelScope.launch {
             when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
-                    val latestDays = itineraryRepository.refreshItinerary(tripId)
-                    val targetDay = latestDays.firstOrNull { it.id == picker.dayId }
-                        ?: latestDays.firstOrNull { it.date == picker.dayDate }
-                        ?: latestDays.firstOrNull { it.dayNumber == picker.dayNumber }
-                        ?: throw IllegalStateException("day_not_found")
                     itineraryRepository.updateDay(
-                        dayId = targetDay.id,
+                        dayId = picker.dayId,
                         request = UpdateDayRequest(
                             city = selectedCityName,
                             cityProviderId = city.providerId,
@@ -321,19 +333,41 @@ class TripItineraryViewModel @Inject constructor(
                 is ApiResult.Success -> {
                     _state.update { st ->
                         val days = st.days.map { d ->
-                            if (d.id == picker.dayId || d.dateIso == picker.dayDate) {
+                            if (d.id == picker.dayId) {
                                 d.copy(city = selectedCityName)
                             } else {
                                 d
                             }
                         }
-                        st.copy(days = days)
+                        st.copy(
+                            days = days,
+                            pendingCitySelectionCount = if (st.isCitySelectionRequired) {
+                                days.count { it.city.isNullOrBlank() }
+                            } else {
+                                st.pendingCitySelectionCount
+                            }
+                        )
                     }
-                    refreshItinerary(isUserRefresh = false)
+                    withContext(Dispatchers.IO) {
+                        runCatching { itineraryRepository.refreshItinerary(tripId) }
+                    }
                 }
 
                 is ApiResult.Failure -> emitToast(uiErrorMapper.messageRes(result))
             }
+        }
+    }
+
+    private fun completeRequiredCitySelection() {
+        val current = _state.value
+        if (!current.isCitySelectionRequired) return
+        if (current.pendingCitySelectionCount > 0) {
+            emitToast(R.string.itinerary_city_setup_required_toast)
+            return
+        }
+        appNavigator.navigate(Destination.TripDetails(tripId)) {
+            popUpTo(Destination.Trips.route) { inclusive = false }
+            launchSingleTop = true
         }
     }
 

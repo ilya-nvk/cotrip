@@ -27,8 +27,9 @@
     <string name="join_trip_invite_label">Invite link</string>
     <string name="join_trip_invite_placeholder">https://…/invite/abc123</string>
     <string name="join_trip_action">Join trip</string>
-    <string name="join_trip_hint">You can paste the full link or just the token.</string>
+    <string name="join_trip_hint">Paste a valid invite link from CoTrip.</string>
     <string name="join_trip_invalid">Invalid invite link</string>
+    <string name="join_trip_already_joined">You are already in this trip</string>
     <string name="join_trip_success">Joined trip</string>
     <string name="toggle_past">Toggle past</string>
 
@@ -130,6 +131,10 @@
     <string name="itinerary_choose_city_title">Choose city</string>
     <string name="itinerary_choose_city_placeholder">Search city and select from suggestions</string>
     <string name="itinerary_choose_city_searching">Searching cities...</string>
+    <string name="itinerary_city_setup_banner">Choose cities for all trip days before continuing.</string>
+    <string name="itinerary_city_setup_remaining">%1$d days left without city</string>
+    <string name="itinerary_city_setup_continue">Continue</string>
+    <string name="itinerary_city_setup_required_toast">Choose cities for all days to continue</string>
     <string name="itinerary_add_activity_not_implemented">Adding activities is not implemented yet</string>
     <string name="itinerary_reorder_start">Reorder activities</string>
     <string name="itinerary_reorder_done">Done</string>
@@ -152,7 +157,6 @@
     <string name="idea_details_city">City</string>
     <string name="idea_details_link">Link</string>
     <string name="idea_details_cost">Estimated cost</string>
-    <string name="idea_details_website">Website</string>
     <string name="idea_details_notes">Notes</string>
     <string name="idea_details_add_to_itinerary">Add to itinerary</string>
     <string name="idea_details_added_to_day">Added to Day %1$d</string>
@@ -174,7 +178,6 @@
     <string name="idea_form_city_searching">Searching in trip places...</string>
     <string name="idea_form_link_label">Link (optional)</string>
     <string name="idea_form_cost_label">Estimated cost</string>
-    <string name="idea_form_website_label">Website or link</string>
     <string name="idea_form_notes_label">Notes</string>
     <string name="idea_form_title_placeholder">Enter idea title</string>
     <string name="idea_form_city_placeholder">Search in trip history or enter any text</string>
@@ -182,7 +185,6 @@
     <string name="idea_form_cost_placeholder">0</string>
     <string name="idea_form_cost_per_person">Per person</string>
     <string name="idea_form_cost_total">Total</string>
-    <string name="idea_form_website_placeholder">https://</string>
     <string name="idea_form_notes_placeholder">Add any notes or details</string>
     <string name="idea_form_delete">Delete idea</string>
     <string name="idea_form_created_toast">Idea saved</string>
@@ -295,14 +297,12 @@
     <string name="activity_details_location_label">LOCATION</string>
     <string name="activity_details_link_label">LINK</string>
     <string name="activity_details_cost_label">COST</string>
-    <string name="activity_details_website_label">WEBSITE</string>
     <string name="activity_details_notes_label">NOTES</string>
     <string name="activity_details_per_person">per person</string>
     <string name="activity_details_empty">—</string>
     <string name="activity_details_delete">Delete activity</string>
     <string name="activity_details_edit_not_implemented">Editing is not implemented yet</string>
     <string name="activity_details_open_link_not_implemented">Opening link is not implemented yet</string>
-    <string name="activity_details_open_website_not_implemented">Opening website is not implemented yet</string>
     <string name="activity_details_deleted_toast">Activity deleted</string>
 
     <!--Activity Form-->
@@ -322,8 +322,6 @@
     <string name="activity_form_cost_placeholder">e.g., 17</string>
     <string name="activity_form_cost_per_person">Per person</string>
     <string name="activity_form_cost_total">Total</string>
-    <string name="activity_form_section_website_optional">WEBSITE (OPTIONAL)</string>
-    <string name="activity_form_website_placeholder">e.g., https://louvre.fr</string>
     <string name="activity_form_section_notes_optional">NOTES (OPTIONAL)</string>
     <string name="activity_form_notes_placeholder">Add any additional details or reminders...</string>
     <string name="activity_form_primary_add">Add activity</string>

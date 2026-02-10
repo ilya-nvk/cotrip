@@ -105,7 +105,6 @@ fun Route.aiRoutes() {
                 link = null,
                 costAmount = suggestion.suggestion.estimatedCost,
                 costType = null,
-                website = null,
                 notes = suggestion.suggestion.description ?: suggestion.requestDescription,
             )
 
@@ -121,7 +120,6 @@ fun Route.aiRoutes() {
                     link = idea.link,
                     costAmount = idea.costAmount,
                     costType = idea.costType,
-                    website = idea.website,
                     notes = idea.notes,
                     status = idea.status,
                     updatedAt = idea.updatedAt.toString(),

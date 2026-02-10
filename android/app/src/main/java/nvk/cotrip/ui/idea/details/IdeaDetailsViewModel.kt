@@ -80,7 +80,6 @@ class IdeaDetailsViewModel @Inject constructor(
             city = "",
             link = "",
             cost = "",
-            website = "",
             notes = "",
             status = "pending",
             addedDay = null,
@@ -180,7 +179,6 @@ class IdeaDetailsViewModel @Inject constructor(
                             link = idea.link.orEmpty(),
                             cost = idea.costAmount?.let { formatCost(it, currencySymbol) }
                                 .orEmpty(),
-                            website = idea.website.orEmpty(),
                             notes = idea.notes.orEmpty(),
                             status = idea.status,
                             addedDay = payload.addedDay,
