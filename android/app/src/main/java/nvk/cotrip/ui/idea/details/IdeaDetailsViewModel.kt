@@ -363,6 +363,7 @@ class IdeaDetailsViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
+                    systemNotificationManager.onIdeaDiscussionRead(ideaId)
                     val items = notificationRepository.listNotifications()
                     val toMark = items.filter { item ->
                         item.readAt == null &&

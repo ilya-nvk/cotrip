@@ -19,6 +19,7 @@ import kotlinx.coroutines.launch
 import nvk.cotrip.data.auth.SessionStore
 import nvk.cotrip.data.repository.NotificationRepository
 import nvk.cotrip.notifications.NotificationIntentExtras
+import nvk.cotrip.notifications.NotificationNavigationState
 import nvk.cotrip.notifications.SystemNotificationManager
 import nvk.cotrip.ui.navigation.AppNavHost
 import nvk.cotrip.ui.navigation.AppNavigatorImpl
@@ -41,15 +42,21 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var systemNotificationManager: SystemNotificationManager
 
-    private val pendingNotifications = MutableSharedFlow<NotificationNavigationTarget>(
+    private val pendingNotificationTaps = MutableSharedFlow<NotificationTap>(
         replay = 0,
         extraBufferCapacity = 1
     )
-    private var initialNotificationTarget: NotificationNavigationTarget? = null
+    private val pendingDeepLinks = MutableSharedFlow<Intent>(
+        replay = 0,
+        extraBufferCapacity = 1
+    )
+    private var initialNotificationTap: NotificationTap? = null
+    private var initialDeepLinkIntent: Intent? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        initialNotificationTarget = notificationTargetFromIntent(intent)
+        initialNotificationTap = notificationTapFromIntent(intent)
+        initialDeepLinkIntent = intent.takeIf { it.isSupportedDeepLinkIntent() }
         requestNotificationPermissionIfNeeded()
         WindowCompat.setDecorFitsSystemWindows(window, false)
         window.statusBarColor = Color.TRANSPARENT
@@ -64,15 +71,25 @@ class MainActivity : ComponentActivity() {
 
             LaunchedEffect(navController) {
                 appNavigatorImpl.attachController(navController)
-                initialNotificationTarget?.let {
-                    pendingNotifications.emit(it)
-                    initialNotificationTarget = null
+                initialDeepLinkIntent?.let {
+                    pendingDeepLinks.emit(it)
+                    initialDeepLinkIntent = null
                 }
-                pendingNotifications.collect { target ->
-                    appNavigatorImpl.navigate(target.destination) {
-                        launchSingleTop = true
-                    }
-                    target.notificationId?.let { notificationId ->
+                initialNotificationTap?.let {
+                    pendingNotificationTaps.emit(it)
+                    initialNotificationTap = null
+                }
+            }
+
+            LaunchedEffect(navController) {
+                pendingDeepLinks.collect { deepLinkIntent ->
+                    navController.handleDeepLink(deepLinkIntent)
+                }
+            }
+
+            LaunchedEffect(Unit) {
+                pendingNotificationTaps.collect { tap ->
+                    tap.notificationId?.let { notificationId ->
                         lifecycleScope.launch {
                             runCatching { notificationRepository.markRead(notificationId) }
                             systemNotificationManager.onMarkedRead(notificationId)
@@ -93,46 +110,31 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        handleNotificationIntent(intent)
-    }
-
-    private fun handleNotificationIntent(intent: Intent?) {
-        val target = notificationTargetFromIntent(intent) ?: return
-        pendingNotifications.tryEmit(target)
-    }
-
-    private fun notificationTargetFromIntent(intent: Intent?): NotificationNavigationTarget? {
-        val sourceEvent =
-            intent?.getStringExtra(NotificationIntentExtras.EXTRA_EVENT) ?: return null
-        val notificationId = intent.getStringExtra(NotificationIntentExtras.EXTRA_NOTIFICATION_ID)
-        val tripId = intent.getStringExtra(NotificationIntentExtras.EXTRA_TRIP_ID).orEmpty()
-        val ideaId = intent.getStringExtra(NotificationIntentExtras.EXTRA_IDEA_ID).orEmpty()
-        val expenseId = intent.getStringExtra(NotificationIntentExtras.EXTRA_EXPENSE_ID).orEmpty()
-        val destination = when (sourceEvent) {
-            "idea_comment", "idea_created" -> {
-                if (tripId.isNotBlank() && ideaId.isNotBlank()) {
-                    Destination.IdeaDetails(tripId = tripId, ideaId = ideaId)
-                } else {
-                    Destination.Notifications
-                }
-            }
-
-            "expense_created", "expense_settlement" -> {
-                when {
-                    tripId.isNotBlank() && expenseId.isNotBlank() ->
-                        Destination.ExpenseDetails(tripId = tripId, expenseId = expenseId)
-
-                    tripId.isNotBlank() -> Destination.Expenses(tripId = tripId)
-                    else -> Destination.Notifications
-                }
-            }
-
-            else -> Destination.Notifications
+        notificationTapFromIntent(intent)?.let { tap ->
+            pendingNotificationTaps.tryEmit(tap)
         }
-        return NotificationNavigationTarget(
-            destination = destination,
-            notificationId = notificationId
+        if (intent.isSupportedDeepLinkIntent()) {
+            pendingDeepLinks.tryEmit(intent)
+        }
+    }
+
+    private fun notificationTapFromIntent(intent: Intent?): NotificationTap? {
+        val notificationId = intent?.getStringExtra(NotificationIntentExtras.EXTRA_NOTIFICATION_ID)
+        val event = intent?.getStringExtra(NotificationIntentExtras.EXTRA_EVENT)
+        val ideaId = intent?.getStringExtra(NotificationIntentExtras.EXTRA_IDEA_ID)
+        if (event == "idea_comment" && !ideaId.isNullOrBlank()) {
+            NotificationNavigationState.requestOpenDiscussion(ideaId)
+        }
+        if (notificationId.isNullOrBlank() && event.isNullOrBlank()) return null
+        return NotificationTap(
+            notificationId = notificationId,
+            event = event,
+            ideaId = ideaId
         )
+    }
+
+    private fun Intent?.isSupportedDeepLinkIntent(): Boolean {
+        return this?.action == Intent.ACTION_VIEW && this.data != null
     }
 
     private fun requestNotificationPermissionIfNeeded() {
@@ -149,8 +151,9 @@ class MainActivity : ComponentActivity() {
         const val REQUEST_NOTIFICATIONS_PERMISSION = 1001
     }
 
-    private data class NotificationNavigationTarget(
-        val destination: Destination,
+    private data class NotificationTap(
         val notificationId: String?,
+        val event: String?,
+        val ideaId: String?,
     )
 }

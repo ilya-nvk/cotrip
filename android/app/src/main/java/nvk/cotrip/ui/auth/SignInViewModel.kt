@@ -22,6 +22,7 @@ import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.refresh.RefreshScheduler
 import nvk.cotrip.data.repository.AuthRepository
+import nvk.cotrip.notifications.NotificationPollAlarm
 import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
@@ -29,6 +30,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class SignInViewModel @Inject constructor(
+    @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: android.content.Context,
     private val navigator: AppNavigator,
     private val authRepository: AuthRepository,
     private val refreshScheduler: RefreshScheduler,
@@ -110,6 +112,7 @@ class SignInViewModel @Inject constructor(
                 is ApiResult.Success -> {
                     Log.d(TAG, "sign in success")
                     refreshScheduler.scheduleImmediate()
+                    NotificationPollAlarm.schedule(appContext, delayMs = 10_000L)
                     navigator.navigate(Destination.Trips) {
                         popUpTo(Destination.SignIn.route) { inclusive = true }
                         launchSingleTop = true
