@@ -2,10 +2,13 @@ package nvk.cotrip.ui.aisuggestions
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import nvk.cotrip.data.repository.ItineraryRepository
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import javax.inject.Inject
@@ -14,11 +17,12 @@ import javax.inject.Inject
 class BuildRouteViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val appNavigator: AppNavigator,
+    private val itineraryRepository: ItineraryRepository,
 ) : ViewModel() {
 
     private val tripId: String = checkNotNull(savedStateHandle[Destination.BuildRoute.ARG_TRIP_ID])
 
-    private val citiesFromItinerary = listOf(
+    private var citiesFromItinerary = listOf(
         "Paris",
         "Rome",
         "Barcelona",
@@ -54,6 +58,10 @@ class BuildRouteViewModel @Inject constructor(
         )
     )
     val state = _state.asStateFlow()
+
+    init {
+        loadCitiesFromItinerary()
+    }
 
     fun onEvent(event: BuildRouteEvent) {
         when (event) {
@@ -122,5 +130,19 @@ class BuildRouteViewModel @Inject constructor(
 
     private fun selectedLabels(options: List<AiOptionUi>): List<String> {
         return options.filter { it.selected }.map { it.label }
+    }
+
+    private fun loadCitiesFromItinerary() {
+        viewModelScope.launch {
+            val cities = runCatching {
+                itineraryRepository.getItinerary(tripId)
+                    .mapNotNull { it.city?.trim()?.takeIf { city -> city.isNotBlank() } }
+                    .distinct()
+            }.getOrNull().orEmpty()
+
+            if (cities.isNotEmpty()) {
+                citiesFromItinerary = cities
+            }
+        }
     }
 }
