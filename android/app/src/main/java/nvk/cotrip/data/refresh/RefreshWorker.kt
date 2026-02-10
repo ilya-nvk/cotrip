@@ -8,9 +8,11 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import nvk.cotrip.data.auth.SessionStore
 import nvk.cotrip.data.network.NetworkStateProvider
+import nvk.cotrip.data.repository.NotificationRepository
 import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.data.repository.UserRepository
 import nvk.cotrip.data.sync.SyncPullRepository
+import nvk.cotrip.notifications.SystemNotificationManager
 
 @HiltWorker
 class RefreshWorker @AssistedInject constructor(
@@ -21,6 +23,8 @@ class RefreshWorker @AssistedInject constructor(
     private val tripRepository: TripRepository,
     private val userRepository: UserRepository,
     private val syncPullRepository: SyncPullRepository,
+    private val notificationRepository: NotificationRepository,
+    private val systemNotificationManager: SystemNotificationManager,
 ) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
         if (!networkStateProvider.isOnline()) {
@@ -35,7 +39,17 @@ class RefreshWorker @AssistedInject constructor(
         val syncResult = syncPullRepository.pull()
         val tripsResult = tripRepository.refreshTrips()
         val meResult = userRepository.refreshMe()
-        return if (syncResult.isSuccess && tripsResult.isSuccess && meResult.isSuccess) {
+        val notificationsResult = runCatching { notificationRepository.listNotifications() }
+        notificationsResult.getOrNull()?.let { items ->
+            systemNotificationManager.syncWithServer(items)
+        }
+
+        return if (
+            syncResult.isSuccess &&
+            tripsResult.isSuccess &&
+            meResult.isSuccess &&
+            notificationsResult.isSuccess
+        ) {
             Result.success()
         } else {
             Result.retry()

@@ -1,6 +1,8 @@
 package nvk.cotrip
 
 import android.app.Application
+import android.app.Activity
+import android.os.Bundle
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import coil.ImageLoader
@@ -14,7 +16,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import nvk.cotrip.data.refresh.RefreshScheduler
 import nvk.cotrip.data.repository.PendingTripCreationCleaner
-import nvk.cotrip.notifications.PushTokenSyncManager
+import nvk.cotrip.notifications.AppRuntimeState
 import javax.inject.Inject
 
 @HiltAndroidApp
@@ -26,10 +28,26 @@ class CoTripApp : Application(), Configuration.Provider, ImageLoaderFactory {
     @Inject
     lateinit var pendingTripCreationCleaner: PendingTripCreationCleaner
 
-    @Inject
-    lateinit var pushTokenSyncManager: PushTokenSyncManager
-
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var startedActivities: Int = 0
+
+    private val lifecycleCallbacks = object : ActivityLifecycleCallbacks {
+        override fun onActivityStarted(activity: Activity) {
+            startedActivities += 1
+            AppRuntimeState.setAppForeground(startedActivities > 0)
+        }
+
+        override fun onActivityStopped(activity: Activity) {
+            startedActivities = (startedActivities - 1).coerceAtLeast(0)
+            AppRuntimeState.setAppForeground(startedActivities > 0)
+        }
+
+        override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) = Unit
+        override fun onActivityResumed(activity: Activity) = Unit
+        override fun onActivityPaused(activity: Activity) = Unit
+        override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) = Unit
+        override fun onActivityDestroyed(activity: Activity) = Unit
+    }
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
@@ -57,10 +75,10 @@ class CoTripApp : Application(), Configuration.Provider, ImageLoaderFactory {
 
     override fun onCreate() {
         super.onCreate()
+        registerActivityLifecycleCallbacks(lifecycleCallbacks)
         refreshScheduler.schedule()
         appScope.launch {
             pendingTripCreationCleaner.cleanupOnAppStart()
-            pushTokenSyncManager.syncIfPossible()
         }
     }
 }

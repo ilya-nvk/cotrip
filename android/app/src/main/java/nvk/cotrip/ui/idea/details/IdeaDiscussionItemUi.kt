@@ -7,6 +7,7 @@ sealed interface IdeaDiscussionItemUi {
         override val id: String,
         val author: String,
         val initials: String,
+        val photoUrl: String?,
         val text: String,
         val time: String,
         val isMe: Boolean,

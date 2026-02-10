@@ -56,8 +56,11 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
 import kotlinx.coroutines.flow.collectLatest
 import nvk.cotrip.R
+import nvk.cotrip.notifications.AppRuntimeState
 import nvk.cotrip.ui.components.CoTripCard
 import nvk.cotrip.ui.components.CoTripDivider
 import nvk.cotrip.ui.components.CoTripIconButton
@@ -104,6 +107,17 @@ fun IdeaDetailsScreen(
     }
 
     val dayPicker = state.dayPicker
+    DisposableEffect(state.selectedTab, state.ideaId) {
+        if (state.selectedTab == IdeaDetailsTab.Discussion) {
+            AppRuntimeState.setActiveDiscussionIdeaId(state.ideaId)
+        } else {
+            AppRuntimeState.clearActiveDiscussionIdeaId(state.ideaId)
+        }
+        onDispose {
+            AppRuntimeState.clearActiveDiscussionIdeaId(state.ideaId)
+        }
+    }
+
     if (dayPicker != null) {
         ModalBottomSheet(
             onDismissRequest = { viewModel.onEvent(IdeaDetailsEvent.OnDismissDayPicker) },
@@ -396,19 +410,46 @@ private fun MyMessageBubble(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.End
     ) {
-        Surface(
-            shape = MaterialTheme.shapes.medium,
-            color = PrimaryLight
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x1_5),
+            verticalAlignment = Alignment.Top
         ) {
-            Text(
-                text = item.text,
-                style = MaterialTheme.typography.bodyMedium,
-                color = TextPrimary,
-                modifier = Modifier.padding(
-                    horizontal = CoTripTokens.spacing.x2,
-                    vertical = CoTripTokens.spacing.x1_5
+            Surface(
+                shape = MaterialTheme.shapes.medium,
+                color = PrimaryLight
+            ) {
+                Text(
+                    text = item.text,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = TextPrimary,
+                    modifier = Modifier.padding(
+                        horizontal = CoTripTokens.spacing.x2,
+                        vertical = CoTripTokens.spacing.x1_5
+                    )
                 )
-            )
+            }
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(PrimaryLight),
+                contentAlignment = Alignment.Center
+            ) {
+                if (!item.photoUrl.isNullOrBlank()) {
+                    AsyncImage(
+                        model = item.photoUrl,
+                        contentDescription = item.author,
+                        modifier = Modifier.matchParentSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Text(
+                        text = item.initials,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextPrimary
+                    )
+                }
+            }
         }
         Spacer(Modifier.height(CoTripTokens.spacing.x0_5))
         Text(
@@ -435,11 +476,20 @@ private fun OtherMessageBubble(
                 .background(PrimaryLight),
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = item.initials,
-                style = MaterialTheme.typography.bodySmall,
-                color = TextPrimary
-            )
+            if (!item.photoUrl.isNullOrBlank()) {
+                AsyncImage(
+                    model = item.photoUrl,
+                    contentDescription = item.author,
+                    modifier = Modifier.matchParentSize(),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Text(
+                    text = item.initials,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextPrimary
+                )
+            }
         }
 
         Column(

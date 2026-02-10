@@ -30,8 +30,6 @@ import nvk.cotrip.data.repository.ItineraryRepository
 import nvk.cotrip.data.repository.ItineraryRepositoryImpl
 import nvk.cotrip.data.repository.NotificationRepository
 import nvk.cotrip.data.repository.NotificationRepositoryImpl
-import nvk.cotrip.data.repository.PushTokenRepository
-import nvk.cotrip.data.repository.PushTokenRepositoryImpl
 import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.data.repository.TripRepositoryImpl
 import nvk.cotrip.data.repository.UserRepository
@@ -132,12 +130,6 @@ abstract class RepositoryModule {
     abstract fun bindNotificationRepository(
         impl: NotificationRepositoryImpl
     ): NotificationRepository
-
-    @Binds
-    @Singleton
-    abstract fun bindPushTokenRepository(
-        impl: PushTokenRepositoryImpl
-    ): PushTokenRepository
 
     @Binds
     @Singleton
