@@ -8,6 +8,7 @@ data class CommentRow(
     val id: String,
     val ideaId: String,
     val authorId: String,
+    val type: String,
     val body: String,
     val createdAt: OffsetDateTime,
 )
@@ -41,7 +42,7 @@ object CommentRepository {
     fun listByIdea(ideaId: String): List<CommentRow> = dbQuery { conn ->
         conn.prepareStatement(
             """
-            SELECT id, idea_id, author_id, body, created_at
+            SELECT id, idea_id, author_id, type, body, created_at
             FROM idea_comments
             WHERE idea_id = ? AND deleted_at IS NULL
             ORDER BY created_at ASC
@@ -59,16 +60,31 @@ object CommentRepository {
     }
 
     fun create(ideaId: String, authorId: String, body: String): CommentRow = dbQuery { conn ->
-        conn.prepareStatement(
+        createWithType(conn, ideaId = ideaId, authorId = authorId, type = "user", body = body)
+    }
+
+    fun createSystem(ideaId: String, authorId: String, body: String): CommentRow = dbQuery { conn ->
+        createWithType(conn, ideaId = ideaId, authorId = authorId, type = "system", body = body)
+    }
+
+    private fun createWithType(
+        conn: java.sql.Connection,
+        ideaId: String,
+        authorId: String,
+        type: String,
+        body: String,
+    ): CommentRow {
+        return conn.prepareStatement(
             """
             INSERT INTO idea_comments (idea_id, author_id, type, body)
-            VALUES (?, ?, 'user', ?)
-            RETURNING id, idea_id, author_id, body, created_at
+            VALUES (?, ?, ?, ?)
+            RETURNING id, idea_id, author_id, type, body, created_at
             """.trimIndent()
         ).use { stmt ->
             stmt.setObject(1, UUID.fromString(ideaId))
             stmt.setObject(2, UUID.fromString(authorId))
-            stmt.setString(3, body)
+            stmt.setString(3, type)
+            stmt.setString(4, body)
             stmt.executeQuery().use { rs ->
                 rs.next()
                 mapComment(rs)
@@ -79,7 +95,7 @@ object CommentRepository {
     fun findById(commentId: String): CommentRow? = dbQuery { conn ->
         conn.prepareStatement(
             """
-            SELECT id, idea_id, author_id, body, created_at
+            SELECT id, idea_id, author_id, type, body, created_at
             FROM idea_comments
             WHERE id = ? AND deleted_at IS NULL
             """.trimIndent()
@@ -110,6 +126,7 @@ object CommentRepository {
             id = rs.getObject("id", UUID::class.java).toString(),
             ideaId = rs.getObject("idea_id", UUID::class.java).toString(),
             authorId = rs.getObject("author_id", UUID::class.java).toString(),
+            type = rs.getString("type"),
             body = rs.getString("body"),
             createdAt = rs.getObject("created_at", OffsetDateTime::class.java),
         )

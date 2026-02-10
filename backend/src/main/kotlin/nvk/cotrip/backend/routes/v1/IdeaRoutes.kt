@@ -19,6 +19,8 @@ import nvk.cotrip.backend.db.DayRepository
 import nvk.cotrip.backend.db.IdeaRepository
 import nvk.cotrip.backend.db.IdeaRow
 import nvk.cotrip.backend.db.TripRepository
+import nvk.cotrip.backend.db.UserRepository
+import nvk.cotrip.backend.ws.publishCommentCreated
 
 @Serializable
 data class CreateIdeaRequest(
@@ -179,6 +181,16 @@ fun Route.ideaRoutes() {
                 return@patch
             }
 
+            if (ideaChanged(existing, updated)) {
+                val actorName = UserRepository.findById(userId)?.name ?: "Someone"
+                val systemComment = CommentRepository.createSystem(
+                    ideaId = updated.id,
+                    authorId = userId,
+                    body = "$actorName edited the idea"
+                )
+                publishCommentCreated(updated.tripId, systemComment)
+            }
+
             val commentCount = CommentRepository.countByIdeaIds(listOf(updated.id))[updated.id] ?: 0
             call.respond(updated.toDto(commentCount))
         }
@@ -325,9 +337,27 @@ fun Route.ideaRoutes() {
                 orderIndex = orderIndex,
             )
 
+            val actorName = UserRepository.findById(userId)?.name ?: "Someone"
+            val systemComment = CommentRepository.createSystem(
+                ideaId = idea.id,
+                authorId = userId,
+                body = "$actorName added this idea to the itinerary"
+            )
+            publishCommentCreated(idea.tripId, systemComment)
+
             call.respond(HttpStatusCode.NoContent)
         }
     }
+}
+
+private fun ideaChanged(before: IdeaRow, after: IdeaRow): Boolean {
+    return before.title != after.title ||
+        before.city != after.city ||
+        before.link != after.link ||
+        before.costAmount != after.costAmount ||
+        before.costType != after.costType ||
+        before.notes != after.notes ||
+        before.status != after.status
 }
 
 private fun IdeaRow.toDto(commentsCount: Int = 0): IdeaDto = IdeaDto(

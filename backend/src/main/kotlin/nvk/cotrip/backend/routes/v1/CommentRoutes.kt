@@ -43,6 +43,7 @@ fun Route.commentRoutes() {
                     id = it.id,
                     ideaId = it.ideaId,
                     authorId = it.authorId,
+                    type = it.type,
                     body = it.body,
                     createdAt = it.createdAt.toString(),
                 )

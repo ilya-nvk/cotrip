@@ -1,8 +1,10 @@
 package nvk.cotrip.ui.idea.details
 
 sealed interface IdeaDiscussionItemUi {
+    val id: String
+
     data class Message(
-        val id: String,
+        override val id: String,
         val author: String,
         val initials: String,
         val text: String,
@@ -11,7 +13,7 @@ sealed interface IdeaDiscussionItemUi {
     ) : IdeaDiscussionItemUi
 
     data class System(
-        val id: String,
+        override val id: String,
         val text: String,
         val time: String,
     ) : IdeaDiscussionItemUi
