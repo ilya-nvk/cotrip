@@ -38,7 +38,6 @@ import nvk.cotrip.data.network.dto.UpdateIdeaRequest
 import nvk.cotrip.data.network.dto.UpdateTripRequest
 import nvk.cotrip.data.network.dto.UpdateUserRequest
 import nvk.cotrip.data.network.dto.UploadImageResponseDto
-import nvk.cotrip.data.network.dto.UpsertPushTokenRequest
 import nvk.cotrip.data.network.dto.UserDto
 import nvk.cotrip.data.network.dto.WeatherForecastResponseDto
 import okhttp3.MultipartBody
@@ -291,10 +290,4 @@ interface CoTripApi {
     suspend fun updateNotificationSettings(
         @Body request: NotificationSettingsUpdateRequest
     ): NotificationSettingsResponse
-
-    @POST("v1/users/me/push-token")
-    suspend fun upsertPushToken(@Body request: UpsertPushTokenRequest): Response<Unit>
-
-    @DELETE("v1/users/me/push-token")
-    suspend fun deletePushToken(@Query("token") token: String): Response<Unit>
 }

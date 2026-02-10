@@ -20,7 +20,7 @@ object CommentRepository {
         val sql = """
             SELECT idea_id, COUNT(*) AS cnt
             FROM idea_comments
-            WHERE idea_id IN ($placeholders) AND deleted_at IS NULL
+            WHERE idea_id IN ($placeholders) AND deleted_at IS NULL AND type = 'user'
             GROUP BY idea_id
         """.trimIndent()
 

@@ -5,9 +5,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import nvk.cotrip.backend.db.NotificationRepository
-import nvk.cotrip.backend.db.PushTokenRepository
 import nvk.cotrip.backend.db.TripMemberRepository
-import nvk.cotrip.backend.integrations.FcmPushSender
 
 private const val KEY_DISCUSSIONS_COMMENTS = "discussions_comments"
 private const val KEY_EXPENSES_NEW = "expenses_new"
@@ -39,13 +37,6 @@ object NotificationService {
                     put("actorName", actorName)
                     put("ideaTitle", ideaTitle.take(240))
                 }
-            ),
-            pushTitle = "New idea in trip",
-            pushBody = "$actorName: ${ideaTitle.take(120)}",
-            pushData = mapOf(
-                "event" to TYPE_IDEA_CREATED,
-                "tripId" to tripId,
-                "ideaId" to ideaId
             )
         )
     }
@@ -70,13 +61,6 @@ object NotificationService {
                     put("actorName", actorName)
                     put("body", body.take(240))
                 }
-            ),
-            pushTitle = "New comment in idea",
-            pushBody = "$actorName: ${body.take(120)}",
-            pushData = mapOf(
-                "event" to TYPE_IDEA_COMMENT,
-                "tripId" to tripId,
-                "ideaId" to ideaId
             )
         )
     }
@@ -105,13 +89,6 @@ object NotificationService {
                     put("amount", amount)
                     put("currencyCode", currencyCode)
                 }
-            ),
-            pushTitle = "New expense added",
-            pushBody = "$actorName: $title",
-            pushData = mapOf(
-                "event" to TYPE_EXPENSE_CREATED,
-                "tripId" to tripId,
-                "expenseId" to expenseId
             )
         )
     }
@@ -136,13 +113,6 @@ object NotificationService {
                     put("actorName", actorName)
                     put("title", title.take(240))
                 }
-            ),
-            pushTitle = "Expense settled",
-            pushBody = "$actorName marked '$title' as paid",
-            pushData = mapOf(
-                "event" to TYPE_EXPENSE_SETTLEMENT,
-                "tripId" to tripId,
-                "expenseId" to expenseId
             )
         )
     }
@@ -153,13 +123,9 @@ object NotificationService {
         settingKey: String,
         type: String,
         payload: String,
-        pushTitle: String,
-        pushBody: String,
-        pushData: Map<String, String>,
     ) {
         val recipients = TripMemberRepository.listMemberIds(tripId).filter { it != actorUserId }
         if (recipients.isEmpty()) return
-        val notifiedUserIds = mutableListOf<String>()
 
         recipients.forEach { userId ->
             if (NotificationRepository.isSettingEnabled(userId, settingKey)) {
@@ -168,23 +134,7 @@ object NotificationService {
                     type = type,
                     payload = payload
                 )
-                notifiedUserIds += userId
             }
-        }
-
-        if (notifiedUserIds.isEmpty()) return
-
-        val tokens = PushTokenRepository.listByUserIds(notifiedUserIds).map { it.token }
-        if (tokens.isEmpty()) return
-
-        val invalidTokens = FcmPushSender.send(
-            tokens = tokens,
-            title = pushTitle,
-            body = pushBody,
-            data = pushData
-        )
-        invalidTokens.forEach { token ->
-            PushTokenRepository.deleteByToken(token)
         }
     }
 }

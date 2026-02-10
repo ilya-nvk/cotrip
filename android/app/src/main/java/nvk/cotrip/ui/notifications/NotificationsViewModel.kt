@@ -20,6 +20,7 @@ import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.network.dto.NotificationDto
 import nvk.cotrip.data.repository.NotificationRepository
+import nvk.cotrip.notifications.SystemNotificationManager
 import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.navigation.AppNavigator
 
@@ -27,6 +28,7 @@ import nvk.cotrip.ui.navigation.AppNavigator
 class NotificationsViewModel @Inject constructor(
     private val appNavigator: AppNavigator,
     private val notificationRepository: NotificationRepository,
+    private val systemNotificationManager: SystemNotificationManager,
     private val apiCaller: ApiCaller,
     private val uiErrorMapper: UiErrorMapper,
 ) : ViewModel() {
@@ -80,6 +82,7 @@ class NotificationsViewModel @Inject constructor(
                 withContext(Dispatchers.IO) { notificationRepository.markRead(id) }
             }) {
                 is ApiResult.Success -> {
+                    systemNotificationManager.onMarkedRead(id)
                     _state.update { st ->
                         st.copy(
                             items = st.items.map { item ->

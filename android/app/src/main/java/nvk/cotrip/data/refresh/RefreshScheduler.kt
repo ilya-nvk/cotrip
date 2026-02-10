@@ -18,8 +18,8 @@ class RefreshScheduler @Inject constructor(
             .setRequiredNetworkType(NetworkType.CONNECTED)
             .build()
         val request = PeriodicWorkRequestBuilder<RefreshWorker>(
-            REFRESH_INTERVAL_HOURS,
-            TimeUnit.HOURS
+            REFRESH_INTERVAL_MINUTES,
+            TimeUnit.MINUTES
         )
             .setConstraints(constraints)
             .build()
@@ -33,6 +33,6 @@ class RefreshScheduler @Inject constructor(
 
     private companion object {
         private const val UNIQUE_WORK_NAME = "periodic-refresh"
-        private const val REFRESH_INTERVAL_HOURS = 6L
+        private const val REFRESH_INTERVAL_MINUTES = 15L
     }
 }

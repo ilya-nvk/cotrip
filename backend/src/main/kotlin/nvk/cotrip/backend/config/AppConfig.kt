@@ -42,10 +42,6 @@ data class AppLinksConfig(
     val sha256CertFingerprints: List<String>,
 )
 
-data class PushConfig(
-    val fcmServerKey: String?,
-)
-
 data class AppConfig(
     val jwt: JwtConfig,
     val db: DbConfig,
@@ -54,6 +50,5 @@ data class AppConfig(
     val ai: AiConfig,
     val media: MediaConfig,
     val appLinks: AppLinksConfig,
-    val push: PushConfig,
     val devAuthEnabled: Boolean,
 )

@@ -232,6 +232,7 @@ class TripIdeasViewModel @Inject constructor(
     }
 
     private fun handleCommentCreated(payload: CommentCreatedPayload) {
+        if (payload.type.equals("system", ignoreCase = true)) return
         _state.update { current ->
             var changed = false
             val updated = current.ideas.map { idea ->

@@ -14,6 +14,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import nvk.cotrip.BuildConfig
 import nvk.cotrip.R
 import nvk.cotrip.data.auth.SessionStore
@@ -29,8 +32,10 @@ import nvk.cotrip.data.network.ws.CommentWsEvent
 import nvk.cotrip.data.network.ws.CommentsWebSocket
 import nvk.cotrip.data.repository.IdeaRepository
 import nvk.cotrip.data.repository.ItineraryRepository
+import nvk.cotrip.data.repository.NotificationRepository
 import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.data.repository.UserRepository
+import nvk.cotrip.notifications.SystemNotificationManager
 import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.idea.common.IdeaDayOptionUi
 import nvk.cotrip.ui.idea.common.IdeaDayPickerState
@@ -54,6 +59,8 @@ class IdeaDetailsViewModel @Inject constructor(
     private val ideaRepository: IdeaRepository,
     private val itineraryRepository: ItineraryRepository,
     private val userRepository: UserRepository,
+    private val notificationRepository: NotificationRepository,
+    private val systemNotificationManager: SystemNotificationManager,
     private val sessionStore: SessionStore,
     private val okHttpClient: okhttp3.OkHttpClient,
     private val json: Json,
@@ -122,7 +129,12 @@ class IdeaDetailsViewModel @Inject constructor(
             IdeaDetailsEvent.OnRejectClick -> updateStatus(approved = false)
             IdeaDetailsEvent.OnDismissDayPicker -> dismissDayPicker()
             is IdeaDetailsEvent.OnDaySelected -> selectDay(event.day)
-            is IdeaDetailsEvent.OnTabSelected -> _state.update { it.copy(selectedTab = event.tab) }
+            is IdeaDetailsEvent.OnTabSelected -> {
+                _state.update { it.copy(selectedTab = event.tab) }
+                if (event.tab == IdeaDetailsTab.Discussion) {
+                    markDiscussionNotificationsRead()
+                }
+            }
             is IdeaDetailsEvent.OnCommentChange -> _state.update { it.copy(commentInput = event.value) }
             IdeaDetailsEvent.OnSendComment -> sendComment()
         }
@@ -183,7 +195,7 @@ class IdeaDetailsViewModel @Inject constructor(
                             status = idea.status,
                             addedDay = payload.addedDay,
                             isOwner = payload.isOwner,
-                            commentsCount = discussion.size,
+                            commentsCount = discussion.count { it is IdeaDiscussionItemUi.Message },
                             discussion = discussion
                         )
                     }
@@ -220,20 +232,26 @@ class IdeaDetailsViewModel @Inject constructor(
             val exists = current.discussion.any { item -> item.id == payload.id }
             if (exists) return@update current
             val message = payload.toDiscussionItem(meId, membersById)
+            val increment = if (message is IdeaDiscussionItemUi.Message) 1 else 0
             current.copy(
                 discussion = current.discussion + message,
-                commentsCount = current.commentsCount + 1
+                commentsCount = current.commentsCount + increment
             )
+        }
+        if (_state.value.selectedTab == IdeaDetailsTab.Discussion) {
+            markDiscussionNotificationsRead()
         }
     }
 
     private fun handleCommentDeleted(commentId: String) {
         _state.update { current ->
+            val deleted = current.discussion.firstOrNull { it.id == commentId }
             val updated = current.discussion.filterNot { it.id == commentId }
             if (updated.size == current.discussion.size) return@update current
+            val decrement = if (deleted is IdeaDiscussionItemUi.Message) 1 else 0
             current.copy(
                 discussion = updated,
-                commentsCount = (current.commentsCount - 1).coerceAtLeast(0)
+                commentsCount = (current.commentsCount - decrement).coerceAtLeast(0)
             )
         }
     }
@@ -346,6 +364,27 @@ class IdeaDetailsViewModel @Inject constructor(
         viewModelScope.launch { _effects.emit(effect) }
     }
 
+    private fun markDiscussionNotificationsRead() {
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    val items = notificationRepository.listNotifications()
+                    val toMark = items.filter { item ->
+                        item.readAt == null &&
+                            item.type == "idea_comment" &&
+                            runCatching {
+                                item.payload.jsonObject["ideaId"]?.jsonPrimitive?.contentOrNull == ideaId
+                            }.getOrDefault(false)
+                    }
+                    toMark.forEach { item ->
+                        runCatching { notificationRepository.markRead(item.id) }
+                        systemNotificationManager.onMarkedRead(item.id)
+                    }
+                }
+            }
+        }
+    }
+
     private data class IdeaDetailsPayload(
         val idea: IdeaDto,
         val comments: List<CommentDto>,
@@ -372,6 +411,7 @@ private fun CommentDto.toDiscussion(
         id = id,
         author = name,
         initials = initials,
+        photoUrl = member?.photoUrl,
         text = body,
         time = formatTimestamp(createdAt),
         isMe = authorId == meId
@@ -389,6 +429,7 @@ private fun CommentCreatedPayload.toDiscussion(
         id = id,
         author = name,
         initials = initials,
+        photoUrl = member?.photoUrl,
         text = body,
         time = formatTimestamp(createdAt),
         isMe = authorId == meId
