@@ -27,6 +27,7 @@ data class AiSuggestionRequest(
     val timeOfDayOptions: List<String> = emptyList(),
     val budgetOptions: List<String> = emptyList(),
     val generationToken: String? = null,
+    val language: String? = null,
 )
 
 fun Route.aiRoutes(aiConfig: AiConfig) {
@@ -75,6 +76,7 @@ fun Route.aiRoutes(aiConfig: AiConfig) {
                             budgetOptions = request.budgetOptions,
                             currencyCode = trip.currencyCode,
                             generationToken = request.generationToken,
+                            language = request.language,
                             maxSuggestions = aiConfig.maxSuggestions,
                         ),
                     )
