@@ -112,6 +112,15 @@ fun Route.ideaRoutes() {
                 notes = request.notes,
             )
 
+            val actorName = UserRepository.findById(userId)?.name ?: "Someone"
+            NotificationService.notifyIdeaCreated(
+                tripId = tripId,
+                ideaId = idea.id,
+                actorUserId = userId,
+                actorName = actorName,
+                ideaTitle = idea.title
+            )
+
             call.respond(idea.toDto(0))
         }
 

@@ -12,9 +12,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
-import nvk.cotrip.data.repository.PendingTripCreationCleaner
-import javax.inject.Inject
 import nvk.cotrip.data.refresh.RefreshScheduler
+import nvk.cotrip.data.repository.PendingTripCreationCleaner
+import nvk.cotrip.notifications.PushTokenSyncManager
+import javax.inject.Inject
 
 @HiltAndroidApp
 class CoTripApp : Application(), Configuration.Provider, ImageLoaderFactory {
@@ -24,6 +25,9 @@ class CoTripApp : Application(), Configuration.Provider, ImageLoaderFactory {
     lateinit var refreshScheduler: RefreshScheduler
     @Inject
     lateinit var pendingTripCreationCleaner: PendingTripCreationCleaner
+
+    @Inject
+    lateinit var pushTokenSyncManager: PushTokenSyncManager
 
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -56,6 +60,7 @@ class CoTripApp : Application(), Configuration.Provider, ImageLoaderFactory {
         refreshScheduler.schedule()
         appScope.launch {
             pendingTripCreationCleaner.cleanupOnAppStart()
+            pushTokenSyncManager.syncIfPossible()
         }
     }
 }

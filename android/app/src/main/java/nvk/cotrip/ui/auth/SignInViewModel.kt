@@ -21,6 +21,7 @@ import kotlinx.coroutines.withContext
 import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.repository.AuthRepository
+import nvk.cotrip.notifications.PushTokenSyncManager
 import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
@@ -30,6 +31,7 @@ import javax.inject.Inject
 class SignInViewModel @Inject constructor(
     private val navigator: AppNavigator,
     private val authRepository: AuthRepository,
+    private val pushTokenSyncManager: PushTokenSyncManager,
     private val apiCaller: ApiCaller,
     private val uiErrorMapper: UiErrorMapper,
 ) : ViewModel() {
@@ -107,6 +109,7 @@ class SignInViewModel @Inject constructor(
             }) {
                 is ApiResult.Success -> {
                     Log.d(TAG, "sign in success")
+                    pushTokenSyncManager.syncIfPossible()
                     navigator.navigate(Destination.Trips) {
                         popUpTo(Destination.SignIn.route) { inclusive = true }
                         launchSingleTop = true

@@ -17,6 +17,8 @@ import nvk.cotrip.backend.db.ExpenseParticipantRow
 import nvk.cotrip.backend.db.ExpenseRepository
 import nvk.cotrip.backend.db.TripMemberRepository
 import nvk.cotrip.backend.db.TripRepository
+import nvk.cotrip.backend.db.UserRepository
+import nvk.cotrip.backend.notifications.NotificationService
 import java.time.LocalDate
 
 @Serializable
@@ -157,6 +159,17 @@ fun Route.expenseRoutes() {
                 participants = participants,
             )
 
+            val actorName = UserRepository.findById(userId)?.name ?: "Someone"
+            NotificationService.notifyExpenseCreated(
+                tripId = tripId,
+                expenseId = expense.id,
+                actorUserId = userId,
+                actorName = actorName,
+                title = expense.title,
+                amount = expense.amount,
+                currencyCode = expense.currencyCode
+            )
+
             call.respond(expense.toDto(participants))
         }
 
@@ -257,6 +270,18 @@ fun Route.expenseRoutes() {
             ) ?: run {
                 call.respond(HttpStatusCode.NotFound)
                 return@patch
+            }
+
+            val statusBecamePaid = existing.status != "paid" && updated.status == "paid"
+            if (statusBecamePaid) {
+                val actorName = UserRepository.findById(userId)?.name ?: "Someone"
+                NotificationService.notifyExpenseSettlement(
+                    tripId = updated.tripId,
+                    expenseId = updated.id,
+                    actorUserId = userId,
+                    actorName = actorName,
+                    title = updated.title
+                )
             }
 
             val participants = participantRows ?: ExpenseRepository.listParticipants(listOf(expenseId))[expenseId] ?: emptyList()

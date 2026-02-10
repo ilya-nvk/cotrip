@@ -1,54 +1,55 @@
 package nvk.cotrip.data.network
 
+import nvk.cotrip.data.network.dto.ActivityDto
+import nvk.cotrip.data.network.dto.AiSuggestionsRequestDto
+import nvk.cotrip.data.network.dto.AiSuggestionsResponseDto
 import nvk.cotrip.data.network.dto.AuthDevRequest
 import nvk.cotrip.data.network.dto.AuthGoogleRequest
 import nvk.cotrip.data.network.dto.AuthResponse
-import nvk.cotrip.data.network.dto.AiSuggestionsRequestDto
-import nvk.cotrip.data.network.dto.AiSuggestionsResponseDto
-import nvk.cotrip.data.network.dto.ActivityDto
+import nvk.cotrip.data.network.dto.CitySuggestionDto
 import nvk.cotrip.data.network.dto.CommentDto
 import nvk.cotrip.data.network.dto.ConvertIdeaRequest
 import nvk.cotrip.data.network.dto.CreateActivityRequest
 import nvk.cotrip.data.network.dto.CreateIdeaRequest
 import nvk.cotrip.data.network.dto.CreateTripRequest
-import nvk.cotrip.data.network.dto.CitySuggestionDto
 import nvk.cotrip.data.network.dto.ExpenseCreateRequest
 import nvk.cotrip.data.network.dto.ExpenseDto
 import nvk.cotrip.data.network.dto.ExpenseUpdateRequest
 import nvk.cotrip.data.network.dto.IdeaDto
-import nvk.cotrip.data.network.dto.ItineraryDayDto
 import nvk.cotrip.data.network.dto.InviteInfoDto
 import nvk.cotrip.data.network.dto.InviteLinkDto
+import nvk.cotrip.data.network.dto.ItineraryDayDto
 import nvk.cotrip.data.network.dto.MemberDto
-import nvk.cotrip.data.network.dto.UploadImageResponseDto
+import nvk.cotrip.data.network.dto.MoveActivityRequest
 import nvk.cotrip.data.network.dto.NotificationListResponse
 import nvk.cotrip.data.network.dto.NotificationSettingsResponse
 import nvk.cotrip.data.network.dto.NotificationSettingsUpdateRequest
-import nvk.cotrip.data.network.dto.TripDto
+import nvk.cotrip.data.network.dto.PlaceSuggestionDto
+import nvk.cotrip.data.network.dto.ReorderActivitiesRequest
+import nvk.cotrip.data.network.dto.SyncChangesRequest
+import nvk.cotrip.data.network.dto.SyncChangesResponse
+import nvk.cotrip.data.network.dto.SyncPullResponse
 import nvk.cotrip.data.network.dto.TransferOwnerRequest
 import nvk.cotrip.data.network.dto.TrimOutOfRangeRequest
-import nvk.cotrip.data.network.dto.MoveActivityRequest
-import nvk.cotrip.data.network.dto.ReorderActivitiesRequest
+import nvk.cotrip.data.network.dto.TripDto
 import nvk.cotrip.data.network.dto.UpdateActivityRequest
 import nvk.cotrip.data.network.dto.UpdateDayRequest
 import nvk.cotrip.data.network.dto.UpdateIdeaRequest
 import nvk.cotrip.data.network.dto.UpdateTripRequest
 import nvk.cotrip.data.network.dto.UpdateUserRequest
+import nvk.cotrip.data.network.dto.UploadImageResponseDto
+import nvk.cotrip.data.network.dto.UpsertPushTokenRequest
 import nvk.cotrip.data.network.dto.UserDto
-import nvk.cotrip.data.network.dto.PlaceSuggestionDto
-import nvk.cotrip.data.network.dto.SyncChangesRequest
-import nvk.cotrip.data.network.dto.SyncChangesResponse
-import nvk.cotrip.data.network.dto.SyncPullResponse
 import nvk.cotrip.data.network.dto.WeatherForecastResponseDto
-import retrofit2.Response
 import okhttp3.MultipartBody
+import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Multipart
 import retrofit2.http.PATCH
-import retrofit2.http.Part
 import retrofit2.http.POST
+import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -290,4 +291,10 @@ interface CoTripApi {
     suspend fun updateNotificationSettings(
         @Body request: NotificationSettingsUpdateRequest
     ): NotificationSettingsResponse
+
+    @POST("v1/users/me/push-token")
+    suspend fun upsertPushToken(@Body request: UpsertPushTokenRequest): Response<Unit>
+
+    @DELETE("v1/users/me/push-token")
+    suspend fun deletePushToken(@Query("token") token: String): Response<Unit>
 }

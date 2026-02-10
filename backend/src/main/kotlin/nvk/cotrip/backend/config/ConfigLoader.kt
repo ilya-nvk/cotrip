@@ -99,6 +99,11 @@ fun loadConfig(config: ApplicationConfig): AppConfig {
             .map { it.uppercase(Locale.US) },
     )
 
+    val push = PushConfig(
+        fcmServerKey = System.getenv("FCM_SERVER_KEY")
+            ?: config.propertyOrNull("ktor.push.fcmServerKey")?.getString(),
+    )
+
     val devAuthEnabled = System.getenv("DEV_AUTH_ENABLED")
         ?.toBooleanStrictOrNull()
         ?: config.propertyOrNull("ktor.devAuthEnabled")
@@ -114,6 +119,7 @@ fun loadConfig(config: ApplicationConfig): AppConfig {
         ai = ai,
         media = media,
         appLinks = appLinks,
+        push = push,
         devAuthEnabled = devAuthEnabled
     )
 }

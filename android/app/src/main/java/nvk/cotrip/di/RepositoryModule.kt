@@ -4,39 +4,41 @@ import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
-import javax.inject.Singleton
-import nvk.cotrip.data.cache.TripsCacheStore
-import nvk.cotrip.data.cache.TripsCacheStoreImpl
-import nvk.cotrip.data.cache.IdeasCacheStore
-import nvk.cotrip.data.cache.IdeasCacheStoreImpl
 import nvk.cotrip.data.cache.ExpensesCacheStore
 import nvk.cotrip.data.cache.ExpensesCacheStoreImpl
+import nvk.cotrip.data.cache.IdeasCacheStore
+import nvk.cotrip.data.cache.IdeasCacheStoreImpl
 import nvk.cotrip.data.cache.ItineraryCacheStore
 import nvk.cotrip.data.cache.ItineraryCacheStoreImpl
+import nvk.cotrip.data.cache.TripsCacheStore
+import nvk.cotrip.data.cache.TripsCacheStoreImpl
 import nvk.cotrip.data.cache.UserCacheStore
 import nvk.cotrip.data.cache.UserCacheStoreImpl
-import nvk.cotrip.data.repository.AuthRepository
-import nvk.cotrip.data.repository.AuthRepositoryImpl
 import nvk.cotrip.data.repository.AiSuggestionsRepository
 import nvk.cotrip.data.repository.AiSuggestionsRepositoryImpl
+import nvk.cotrip.data.repository.AuthRepository
+import nvk.cotrip.data.repository.AuthRepositoryImpl
 import nvk.cotrip.data.repository.ExpenseRepository
 import nvk.cotrip.data.repository.ExpenseRepositoryImpl
-import nvk.cotrip.data.repository.ImageUploadRepository
-import nvk.cotrip.data.repository.ImageUploadRepositoryImpl
 import nvk.cotrip.data.repository.IdeaRepository
 import nvk.cotrip.data.repository.IdeaRepositoryImpl
+import nvk.cotrip.data.repository.ImageUploadRepository
+import nvk.cotrip.data.repository.ImageUploadRepositoryImpl
 import nvk.cotrip.data.repository.InviteRepository
 import nvk.cotrip.data.repository.InviteRepositoryImpl
 import nvk.cotrip.data.repository.ItineraryRepository
 import nvk.cotrip.data.repository.ItineraryRepositoryImpl
 import nvk.cotrip.data.repository.NotificationRepository
 import nvk.cotrip.data.repository.NotificationRepositoryImpl
+import nvk.cotrip.data.repository.PushTokenRepository
+import nvk.cotrip.data.repository.PushTokenRepositoryImpl
 import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.data.repository.TripRepositoryImpl
 import nvk.cotrip.data.repository.UserRepository
 import nvk.cotrip.data.repository.UserRepositoryImpl
 import nvk.cotrip.data.repository.WeatherRepository
 import nvk.cotrip.data.repository.WeatherRepositoryImpl
+import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -130,6 +132,12 @@ abstract class RepositoryModule {
     abstract fun bindNotificationRepository(
         impl: NotificationRepositoryImpl
     ): NotificationRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindPushTokenRepository(
+        impl: PushTokenRepositoryImpl
+    ): PushTokenRepository
 
     @Binds
     @Singleton

@@ -3,7 +3,6 @@ package nvk.cotrip.ui.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,14 +14,15 @@ import kotlinx.coroutines.withContext
 import nvk.cotrip.R
 import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
-import nvk.cotrip.data.network.dto.UpdateUserRequest
 import nvk.cotrip.data.network.dto.NotificationSettingDto
+import nvk.cotrip.data.network.dto.UpdateUserRequest
 import nvk.cotrip.data.repository.ImageUploadRepository
 import nvk.cotrip.data.repository.NotificationRepository
 import nvk.cotrip.data.repository.UserRepository
 import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
+import javax.inject.Inject
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
@@ -57,16 +57,6 @@ class SettingsViewModel @Inject constructor(
                     )
                 ),
                 SettingsNotificationSectionUi(
-                    title = "ITINERARY",
-                    items = listOf(
-                        SettingsToggleUi(
-                            key = "itinerary_changes",
-                            title = "Itinerary changes",
-                            enabled = true
-                        )
-                    )
-                ),
-                SettingsNotificationSectionUi(
                     title = "EXPENSES",
                     items = listOf(
                         SettingsToggleUi(
@@ -88,11 +78,6 @@ class SettingsViewModel @Inject constructor(
                             key = "trips_added",
                             title = "Added to a trip",
                             enabled = true
-                        ),
-                        SettingsToggleUi(
-                            key = "trips_date_changes",
-                            title = "Trip date changes",
-                            enabled = false
                         )
                     )
                 )

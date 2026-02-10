@@ -3,10 +3,10 @@ package nvk.cotrip.ui.trip.details
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -36,10 +36,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -55,6 +55,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import coil.compose.AsyncImage
 import kotlinx.coroutines.flow.collectLatest
 import nvk.cotrip.R
+import nvk.cotrip.ui.components.AvatarStackItem
 import nvk.cotrip.ui.components.AvatarsStack
 import nvk.cotrip.ui.components.CoTripIconButton
 import nvk.cotrip.ui.components.PrimaryButton
@@ -337,7 +338,7 @@ private fun Header(
 @Composable
 private fun TravelersSection(
     title: String,
-    travelers: List<String>,
+    travelers: List<AvatarStackItem>,
     peopleCountText: String,
     isEmpty: Boolean,
     onInvite: () -> Unit,
@@ -360,7 +361,7 @@ private fun TravelersSection(
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (travelers.isNotEmpty()) {
-                AvatarsStack(initials = travelers, size = 34.dp)
+                AvatarsStack(avatars = travelers.take(4), size = 34.dp)
             } else {
                 Row(horizontalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x0_5)) {
                     repeat(3) {
