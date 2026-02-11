@@ -177,6 +177,10 @@
     <string name="idea_details_approve">Approve</string>
     <string name="idea_details_reject">Reject</string>
     <string name="idea_details_add_comment">Add a comment</string>
+    <string name="idea_details_comment_sending">Sending…</string>
+    <string name="idea_details_comment_failed">Not sent</string>
+    <string name="idea_details_retry_comment">Retry</string>
+    <string name="idea_details_delete_pending_comment">Delete</string>
     <string name="idea_details_added_toast">Idea added to itinerary</string>
     <string name="idea_details_deleted_toast">Idea deleted</string>
     <string name="idea_details_approved_toast">Idea approved</string>

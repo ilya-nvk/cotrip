@@ -33,6 +33,7 @@ data class CommentDeletedMessage(
 data class CommentCreatePayload(
     val ideaId: String,
     val body: String,
+    val clientMessageId: String? = null,
 )
 
 @Serializable
@@ -43,6 +44,7 @@ data class CommentCreatedPayload(
     val type: String,
     val body: String,
     val createdAt: String,
+    val clientMessageId: String? = null,
 )
 
 @Serializable

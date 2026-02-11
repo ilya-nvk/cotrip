@@ -3,6 +3,12 @@ package nvk.cotrip.ui.idea.details
 sealed interface IdeaDiscussionItemUi {
     val id: String
 
+    enum class DeliveryState {
+        Sent,
+        Sending,
+        Failed,
+    }
+
     data class Message(
         override val id: String,
         val author: String,
@@ -11,6 +17,8 @@ sealed interface IdeaDiscussionItemUi {
         val text: String,
         val time: String,
         val isMe: Boolean,
+        val deliveryState: DeliveryState = DeliveryState.Sent,
+        val localId: String? = null,
     ) : IdeaDiscussionItemUi
 
     data class System(

@@ -1,10 +1,9 @@
 package nvk.cotrip.ui.itinerary
 
-import androidx.activity.compose.BackHandler
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,25 +40,15 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -144,21 +133,6 @@ fun TripItineraryScreen(
                         contentDescription = null,
                         onClick = { viewModel.onEvent(TripItineraryEvent.OnBackClick) }
                     )
-                },
-                actions = {
-                    val hasReorderable = state.days.any { it.activities.size > 1 }
-                    if (!state.isCitySelectionRequired && state.mode == ItineraryMode.Filled && hasReorderable) {
-                        CoTripIconButton(
-                            icon = if (state.isReordering) CoTripIcons.CheckCircle else CoTripIcons.Reorder,
-                            contentDescription = stringResource(
-                                if (state.isReordering)
-                                    R.string.itinerary_reorder_done
-                                else
-                                    R.string.itinerary_reorder_start
-                            ),
-                            onClick = { viewModel.onEvent(TripItineraryEvent.OnToggleReorder) }
-                        )
-                    }
                 },
                 title = {
                     Column(verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x0_5)) {
@@ -257,7 +231,6 @@ fun TripItineraryScreen(
                         items(state.days, key = { it.id }) { day ->
                             FilledDaySection(
                                 day = day,
-                                isReordering = state.isReordering,
                                 onChooseCity = {
                                     viewModel.onEvent(
                                         TripItineraryEvent.OnChooseCityClick(day.id)
@@ -267,19 +240,7 @@ fun TripItineraryScreen(
                                     viewModel.onEvent(
                                         TripItineraryEvent.OnActivityClick(it)
                                     )
-                                },
-                                onReorderMove = { fromIndex, toIndex ->
-                                    viewModel.onEvent(
-                                        TripItineraryEvent.OnReorderMove(
-                                            dayId = day.id,
-                                            fromIndex = fromIndex,
-                                            toIndex = toIndex
-                                        )
-                                    )
-                                },
-                                onReorderCommit = {
-                                    viewModel.onEvent(TripItineraryEvent.OnReorderCommit(day.id))
-                                },
+                                }
                             )
                         }
                     }
@@ -316,19 +277,9 @@ fun TripItineraryScreen(
 @Composable
 private fun FilledDaySection(
     day: ItineraryDayUi,
-    isReordering: Boolean,
     onChooseCity: () -> Unit,
     onActivityClick: (String) -> Unit,
-    onReorderMove: (fromIndex: Int, toIndex: Int) -> Unit,
-    onReorderCommit: () -> Unit,
 ) {
-    val density = LocalDensity.current
-    val fallbackRowHeight = with(density) { 72.dp.toPx() }
-    var rowHeightPx by remember(day.id) { mutableFloatStateOf(fallbackRowHeight) }
-    var draggingId by remember(day.id) { mutableStateOf<String?>(null) }
-    var draggingIndex by remember(day.id) { mutableIntStateOf(-1) }
-    var dragOffset by remember(day.id) { mutableFloatStateOf(0f) }
-
     Column(verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x1)) {
         Row(
             modifier = Modifier
@@ -380,40 +331,8 @@ private fun FilledDaySection(
             contentPadding = PaddingValues(0.dp)
         ) {
             day.activities.forEachIndexed { index, activity ->
-                val isDragging = draggingId == activity.id
                 ActivityRow(
                     activity = activity,
-                    isReordering = isReordering,
-                    isDragging = isDragging,
-                    dragOffset = if (isDragging) dragOffset else 0f,
-                    onMeasure = { height ->
-                        if (height > 0) rowHeightPx = height.toFloat()
-                    },
-                    onDragStart = {
-                        draggingId = activity.id
-                        draggingIndex = index
-                        dragOffset = 0f
-                    },
-                    onDrag = { delta ->
-                        if (draggingIndex == -1) return@ActivityRow
-                        dragOffset += delta
-                        val step = rowHeightPx.takeIf { it > 0f } ?: fallbackRowHeight
-                        val shift = (dragOffset / step).toInt()
-                        val target = (draggingIndex + shift).coerceIn(0, day.activities.lastIndex)
-                        if (target != draggingIndex) {
-                            onReorderMove(draggingIndex, target)
-                            dragOffset -= (target - draggingIndex) * step
-                            draggingIndex = target
-                        }
-                    },
-                    onDragEnd = {
-                        if (draggingId != null) {
-                            draggingId = null
-                            draggingIndex = -1
-                            dragOffset = 0f
-                            onReorderCommit()
-                        }
-                    },
                     onClick = { onActivityClick(activity.id) },
                 )
                 if (index != day.activities.lastIndex) {
@@ -482,38 +401,12 @@ private fun EmptyDayCard(
 @Composable
 private fun ActivityRow(
     activity: ItineraryActivityUi,
-    isReordering: Boolean,
-    isDragging: Boolean,
-    dragOffset: Float,
-    onMeasure: (height: Int) -> Unit,
-    onDragStart: () -> Unit,
-    onDrag: (delta: Float) -> Unit,
-    onDragEnd: () -> Unit,
     onClick: () -> Unit,
 ) {
-    val rowModifier = if (isReordering) {
-        Modifier.fillMaxWidth()
-    } else {
-        Modifier.fillMaxWidth().clickable { onClick() }
-    }
-
     Row(
-        modifier = rowModifier
-            .graphicsLayer { translationY = dragOffset }
-            .zIndex(if (isDragging) 1f else 0f)
-            .pointerInput(isReordering) {
-                if (!isReordering) return@pointerInput
-                detectDragGesturesAfterLongPress(
-                    onDragStart = { onDragStart() },
-                    onDragEnd = { onDragEnd() },
-                    onDragCancel = { onDragEnd() },
-                    onDrag = { change, dragAmount ->
-                        change.consume()
-                        onDrag(dragAmount.y)
-                    }
-                )
-            }
-            .onSizeChanged { onMeasure(it.height) }
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
             .padding(
                 horizontal = CoTripTokens.spacing.x2,
                 vertical = CoTripTokens.spacing.x1_5
@@ -566,18 +459,6 @@ private fun ActivityRow(
                 text = activity.priceText,
                 style = MaterialTheme.typography.bodySmall,
                 color = TextSecondary
-            )
-        }
-
-        if (isReordering) {
-            Spacer(Modifier.width(CoTripTokens.spacing.x1))
-            Icon(
-                imageVector = CoTripIcons.Reorder,
-                contentDescription = null,
-                tint = TextSecondary,
-                modifier = Modifier
-                    .size(20.dp)
-                    .align(Alignment.CenterVertically)
             )
         }
     }

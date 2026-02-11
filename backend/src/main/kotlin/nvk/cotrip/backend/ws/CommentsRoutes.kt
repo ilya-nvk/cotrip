@@ -56,6 +56,7 @@ private suspend fun handleTextFrame(tripId: String, userId: String, text: String
             val create = json.decodeFromString<CommentCreateMessage>(text)
             val ideaId = create.payload.ideaId
             val body = create.payload.body.trim()
+            val clientMessageId = create.payload.clientMessageId
             if (body.isBlank()) return
 
             val ideaTripId = IdeaRepository.findTripIdByIdeaId(ideaId) ?: return
@@ -63,7 +64,7 @@ private suspend fun handleTextFrame(tripId: String, userId: String, text: String
             if (!TripRepository.isMember(tripId, userId)) return
 
             val stored = CommentRepository.create(ideaId, userId, body)
-            publishCommentCreated(tripId, stored)
+            publishCommentCreated(tripId, stored, clientMessageId)
             val actorName = UserRepository.findById(userId)?.name ?: "Someone"
             NotificationService.notifyIdeaComment(
                 tripId = tripId,

@@ -209,6 +209,12 @@ fun IdeaDetailsScreen(
 
                 IdeaDetailsTab.Discussion -> IdeaDiscussionContent(
                     state = state,
+                    onRetryComment = { localId ->
+                        viewModel.onEvent(IdeaDetailsEvent.OnRetryComment(localId))
+                    },
+                    onDeletePendingComment = { localId ->
+                        viewModel.onEvent(IdeaDetailsEvent.OnDeletePendingComment(localId))
+                    },
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -376,6 +382,8 @@ private fun IdeaInfoRow(
 @Composable
 private fun IdeaDiscussionContent(
     state: IdeaDetailsState,
+    onRetryComment: (String) -> Unit,
+    onDeletePendingComment: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()
@@ -406,7 +414,11 @@ private fun IdeaDiscussionContent(
             when (item) {
                 is IdeaDiscussionItemUi.Message -> {
                     if (item.isMe) {
-                        MyMessageBubble(item = item)
+                        MyMessageBubble(
+                            item = item,
+                            onRetry = { localId -> onRetryComment(localId) },
+                            onDeletePending = { localId -> onDeletePendingComment(localId) }
+                        )
                     } else {
                         OtherMessageBubble(item = item)
                     }
@@ -421,6 +433,8 @@ private fun IdeaDiscussionContent(
 @Composable
 private fun MyMessageBubble(
     item: IdeaDiscussionItemUi.Message,
+    onRetry: (String) -> Unit,
+    onDeletePending: (String) -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -473,6 +487,39 @@ private fun MyMessageBubble(
             style = MaterialTheme.typography.bodySmall,
             color = TextSecondary
         )
+        when (item.deliveryState) {
+            IdeaDiscussionItemUi.DeliveryState.Sent -> Unit
+            IdeaDiscussionItemUi.DeliveryState.Sending -> {
+                Text(
+                    text = stringResource(R.string.idea_details_comment_sending),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary
+                )
+            }
+
+            IdeaDiscussionItemUi.DeliveryState.Failed -> {
+                Text(
+                    text = stringResource(R.string.idea_details_comment_failed),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Error
+                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x1)
+                ) {
+                    item.localId?.let { localId ->
+                        TextButton(onClick = { onRetry(localId) }) {
+                            Text(text = stringResource(R.string.idea_details_retry_comment))
+                        }
+                        TextButton(
+                            onClick = { onDeletePending(localId) },
+                            colors = ButtonDefaults.textButtonColors(contentColor = Error)
+                        ) {
+                            Text(text = stringResource(R.string.idea_details_delete_pending_comment))
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

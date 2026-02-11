@@ -1,12 +1,8 @@
 package nvk.cotrip.data.network.ws
 
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
-import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
@@ -14,6 +10,9 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
+import java.util.concurrent.atomic.AtomicBoolean
 
 sealed interface CommentWsEvent {
     data class CommentCreated(val payload: CommentCreatedPayload) : CommentWsEvent
@@ -63,10 +62,16 @@ class CommentsWebSocket(
         })
     }
 
-    fun sendCreate(ideaId: String, body: String) {
-        val socket = webSocket ?: return
-        val message = CommentCreateMessage(payload = CommentCreatePayload(ideaId = ideaId, body = body))
-        socket.send(json.encodeToString(message))
+    fun sendCreate(ideaId: String, body: String, clientMessageId: String? = null): Boolean {
+        val socket = webSocket ?: return false
+        val message = CommentCreateMessage(
+            payload = CommentCreatePayload(
+                ideaId = ideaId,
+                body = body,
+                clientMessageId = clientMessageId
+            )
+        )
+        return socket.send(json.encodeToString(message))
     }
 
     fun disconnect() {
@@ -111,6 +116,7 @@ data class CommentDeletedMessage(
 data class CommentCreatePayload(
     val ideaId: String,
     val body: String,
+    val clientMessageId: String? = null,
 )
 
 @Serializable
@@ -121,6 +127,7 @@ data class CommentCreatedPayload(
     val type: String = "user",
     val body: String,
     val createdAt: String,
+    val clientMessageId: String? = null,
 )
 
 @Serializable

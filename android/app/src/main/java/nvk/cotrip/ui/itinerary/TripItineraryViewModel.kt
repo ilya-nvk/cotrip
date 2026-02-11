@@ -66,7 +66,6 @@ class TripItineraryViewModel @Inject constructor(
             mode = ItineraryMode.Empty,
             days = emptyList(),
             cityPicker = null,
-            isReordering = false,
             isCitySelectionRequired = requireCitySelection,
             pendingCitySelectionCount = 0,
             isRefreshing = false,
@@ -104,7 +103,6 @@ class TripItineraryViewModel @Inject constructor(
             TripItineraryEvent.OnCompleteRequiredCitySelection -> completeRequiredCitySelection()
             TripItineraryEvent.OnAutoRefresh -> refreshItinerary(isUserRefresh = false)
             TripItineraryEvent.OnUserRefresh -> refreshItinerary(isUserRefresh = true)
-            TripItineraryEvent.OnToggleReorder -> toggleReorder()
             TripItineraryEvent.OnAddActivityClick -> appNavigator.navigate(
                 Destination.CreateActivity(tripId)
             )
@@ -120,10 +118,6 @@ class TripItineraryViewModel @Inject constructor(
             is TripItineraryEvent.OnChooseCityClick -> openCityPicker(event.dayId)
             is TripItineraryEvent.OnCityQueryChange -> updateCityQuery(event.value)
             is TripItineraryEvent.OnCitySelected -> selectCity(event.city)
-            is TripItineraryEvent.OnReorderMove ->
-                reorderInState(event.dayId, event.fromIndex, event.toIndex)
-            is TripItineraryEvent.OnReorderCommit ->
-                commitReorder(event.dayId)
         }
     }
 
@@ -250,49 +244,6 @@ class TripItineraryViewModel @Inject constructor(
                     isSearching = false,
                 )
             )
-        }
-    }
-
-    private fun toggleReorder() {
-        if (_state.value.isCitySelectionRequired) return
-        _state.update { it.copy(isReordering = !it.isReordering) }
-    }
-
-    private fun reorderInState(dayId: String, fromIndex: Int, toIndex: Int) {
-        val current = _state.value
-        val dayIndex = current.days.indexOfFirst { it.id == dayId }
-        if (dayIndex == -1) return
-        val day = current.days[dayIndex]
-        if (fromIndex !in day.activities.indices) return
-        val targetIndex = toIndex.coerceIn(0, day.activities.lastIndex)
-        if (targetIndex == fromIndex) return
-        val moved = day.activities.toMutableList().apply {
-            add(targetIndex, removeAt(fromIndex))
-        }
-
-        val updatedDays = current.days.toMutableList().apply {
-            set(dayIndex, day.copy(activities = moved))
-        }
-        _state.update { it.copy(days = updatedDays) }
-    }
-
-    private fun commitReorder(dayId: String) {
-        val day = _state.value.days.firstOrNull { it.id == dayId } ?: return
-        viewModelScope.launch {
-            when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    itineraryRepository.reorderActivities(
-                        dayId = dayId,
-                        orderedIds = day.activities.map { it.id }
-                    )
-                }
-            }) {
-                is ApiResult.Success -> Unit
-                is ApiResult.Failure -> {
-                    emitToast(uiErrorMapper.messageRes(result))
-                    refreshItinerary(isUserRefresh = false)
-                }
-            }
         }
     }
 

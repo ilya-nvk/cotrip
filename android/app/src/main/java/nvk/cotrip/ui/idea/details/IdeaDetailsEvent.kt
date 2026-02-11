@@ -15,4 +15,6 @@ sealed interface IdeaDetailsEvent {
     data class OnTabSelected(val tab: IdeaDetailsTab) : IdeaDetailsEvent
     data class OnCommentChange(val value: String) : IdeaDetailsEvent
     data object OnSendComment : IdeaDetailsEvent
+    data class OnRetryComment(val localId: String) : IdeaDetailsEvent
+    data class OnDeletePendingComment(val localId: String) : IdeaDetailsEvent
 }
