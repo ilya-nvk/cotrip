@@ -267,6 +267,13 @@ class IdeaDetailsViewModel @Inject constructor(
                 when (event) {
                     is CommentWsEvent.CommentCreated -> handleCommentCreated(event.payload)
                     is CommentWsEvent.CommentDeleted -> handleCommentDeleted(event.payload.id)
+                    is CommentWsEvent.Closed -> {
+                        AppLogger.w(
+                            TAG,
+                            "comments socket closed code=${event.code} reason=${event.reason}, scheduling reconnect"
+                        )
+                        scheduleReconnect()
+                    }
                     is CommentWsEvent.Error -> {
                         AppLogger.w(TAG, "comments socket error, scheduling reconnect", event.cause)
                         scheduleReconnect()
@@ -322,6 +329,7 @@ class IdeaDetailsViewModel @Inject constructor(
         if (_state.value.selectedTab == IdeaDetailsTab.Discussion) {
             markDiscussionNotificationsRead()
         }
+        refreshCommentsSilently()
     }
 
     private fun handleCommentDeleted(commentId: String) {
@@ -335,6 +343,7 @@ class IdeaDetailsViewModel @Inject constructor(
                 commentsCount = (current.commentsCount - decrement).coerceAtLeast(0)
             )
         }
+        refreshCommentsSilently()
     }
 
     private fun openDayPicker() {

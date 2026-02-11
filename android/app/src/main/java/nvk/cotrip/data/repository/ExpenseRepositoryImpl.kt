@@ -1,7 +1,11 @@
 package nvk.cotrip.data.repository
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.launch
 import nvk.cotrip.data.cache.ExpensesCacheStore
 import nvk.cotrip.data.network.CoTripApi
 import nvk.cotrip.data.network.NetworkStateProvider
@@ -27,29 +31,31 @@ class ExpenseRepositoryImpl @Inject constructor(
         private const val TAG = "ExpenseRepository"
     }
 
+    private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     override fun observeExpenses(tripId: String): Flow<List<ExpenseDto>> {
         return expensesCacheStore.observeExpenses(tripId)
     }
 
-    override suspend fun getExpense(expenseId: String): Flow<ExpenseDto> {
+    override fun getExpense(expenseId: String): Flow<ExpenseDto> {
         if (networkStateProvider.isOnline()) {
-            runCatching { api.getExpense(expenseId) }
-                .onSuccess { expense ->
-                    safeLocalMutation("getExpense.upsertExpense(expenseId=$expenseId)") {
-                        expensesCacheStore.upsertExpense(expense.tripId, expense)
+            ioScope.launch {
+                runCatching { api.getExpense(expenseId) }
+                    .onSuccess { expense ->
+                        safeLocalMutation("getExpense.upsertExpense(expenseId=$expenseId)") {
+                            expensesCacheStore.upsertExpense(expense.tripId, expense)
+                        }
                     }
-                }
-                .onFailure { error ->
-                    AppLogger.w(
-                        TAG,
-                        "getExpense network fetch failed for expenseId=$expenseId",
-                        error
-                    )
-                }
+                    .onFailure { error ->
+                        AppLogger.w(
+                            TAG,
+                            "getExpense network fetch failed for expenseId=$expenseId",
+                            error
+                        )
+                    }
+            }
         }
-        return expensesCacheStore.observeExpenseById(expenseId).map { cached ->
-            cached ?: throw IOException("Expense $expenseId is not available in cache")
-        }
+        return expensesCacheStore.observeExpenseById(expenseId).mapNotNull { it }
     }
 
     override suspend fun createExpense(tripId: String, request: ExpenseCreateRequest): ExpenseDto {

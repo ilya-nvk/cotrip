@@ -8,7 +8,7 @@ import nvk.cotrip.data.network.dto.UpdateTripRequest
 
 interface TripRepository {
     val trips: Flow<List<TripDto>>
-    suspend fun getTrip(tripId: String): Flow<TripDto>
+    fun getTrip(tripId: String): Flow<TripDto>
 
     suspend fun refreshTrips(): Result<Unit>
 
@@ -17,6 +17,6 @@ interface TripRepository {
     suspend fun archiveTrip(tripId: String)
     suspend fun deleteTrip(tripId: String)
 
-    suspend fun tripMembers(tripId: String): Flow<List<MemberDto>>
+    fun tripMembers(tripId: String): Flow<List<MemberDto>>
     suspend fun removeMember(tripId: String, memberId: String)
 }

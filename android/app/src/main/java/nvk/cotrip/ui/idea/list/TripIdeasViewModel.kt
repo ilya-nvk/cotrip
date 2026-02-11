@@ -5,6 +5,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -36,6 +38,7 @@ import nvk.cotrip.ui.idea.common.IdeaDayPickerState
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import nvk.cotrip.ui.trip.form.TripCurrency
+import nvk.cotrip.util.AppLogger
 import okhttp3.OkHttpClient
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -62,6 +65,7 @@ class TripIdeasViewModel @Inject constructor(
     private var dayOptions: List<IdeaDayOptionUi> = emptyList()
     private var currencySymbol: String = "€"
     private val commentsSocket = CommentsWebSocket(okHttpClient, json)
+    private var reconnectJob: Job? = null
 
     private val _state = MutableStateFlow(
         TripIdeasState(
@@ -85,6 +89,7 @@ class TripIdeasViewModel @Inject constructor(
     }
 
     override fun onCleared() {
+        reconnectJob?.cancel()
         commentsSocket.disconnect()
         super.onCleared()
     }
@@ -215,6 +220,7 @@ class TripIdeasViewModel @Inject constructor(
     private fun connectSocket() {
         val token = sessionStore.getAccessToken().orEmpty()
         if (token.isBlank()) return
+        reconnectJob?.cancel()
         commentsSocket.connect(BuildConfig.API_BASE_URL, tripId, token)
     }
 
@@ -224,9 +230,25 @@ class TripIdeasViewModel @Inject constructor(
                 when (event) {
                     is CommentWsEvent.CommentCreated -> handleCommentCreated(event.payload)
                     is CommentWsEvent.CommentDeleted -> handleCommentDeleted(event.payload)
-                    is CommentWsEvent.Error -> Unit
+                    is CommentWsEvent.Closed -> scheduleReconnect()
+                    is CommentWsEvent.Error -> {
+                        AppLogger.w(
+                            TAG,
+                            "trip ideas socket error, scheduling reconnect",
+                            event.cause
+                        )
+                        scheduleReconnect()
+                    }
                 }
             }
+        }
+    }
+
+    private fun scheduleReconnect() {
+        if (reconnectJob?.isActive == true) return
+        reconnectJob = viewModelScope.launch {
+            delay(1_500L)
+            connectSocket()
         }
     }
 
@@ -321,3 +343,5 @@ private data class Quadruple<A, B, C, D>(
     val third: C,
     val fourth: D,
 )
+
+private const val TAG = "TripIdeasVM"

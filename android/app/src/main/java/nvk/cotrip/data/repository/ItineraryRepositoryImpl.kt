@@ -1,6 +1,10 @@
 package nvk.cotrip.data.repository
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.launch
 import nvk.cotrip.data.cache.ItineraryCacheStore
 import nvk.cotrip.data.network.CoTripApi
 import nvk.cotrip.data.network.NetworkStateProvider
@@ -32,19 +36,23 @@ class ItineraryRepositoryImpl @Inject constructor(
         private const val TAG = "ItineraryRepository"
     }
 
+    private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     override fun observeItinerary(tripId: String): Flow<List<ItineraryDayDto>> {
         return itineraryCacheStore.observeItinerary(tripId)
     }
 
-    override suspend fun getItinerary(tripId: String): Flow<List<ItineraryDayDto>> {
+    override fun getItinerary(tripId: String): Flow<List<ItineraryDayDto>> {
         if (networkStateProvider.isOnline()) {
-            runCatching {
-                val itinerary = api.getItinerary(tripId).items
-                safeLocalMutation("getItinerary.setItinerary(tripId=$tripId)") {
-                    itineraryCacheStore.setItinerary(tripId, itinerary)
+            ioScope.launch {
+                runCatching {
+                    val itinerary = api.getItinerary(tripId).items
+                    safeLocalMutation("getItinerary.setItinerary(tripId=$tripId)") {
+                        itineraryCacheStore.setItinerary(tripId, itinerary)
+                    }
+                }.onFailure { error ->
+                    AppLogger.w(TAG, "getItinerary network fetch failed for tripId=$tripId", error)
                 }
-            }.onFailure { error ->
-                AppLogger.w(TAG, "getItinerary network fetch failed for tripId=$tripId", error)
             }
         }
         return itineraryCacheStore.observeItinerary(tripId)

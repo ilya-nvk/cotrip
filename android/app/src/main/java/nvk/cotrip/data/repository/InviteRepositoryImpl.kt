@@ -1,14 +1,17 @@
 package nvk.cotrip.data.repository
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.launch
 import nvk.cotrip.data.cache.InviteCacheStore
 import nvk.cotrip.data.network.CoTripApi
 import nvk.cotrip.data.network.NetworkStateProvider
 import nvk.cotrip.data.network.dto.InviteInfoDto
 import nvk.cotrip.data.network.dto.InviteLinkDto
 import nvk.cotrip.util.AppLogger
-import java.io.IOException
 import javax.inject.Inject
 
 class InviteRepositoryImpl @Inject constructor(
@@ -21,25 +24,27 @@ class InviteRepositoryImpl @Inject constructor(
         private const val TAG = "InviteRepository"
     }
 
+    private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     override suspend fun createInvite(tripId: String): InviteLinkDto {
         return api.createInvite(tripId)
     }
 
-    override suspend fun getInvite(token: String): Flow<InviteInfoDto> {
+    override fun getInvite(token: String): Flow<InviteInfoDto> {
         if (networkStateProvider.isOnline()) {
-            runCatching { api.getInvite(token) }
-                .onSuccess { invite ->
-                    safeLocalMutation("getInvite.setInvite(token=$token)") {
-                        inviteCacheStore.setInvite(token, invite)
+            ioScope.launch {
+                runCatching { api.getInvite(token) }
+                    .onSuccess { invite ->
+                        safeLocalMutation("getInvite.setInvite(token=$token)") {
+                            inviteCacheStore.setInvite(token, invite)
+                        }
                     }
-                }
-                .onFailure { error ->
-                    AppLogger.w(TAG, "getInvite network fetch failed token=$token", error)
-                }
+                    .onFailure { error ->
+                        AppLogger.w(TAG, "getInvite network fetch failed token=$token", error)
+                    }
+            }
         }
-        return inviteCacheStore.observeInvite(token).map { cached ->
-            cached ?: throw IOException("Invite token $token is not available in cache")
-        }
+        return inviteCacheStore.observeInvite(token).mapNotNull { it }
     }
 
     override suspend fun acceptInvite(token: String): String {

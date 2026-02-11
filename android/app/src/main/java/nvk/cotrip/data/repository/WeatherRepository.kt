@@ -4,7 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import nvk.cotrip.data.network.dto.WeatherForecastResponseDto
 
 interface WeatherRepository {
-    suspend fun getWeather(
+    fun getWeather(
         tripId: String,
         city: String,
         start: String? = null,

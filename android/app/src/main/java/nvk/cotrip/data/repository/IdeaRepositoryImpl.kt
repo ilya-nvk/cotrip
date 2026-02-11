@@ -1,7 +1,11 @@
 package nvk.cotrip.data.repository
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.launch
 import nvk.cotrip.data.cache.IdeaCommentsCacheStore
 import nvk.cotrip.data.cache.IdeasCacheStore
 import nvk.cotrip.data.network.CoTripApi
@@ -31,25 +35,27 @@ class IdeaRepositoryImpl @Inject constructor(
         private const val TAG = "IdeaRepository"
     }
 
+    private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     override fun observeIdeas(tripId: String): Flow<List<IdeaDto>> {
         return ideasCacheStore.observeIdeas(tripId)
     }
 
-    override suspend fun getIdea(ideaId: String): Flow<IdeaDto> {
+    override fun getIdea(ideaId: String): Flow<IdeaDto> {
         if (networkStateProvider.isOnline()) {
-            runCatching { api.getIdea(ideaId) }
-                .onSuccess { idea ->
-                    safeLocalMutation("getIdea.upsertIdea(ideaId=$ideaId)") {
-                        ideasCacheStore.upsertIdea(idea.tripId, idea)
+            ioScope.launch {
+                runCatching { api.getIdea(ideaId) }
+                    .onSuccess { idea ->
+                        safeLocalMutation("getIdea.upsertIdea(ideaId=$ideaId)") {
+                            ideasCacheStore.upsertIdea(idea.tripId, idea)
+                        }
                     }
-                }
-                .onFailure { error ->
-                    AppLogger.w(TAG, "getIdea network fetch failed for ideaId=$ideaId", error)
-                }
+                    .onFailure { error ->
+                        AppLogger.w(TAG, "getIdea network fetch failed for ideaId=$ideaId", error)
+                    }
+            }
         }
-        return ideasCacheStore.observeIdeaById(ideaId).map { cached ->
-            cached ?: throw IOException("Idea $ideaId is not available in cache")
-        }
+        return ideasCacheStore.observeIdeaById(ideaId).mapNotNull { it }
     }
 
     override fun observeComments(ideaId: String): Flow<List<CommentDto>> {

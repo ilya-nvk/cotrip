@@ -17,6 +17,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 sealed interface CommentWsEvent {
     data class CommentCreated(val payload: CommentCreatedPayload) : CommentWsEvent
     data class CommentDeleted(val payload: CommentDeletedPayload) : CommentWsEvent
+    data class Closed(val code: Int, val reason: String) : CommentWsEvent
     data class Error(val cause: Throwable) : CommentWsEvent
 }
 
@@ -53,11 +54,18 @@ class CommentsWebSocket(
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 connected.set(false)
+                this@CommentsWebSocket.webSocket = null
                 _events.tryEmit(CommentWsEvent.Error(t))
             }
 
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
                 connected.set(false)
+                this@CommentsWebSocket.webSocket = null
+                _events.tryEmit(CommentWsEvent.Closed(code, reason))
+            }
+
+            override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
+                webSocket.close(code, reason)
             }
         })
     }

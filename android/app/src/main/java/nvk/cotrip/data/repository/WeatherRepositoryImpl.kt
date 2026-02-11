@@ -1,7 +1,11 @@
 package nvk.cotrip.data.repository
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.launch
 import nvk.cotrip.data.cache.WeatherCacheStore
 import nvk.cotrip.data.network.CoTripApi
 import nvk.cotrip.data.network.NetworkStateProvider
@@ -20,7 +24,9 @@ class WeatherRepositoryImpl @Inject constructor(
         private const val TAG = "WeatherRepository"
     }
 
-    override suspend fun getWeather(
+    private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    override fun getWeather(
         tripId: String,
         city: String,
         start: String?,
@@ -28,19 +34,19 @@ class WeatherRepositoryImpl @Inject constructor(
     ): Flow<WeatherForecastResponseDto> {
         val cacheKey = cacheKey(tripId = tripId, city = city, start = start, end = end)
         if (networkStateProvider.isOnline()) {
-            runCatching {
-                api.getWeather(tripId = tripId, city = city, start = start, end = end)
-            }.onSuccess { response ->
-                safeLocalMutation("getWeather.setWeather(key=$cacheKey)") {
-                    weatherCacheStore.setWeather(cacheKey, response)
+            ioScope.launch {
+                runCatching {
+                    api.getWeather(tripId = tripId, city = city, start = start, end = end)
+                }.onSuccess { response ->
+                    safeLocalMutation("getWeather.setWeather(key=$cacheKey)") {
+                        weatherCacheStore.setWeather(cacheKey, response)
+                    }
+                }.onFailure { error ->
+                    AppLogger.w(TAG, "getWeather network fetch failed key=$cacheKey", error)
                 }
-            }.onFailure { error ->
-                AppLogger.w(TAG, "getWeather network fetch failed key=$cacheKey", error)
             }
         }
-        return weatherCacheStore.observeWeather(cacheKey).map { cached ->
-            cached ?: throw IOException("Weather $cacheKey is not available in cache")
-        }
+        return weatherCacheStore.observeWeather(cacheKey).mapNotNull { it }
     }
 
     override suspend fun refreshWeather(

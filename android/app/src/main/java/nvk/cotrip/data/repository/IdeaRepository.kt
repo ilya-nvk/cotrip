@@ -9,7 +9,7 @@ import nvk.cotrip.data.network.dto.UpdateIdeaRequest
 
 interface IdeaRepository {
     fun observeIdeas(tripId: String): Flow<List<IdeaDto>>
-    suspend fun getIdea(ideaId: String): Flow<IdeaDto>
+    fun getIdea(ideaId: String): Flow<IdeaDto>
     fun observeComments(ideaId: String): Flow<List<CommentDto>>
     suspend fun createIdea(tripId: String, request: CreateIdeaRequest): IdeaDto
     suspend fun updateIdea(ideaId: String, request: UpdateIdeaRequest)

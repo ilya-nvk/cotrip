@@ -13,7 +13,7 @@ import nvk.cotrip.data.network.dto.UpdateDayRequest
 
 interface ItineraryRepository {
     fun observeItinerary(tripId: String): Flow<List<ItineraryDayDto>>
-    suspend fun getItinerary(tripId: String): Flow<List<ItineraryDayDto>>
+    fun getItinerary(tripId: String): Flow<List<ItineraryDayDto>>
     suspend fun refreshItinerary(tripId: String): Result<Unit>
     suspend fun searchCities(tripId: String, query: String, limit: Int = 8): List<CitySuggestionDto>
     suspend fun searchPlaces(tripId: String, query: String, limit: Int = 8): List<PlaceSuggestionDto>

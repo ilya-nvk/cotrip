@@ -7,7 +7,7 @@ import nvk.cotrip.data.network.dto.ExpenseUpdateRequest
 
 interface ExpenseRepository {
     fun observeExpenses(tripId: String): Flow<List<ExpenseDto>>
-    suspend fun getExpense(expenseId: String): Flow<ExpenseDto>
+    fun getExpense(expenseId: String): Flow<ExpenseDto>
     suspend fun createExpense(tripId: String, request: ExpenseCreateRequest): ExpenseDto
     suspend fun updateExpense(expenseId: String, request: ExpenseUpdateRequest)
     suspend fun deleteExpense(expenseId: String)

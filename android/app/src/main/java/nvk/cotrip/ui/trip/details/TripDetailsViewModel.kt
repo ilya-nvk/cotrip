@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nvk.cotrip.data.network.ApiCaller
@@ -29,6 +30,7 @@ import nvk.cotrip.ui.components.AvatarStackItem
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import nvk.cotrip.ui.trip.form.TripCurrency
+import nvk.cotrip.util.AppLogger
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -57,6 +59,7 @@ class TripDetailsViewModel @Inject constructor(
 
     init {
         observeCachedTripData()
+        primeTripCache()
         refreshTripData(isUserRefresh = false)
     }
 
@@ -150,23 +153,44 @@ class TripDetailsViewModel @Inject constructor(
         viewModelScope.launch {
             val membersFlow = runCatching { tripRepository.tripMembers(tripId) }
                 .getOrElse { flowOf(emptyList()) }
+            val tripFlow = tripRepository.trips.map { trips ->
+                trips.firstOrNull { it.id == tripId }
+            }
             combine(
-                tripRepository.getTrip(tripId),
+                tripFlow,
                 membersFlow,
                 ideaRepository.observeIdeas(tripId),
                 expenseRepository.observeExpenses(tripId),
                 userRepository.me,
             ) { trip, members, ideas, expenses, me ->
-                LoadedTrip(
-                    trip = trip,
-                    members = members,
-                    ideas = ideas,
-                    expenses = expenses,
-                    isOwner = me?.id == trip.ownerId,
-                )
+                if (trip == null) {
+                    null
+                } else {
+                    LoadedTrip(
+                        trip = trip,
+                        members = members,
+                        ideas = ideas,
+                        expenses = expenses,
+                        isOwner = me?.id == trip.ownerId,
+                    )
+                }
             }.collect { loaded ->
+                if (loaded == null) return@collect
                 val current = _state.value
                 _state.value = buildState(loaded).copy(isRefreshing = current.isRefreshing)
+                AppLogger.i(TAG, "trip details state updated for tripId=$tripId")
+            }
+        }
+    }
+
+    private fun primeTripCache() {
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    tripRepository.getTrip(tripId).first()
+                }
+            }.onFailure { error ->
+                AppLogger.w(TAG, "primeTripCache failed for tripId=$tripId", error)
             }
         }
     }
@@ -178,27 +202,65 @@ class TripDetailsViewModel @Inject constructor(
             }
             val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
-                    tripRepository.refreshTrips().getOrThrow()
-                    tripRepository.tripMembers(tripId).first()
-                    ideaRepository.refreshIdeas(tripId).getOrThrow()
-                    expenseRepository.refreshExpenses(tripId).getOrThrow()
+                    // Best-effort: list refresh may fail while direct trip fetch still works.
+                    runCatching { tripRepository.refreshTrips().getOrThrow() }
+                        .onFailure {
+                            AppLogger.w(
+                                TAG,
+                                "refreshTrips failed for tripId=$tripId",
+                                it
+                            )
+                        }
+                    // Mandatory: details screen depends on this trip being in cache.
+                    tripRepository.getTrip(tripId).first()
+                    runCatching { tripRepository.tripMembers(tripId).first() }
+                        .onFailure {
+                            AppLogger.w(
+                                TAG,
+                                "tripMembers refresh failed for tripId=$tripId",
+                                it
+                            )
+                        }
+                    runCatching { ideaRepository.refreshIdeas(tripId).getOrThrow() }
+                        .onFailure {
+                            AppLogger.w(
+                                TAG,
+                                "refreshIdeas failed for tripId=$tripId",
+                                it
+                            )
+                        }
+                    runCatching { expenseRepository.refreshExpenses(tripId).getOrThrow() }
+                        .onFailure {
+                            AppLogger.w(
+                                TAG,
+                                "refreshExpenses failed for tripId=$tripId",
+                                it
+                            )
+                        }
                 }
             }
 
             when (result) {
-                is ApiResult.Success -> _state.value = _state.value.copy(isRefreshing = false)
+                is ApiResult.Success -> {
+                    _state.value = _state.value.copy(isRefreshing = false)
+                    AppLogger.i(TAG, "refreshTripData success for tripId=$tripId")
+                }
 
                 is ApiResult.Failure -> {
                     _state.value = _state.value.copy(isRefreshing = false)
+                    AppLogger.w(
+                        TAG,
+                        "refreshTripData failed for tripId=$tripId code=${result.httpCode} apiCode=${result.error?.code.orEmpty()}",
+                        result.cause
+                    )
                     emitToast(uiErrorMapper.messageRes(result))
-                    if (_state.value.header.title.isBlank()) {
-                        appNavigator.popBackStack()
-                    }
                 }
             }
         }
     }
 }
+
+private const val TAG = "TripDetailsVM"
 
 private data class LoadedTrip(
     val trip: TripDto,
