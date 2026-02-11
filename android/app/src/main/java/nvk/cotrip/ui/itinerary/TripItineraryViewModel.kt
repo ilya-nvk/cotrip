@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -165,21 +166,18 @@ class TripItineraryViewModel @Inject constructor(
     private fun observeData() {
         viewModelScope.launch {
             combine(
-                tripRepository.observeTrip(tripId),
+                tripRepository.getTrip(tripId),
                 itineraryRepository.observeItinerary(tripId)
             ) { trip, itinerary -> Pair(trip, itinerary) }
                 .collect { (trip, itinerary) ->
-                    if (trip != null) {
-                        currencySymbol = currencySymbolFor(trip.currencyCode)
-                    }
+                    currencySymbol = currencySymbolFor(trip.currencyCode)
                     allCities = collectTripCities(itinerary)
                     val pendingCitySelectionCount = itinerary.count {
                         !it.isOutOfRange && it.city.isNullOrBlank()
                     }
 
                     val dayUis = itinerary.map { it.toUi(currencySymbol) }
-                    val dateRange = trip?.let { formatRange(it.startDate, it.endDate) }
-                        ?: _state.value.dateRange
+                    val dateRange = formatRange(trip.startDate, trip.endDate)
                     _state.update {
                         val picker = it.cityPicker
                         val updatedPicker = if (picker != null && picker.query.isBlank()) {
@@ -210,8 +208,8 @@ class TripItineraryViewModel @Inject constructor(
             }
             when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
-                    tripRepository.getTrip(tripId)
-                    itineraryRepository.refreshItinerary(tripId)
+                    tripRepository.getTrip(tripId).first()
+                    itineraryRepository.refreshItinerary(tripId).getOrThrow()
                 }
             }) {
                 is ApiResult.Success -> Unit
@@ -422,7 +420,10 @@ class TripItineraryViewModel @Inject constructor(
             }
 
             val latestDays = withContext(Dispatchers.IO) {
-                runCatching { itineraryRepository.refreshItinerary(tripId) }.getOrNull()
+                runCatching {
+                    itineraryRepository.refreshItinerary(tripId).getOrThrow()
+                    itineraryRepository.getItinerary(tripId).first()
+                }.getOrNull()
             }.orEmpty()
             val resolvedDay = latestDays.firstOrNull { it.date == picker.dayDate }
                 ?: latestDays.firstOrNull { it.dayNumber == picker.dayNumber }
@@ -457,7 +458,8 @@ class TripItineraryViewModel @Inject constructor(
 
             val appliedOnServer = withContext(Dispatchers.IO) {
                 runCatching {
-                    itineraryRepository.refreshItinerary(tripId).any { day ->
+                    itineraryRepository.refreshItinerary(tripId).getOrThrow()
+                    itineraryRepository.getItinerary(tripId).first().any { day ->
                         (day.id == targetDayId ||
                             day.date == picker.dayDate ||
                             day.dayNumber == picker.dayNumber) &&
@@ -523,7 +525,7 @@ class TripItineraryViewModel @Inject constructor(
             )
         }
         withContext(Dispatchers.IO) {
-            runCatching { itineraryRepository.refreshItinerary(tripId) }
+            runCatching { itineraryRepository.refreshItinerary(tripId).getOrThrow() }
         }
     }
 

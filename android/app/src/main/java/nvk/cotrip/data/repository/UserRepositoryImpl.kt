@@ -4,19 +4,22 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.runBlocking
 import nvk.cotrip.data.auth.SessionStore
 import nvk.cotrip.data.cache.ExpensesCacheStore
+import nvk.cotrip.data.cache.IdeaCommentsCacheStore
 import nvk.cotrip.data.cache.IdeasCacheStore
+import nvk.cotrip.data.cache.InviteCacheStore
 import nvk.cotrip.data.cache.ItineraryCacheStore
+import nvk.cotrip.data.cache.NotificationsCacheStore
+import nvk.cotrip.data.cache.TripMembersCacheStore
 import nvk.cotrip.data.cache.TripsCacheStore
 import nvk.cotrip.data.cache.UserCacheStore
+import nvk.cotrip.data.cache.WeatherCacheStore
 import nvk.cotrip.data.network.CoTripApi
-import nvk.cotrip.data.network.NetworkStateProvider
 import nvk.cotrip.data.network.dto.UpdateUserRequest
 import nvk.cotrip.data.network.dto.UserDto
 import nvk.cotrip.data.network.requireSuccess
 import nvk.cotrip.data.sync.SyncStateStore
 import nvk.cotrip.util.AppLogger
 import retrofit2.HttpException
-import java.io.IOException
 import javax.inject.Inject
 
 class UserRepositoryImpl @Inject constructor(
@@ -25,10 +28,14 @@ class UserRepositoryImpl @Inject constructor(
     private val userCacheStore: UserCacheStore,
     private val tripsCacheStore: TripsCacheStore,
     private val ideasCacheStore: IdeasCacheStore,
+    private val ideaCommentsCacheStore: IdeaCommentsCacheStore,
     private val expensesCacheStore: ExpensesCacheStore,
     private val itineraryCacheStore: ItineraryCacheStore,
+    private val tripMembersCacheStore: TripMembersCacheStore,
+    private val inviteCacheStore: InviteCacheStore,
+    private val weatherCacheStore: WeatherCacheStore,
+    private val notificationsCacheStore: NotificationsCacheStore,
     private val syncStateStore: SyncStateStore,
-    private val networkStateProvider: NetworkStateProvider,
 ) : UserRepository {
 
     private companion object {
@@ -36,22 +43,6 @@ class UserRepositoryImpl @Inject constructor(
     }
 
     override val me: Flow<UserDto?> = userCacheStore.user
-
-    override suspend fun getMe(): UserDto {
-        if (!networkStateProvider.isOnline()) {
-            return userCacheStore.getUser()
-                ?: throw IOException("User profile is not available offline")
-        }
-        return try {
-            val user = api.getMe()
-            safeLocalMutation("getMe.setUser") {
-                userCacheStore.setUser(user)
-            }
-            user
-        } catch (e: IOException) {
-            userCacheStore.getUser() ?: throw e
-        }
-    }
 
     override suspend fun refreshMe(): Result<Unit> {
         return try {
@@ -98,8 +89,13 @@ class UserRepositoryImpl @Inject constructor(
         userCacheStore.clear()
         tripsCacheStore.clear()
         ideasCacheStore.clearAll()
+        ideaCommentsCacheStore.clearAll()
         expensesCacheStore.clearAll()
         itineraryCacheStore.clearAll()
+        tripMembersCacheStore.clearAll()
+        inviteCacheStore.clear()
+        weatherCacheStore.clear()
+        notificationsCacheStore.clear()
         syncStateStore.clear()
     }
 }

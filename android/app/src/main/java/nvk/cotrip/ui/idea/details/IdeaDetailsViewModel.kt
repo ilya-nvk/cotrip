@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -143,14 +144,20 @@ class IdeaDetailsViewModel @Inject constructor(
         viewModelScope.launch {
             when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
-                    val idea = ideaRepository.getIdea(ideaId)
-                    val trip = tripRepository.getTrip(tripId)
-                    val me = userRepository.getMe()
-                    val itinerary = runCatching { itineraryRepository.getItinerary(tripId) }
+                    val idea = ideaRepository.getIdea(ideaId).first()
+                    val trip = tripRepository.getTrip(tripId).first()
+                    val me = checkNotNull(userRepository.me.first())
+                    val itinerary = runCatching {
+                        itineraryRepository.refreshItinerary(tripId).getOrThrow()
+                        itineraryRepository.getItinerary(tripId).first()
+                    }
                         .getOrDefault(emptyList())
-                    val members = runCatching { tripRepository.listMembers(tripId) }
+                    val members = runCatching { tripRepository.tripMembers(tripId).first() }
                         .getOrDefault(emptyList())
-                    val comments = runCatching { ideaRepository.listComments(ideaId) }
+                    val comments = runCatching {
+                        ideaRepository.refreshComments(ideaId).getOrThrow()
+                        ideaRepository.observeComments(ideaId).first()
+                    }
                         .getOrDefault(emptyList())
 
                     currencySymbol = currencySymbolFor(trip.currencyCode)
@@ -281,7 +288,7 @@ class IdeaDetailsViewModel @Inject constructor(
             }) {
                 is ApiResult.Success -> {
                     withContext(Dispatchers.IO) {
-                        itineraryRepository.refreshItinerary(tripId)
+                        itineraryRepository.refreshItinerary(tripId).getOrThrow()
                     }
                     _state.update { it.copy(addedDay = day.dayNumber) }
                     emit(IdeaDetailsEffect.ShowToastRes(R.string.idea_details_added_toast))
@@ -364,7 +371,8 @@ class IdeaDetailsViewModel @Inject constructor(
             runCatching {
                 withContext(Dispatchers.IO) {
                     systemNotificationManager.onIdeaDiscussionRead(ideaId)
-                    val items = notificationRepository.listNotifications()
+                    notificationRepository.refreshNotifications().getOrThrow()
+                    val items = notificationRepository.notifications.first()
                     val toMark = items.filter { item ->
                         item.readAt == null &&
                             item.type == "idea_comment" &&
@@ -372,7 +380,7 @@ class IdeaDetailsViewModel @Inject constructor(
                                 item.payload.jsonObject["ideaId"]?.jsonPrimitive?.contentOrNull == ideaId
                             }.getOrDefault(false)
                     }
-                    toMark.forEach { item ->
+                    for (item in toMark) {
                         runCatching { notificationRepository.markRead(item.id) }
                         systemNotificationManager.onMarkedRead(item.id)
                     }

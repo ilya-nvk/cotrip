@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nvk.cotrip.data.network.ApiCaller
@@ -147,16 +148,15 @@ class TripDetailsViewModel @Inject constructor(
     private fun observeCachedTripData() {
         viewModelScope.launch {
             combine(
-                tripRepository.observeTrip(tripId),
+                tripRepository.getTrip(tripId),
                 ideaRepository.observeIdeas(tripId),
                 expenseRepository.observeExpenses(tripId)
             ) { trip, ideas, expenses ->
                 Triple(trip, ideas, expenses)
             }.collect { (trip, ideas, expenses) ->
-                val resolvedTrip = trip ?: return@collect
                 val current = _state.value
                 val loaded = LoadedTrip(
-                    trip = resolvedTrip,
+                    trip = trip,
                     members = emptyList(),
                     ideas = ideas,
                     expenses = expenses,
@@ -183,11 +183,13 @@ class TripDetailsViewModel @Inject constructor(
             }
             val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
-                    val trip = tripRepository.getTrip(tripId)
-                    val members = tripRepository.listMembers(tripId)
-                    val ideas = ideaRepository.refreshIdeas(tripId)
-                    val expenses = expenseRepository.refreshExpenses(tripId)
-                    val meId = runCatching { userRepository.getMe().id }.getOrNull()
+                    val trip = tripRepository.getTrip(tripId).first()
+                    val members = tripRepository.tripMembers(tripId).first()
+                    ideaRepository.refreshIdeas(tripId).getOrThrow()
+                    expenseRepository.refreshExpenses(tripId).getOrThrow()
+                    val ideas = ideaRepository.observeIdeas(tripId).first()
+                    val expenses = expenseRepository.observeExpenses(tripId).first()
+                    val meId = runCatching { userRepository.me.first()?.id }.getOrNull()
                     LoadedTrip(
                         trip = trip,
                         members = members,

@@ -1,26 +1,26 @@
 package nvk.cotrip.data.repository
 
-import java.io.IOException
-import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import nvk.cotrip.data.cache.ItineraryCacheStore
 import nvk.cotrip.data.network.CoTripApi
 import nvk.cotrip.data.network.NetworkStateProvider
-import nvk.cotrip.data.network.requireSuccess
 import nvk.cotrip.data.network.dto.ActivityDto
+import nvk.cotrip.data.network.dto.CitySuggestionDto
 import nvk.cotrip.data.network.dto.CreateActivityRequest
 import nvk.cotrip.data.network.dto.ItineraryDayDto
 import nvk.cotrip.data.network.dto.MoveActivityRequest
+import nvk.cotrip.data.network.dto.PlaceSuggestionDto
 import nvk.cotrip.data.network.dto.ReorderActivitiesRequest
 import nvk.cotrip.data.network.dto.TrimOutOfRangeRequest
 import nvk.cotrip.data.network.dto.UpdateActivityRequest
 import nvk.cotrip.data.network.dto.UpdateDayRequest
-import nvk.cotrip.data.network.dto.CitySuggestionDto
-import nvk.cotrip.data.network.dto.PlaceSuggestionDto
+import nvk.cotrip.data.network.requireSuccess
 import nvk.cotrip.data.sync.SyncEntities
 import nvk.cotrip.data.sync.SyncQueueRepository
 import nvk.cotrip.util.AppLogger
 import retrofit2.HttpException
+import java.io.IOException
+import javax.inject.Inject
 
 class ItineraryRepositoryImpl @Inject constructor(
     private val api: CoTripApi,
@@ -36,19 +36,27 @@ class ItineraryRepositoryImpl @Inject constructor(
         return itineraryCacheStore.observeItinerary(tripId)
     }
 
-    override suspend fun getItinerary(tripId: String): List<ItineraryDayDto> {
-        if (!networkStateProvider.isOnline()) {
-            return itineraryCacheStore.getItinerary(tripId)
+    override suspend fun getItinerary(tripId: String): Flow<List<ItineraryDayDto>> {
+        if (networkStateProvider.isOnline()) {
+            runCatching {
+                val itinerary = api.getItinerary(tripId).items
+                safeLocalMutation("getItinerary.setItinerary(tripId=$tripId)") {
+                    itineraryCacheStore.setItinerary(tripId, itinerary)
+                }
+            }.onFailure { error ->
+                AppLogger.w(TAG, "getItinerary network fetch failed for tripId=$tripId", error)
+            }
         }
-        return refreshItinerary(tripId)
+        return itineraryCacheStore.observeItinerary(tripId)
     }
 
-    override suspend fun refreshItinerary(tripId: String): List<ItineraryDayDto> {
-        val itinerary = api.getItinerary(tripId).items
-        safeLocalMutation("refreshItinerary.setItinerary(tripId=$tripId)") {
-            itineraryCacheStore.setItinerary(tripId, itinerary)
+    override suspend fun refreshItinerary(tripId: String): Result<Unit> {
+        return runCatching {
+            val itinerary = api.getItinerary(tripId).items
+            safeLocalMutation("refreshItinerary.setItinerary(tripId=$tripId)") {
+                itineraryCacheStore.setItinerary(tripId, itinerary)
+            }
         }
-        return itinerary
     }
 
     override suspend fun searchCities(tripId: String, query: String, limit: Int): List<CitySuggestionDto> {
@@ -192,7 +200,7 @@ class ItineraryRepositoryImpl @Inject constructor(
 
     override suspend fun trimOutOfRange(tripId: String, request: TrimOutOfRangeRequest) {
         api.trimOutOfRangeDays(tripId, request).requireSuccess()
-        refreshItinerary(tripId)
+        refreshItinerary(tripId).getOrThrow()
     }
 
     private suspend fun findTripIdForDay(dayId: String): String? {

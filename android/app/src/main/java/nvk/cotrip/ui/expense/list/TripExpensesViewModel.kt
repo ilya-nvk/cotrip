@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -92,11 +93,11 @@ class TripExpensesViewModel @Inject constructor(
         viewModelScope.launch {
             combine(
                 expenseRepository.observeExpenses(tripId),
-                tripRepository.observeTrip(tripId),
+                tripRepository.getTrip(tripId),
                 membersState,
                 meIdState
             ) { expenses, trip, members, meId ->
-                if (trip == null || meId == null) {
+                if (meId == null) {
                     null
                 } else {
                     ExpensesPayload(
@@ -174,10 +175,10 @@ class TripExpensesViewModel @Inject constructor(
             }
             when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
-                    tripRepository.getTrip(tripId)
-                    expenseRepository.refreshExpenses(tripId)
-                    val members = tripRepository.listMembers(tripId)
-                    val me = userRepository.getMe()
+                    tripRepository.getTrip(tripId).first()
+                    expenseRepository.refreshExpenses(tripId).getOrThrow()
+                    val members = tripRepository.tripMembers(tripId).first()
+                    val me = checkNotNull(userRepository.me.first())
                     membersState.value = members
                     meIdState.value = me.id
                 }

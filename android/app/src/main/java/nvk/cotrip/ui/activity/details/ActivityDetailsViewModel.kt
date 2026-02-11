@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nvk.cotrip.R
@@ -141,10 +142,10 @@ class ActivityDetailsViewModel @Inject constructor(
     }
 
     private suspend fun findActivity(activityId: String): ActivityLookup {
-        val trips = tripRepository.listTrips()
-        trips.forEach { trip ->
-            val itinerary = itineraryRepository.getItinerary(trip.id)
-            itinerary.forEach { day ->
+        val trips = tripRepository.trips.first()
+        for (trip in trips) {
+            val itinerary = itineraryRepository.getItinerary(trip.id).first()
+            for (day in itinerary) {
                 val match = day.activities.firstOrNull { it.id == activityId }
                 if (match != null) {
                     return ActivityLookup(trip, day, match)

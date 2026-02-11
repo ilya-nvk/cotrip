@@ -3,19 +3,15 @@ package nvk.cotrip.ui.notifications
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import java.time.OffsetDateTime
-import java.time.format.DateTimeFormatter
-import java.util.Locale
-import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import nvk.cotrip.R
 import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.network.dto.NotificationDto
@@ -23,6 +19,10 @@ import nvk.cotrip.data.repository.NotificationRepository
 import nvk.cotrip.notifications.SystemNotificationManager
 import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.navigation.AppNavigator
+import java.time.OffsetDateTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
+import javax.inject.Inject
 
 @HiltViewModel
 class NotificationsViewModel @Inject constructor(
@@ -60,7 +60,10 @@ class NotificationsViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) { notificationRepository.listNotifications() }
+                withContext(Dispatchers.IO) {
+                    notificationRepository.refreshNotifications().getOrThrow()
+                    notificationRepository.notifications.first()
+                }
             }) {
                 is ApiResult.Success -> {
                     val items = result.data.map { it.toUi() }

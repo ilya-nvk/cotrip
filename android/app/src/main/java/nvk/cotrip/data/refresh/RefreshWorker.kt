@@ -11,6 +11,7 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import kotlinx.coroutines.flow.first
 import nvk.cotrip.data.auth.SessionStore
 import nvk.cotrip.data.network.NetworkStateProvider
 import nvk.cotrip.data.repository.NotificationRepository
@@ -55,7 +56,8 @@ class RefreshWorker @AssistedInject constructor(
         val syncResult = syncPullRepository.pull()
         val tripsResult = tripRepository.refreshTrips()
         val meResult = userRepository.refreshMe()
-        val notificationsResult = runCatching { notificationRepository.listNotifications() }
+        val notificationsRefreshResult = notificationRepository.refreshNotifications()
+        val notificationsResult = runCatching { notificationRepository.notifications.first() }
         notificationsResult.getOrNull()?.let { items ->
             AppLogger.i(TAG, "notifications fetched: count=${items.size}")
             systemNotificationManager.syncWithServer(items)
@@ -69,6 +71,7 @@ class RefreshWorker @AssistedInject constructor(
             syncResult.isSuccess &&
             tripsResult.isSuccess &&
             meResult.isSuccess &&
+            notificationsRefreshResult.isSuccess &&
             notificationsResult.isSuccess
         ) {
             AppLogger.i(TAG, "cycle completed successfully")

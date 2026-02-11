@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -166,7 +167,12 @@ class SettingsViewModel @Inject constructor(
     private fun loadProfile() {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
-            when (val result = apiCaller.call { withContext(Dispatchers.IO) { userRepository.getMe() } }) {
+            when (val result = apiCaller.call {
+                withContext(Dispatchers.IO) {
+                    userRepository.refreshMe().getOrThrow()
+                    checkNotNull(userRepository.me.first())
+                }
+            }) {
                 is ApiResult.Success -> {
                     val user = result.data
                     originalName = user.name
@@ -195,7 +201,10 @@ class SettingsViewModel @Inject constructor(
     private fun loadNotificationSettings() {
         viewModelScope.launch {
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) { notificationRepository.listSettings() }
+                withContext(Dispatchers.IO) {
+                    notificationRepository.refreshSettings().getOrThrow()
+                    notificationRepository.settings.first()
+                }
             }) {
                 is ApiResult.Success -> applyNotificationSettings(result.data)
                 is ApiResult.Failure ->
@@ -231,7 +240,10 @@ class SettingsViewModel @Inject constructor(
                 }
             }
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) { notificationRepository.updateSettings(payload) }
+                withContext(Dispatchers.IO) {
+                    notificationRepository.updateSettings(payload).getOrThrow()
+                    notificationRepository.settings.first()
+                }
             }) {
                 is ApiResult.Success -> applyNotificationSettings(result.data)
                 is ApiResult.Failure -> {

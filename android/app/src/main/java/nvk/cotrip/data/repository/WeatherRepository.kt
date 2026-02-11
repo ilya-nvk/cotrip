@@ -1,5 +1,6 @@
 package nvk.cotrip.data.repository
 
+import kotlinx.coroutines.flow.Flow
 import nvk.cotrip.data.network.dto.WeatherForecastResponseDto
 
 interface WeatherRepository {
@@ -8,12 +9,12 @@ interface WeatherRepository {
         city: String,
         start: String? = null,
         end: String? = null,
-    ): WeatherForecastResponseDto
+    ): Flow<WeatherForecastResponseDto>
 
     suspend fun refreshWeather(
         tripId: String,
         city: String,
         start: String? = null,
         end: String? = null,
-    ): WeatherForecastResponseDto
+    ): Result<Unit>
 }

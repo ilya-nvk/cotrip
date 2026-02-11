@@ -4,12 +4,12 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -21,6 +21,7 @@ import nvk.cotrip.data.repository.UserRepository
 import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
+import javax.inject.Inject
 
 @HiltViewModel
 class TripMembersViewModel @Inject constructor(
@@ -67,9 +68,9 @@ class TripMembersViewModel @Inject constructor(
             _state.update { it.copy(isLoading = true) }
             val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
-                    val trip = tripRepository.getTrip(tripId)
-                    val members = tripRepository.listMembers(tripId)
-                    val me = userRepository.getMe()
+                    val trip = tripRepository.getTrip(tripId).first()
+                    val members = tripRepository.tripMembers(tripId).first()
+                    val me = checkNotNull(userRepository.me.first())
                     MembersPayload(
                         title = trip.title,
                         members = members.map {

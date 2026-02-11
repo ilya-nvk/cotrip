@@ -7,7 +7,6 @@ import nvk.cotrip.data.network.dto.UserDto
 interface UserRepository {
     val me: Flow<UserDto?>
 
-    suspend fun getMe(): UserDto
     suspend fun refreshMe(): Result<Unit>
     suspend fun updateMe(request: UpdateUserRequest): UserDto
     suspend fun deleteMe()

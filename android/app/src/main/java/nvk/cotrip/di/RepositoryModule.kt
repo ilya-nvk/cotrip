@@ -6,14 +6,24 @@ import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import nvk.cotrip.data.cache.ExpensesCacheStore
 import nvk.cotrip.data.cache.ExpensesCacheStoreImpl
+import nvk.cotrip.data.cache.IdeaCommentsCacheStore
+import nvk.cotrip.data.cache.IdeaCommentsCacheStoreImpl
 import nvk.cotrip.data.cache.IdeasCacheStore
 import nvk.cotrip.data.cache.IdeasCacheStoreImpl
+import nvk.cotrip.data.cache.InviteCacheStore
+import nvk.cotrip.data.cache.InviteCacheStoreImpl
 import nvk.cotrip.data.cache.ItineraryCacheStore
 import nvk.cotrip.data.cache.ItineraryCacheStoreImpl
+import nvk.cotrip.data.cache.NotificationsCacheStore
+import nvk.cotrip.data.cache.NotificationsCacheStoreImpl
+import nvk.cotrip.data.cache.TripMembersCacheStore
+import nvk.cotrip.data.cache.TripMembersCacheStoreImpl
 import nvk.cotrip.data.cache.TripsCacheStore
 import nvk.cotrip.data.cache.TripsCacheStoreImpl
 import nvk.cotrip.data.cache.UserCacheStore
 import nvk.cotrip.data.cache.UserCacheStoreImpl
+import nvk.cotrip.data.cache.WeatherCacheStore
+import nvk.cotrip.data.cache.WeatherCacheStoreImpl
 import nvk.cotrip.data.repository.AiSuggestionsRepository
 import nvk.cotrip.data.repository.AiSuggestionsRepositoryImpl
 import nvk.cotrip.data.repository.AuthRepository
@@ -61,6 +71,12 @@ abstract class RepositoryModule {
 
     @Binds
     @Singleton
+    abstract fun bindIdeaCommentsCacheStore(
+        impl: IdeaCommentsCacheStoreImpl
+    ): IdeaCommentsCacheStore
+
+    @Binds
+    @Singleton
     abstract fun bindExpensesCacheStore(
         impl: ExpensesCacheStoreImpl
     ): ExpensesCacheStore
@@ -70,6 +86,30 @@ abstract class RepositoryModule {
     abstract fun bindItineraryCacheStore(
         impl: ItineraryCacheStoreImpl
     ): ItineraryCacheStore
+
+    @Binds
+    @Singleton
+    abstract fun bindTripMembersCacheStore(
+        impl: TripMembersCacheStoreImpl
+    ): TripMembersCacheStore
+
+    @Binds
+    @Singleton
+    abstract fun bindNotificationsCacheStore(
+        impl: NotificationsCacheStoreImpl
+    ): NotificationsCacheStore
+
+    @Binds
+    @Singleton
+    abstract fun bindInviteCacheStore(
+        impl: InviteCacheStoreImpl
+    ): InviteCacheStore
+
+    @Binds
+    @Singleton
+    abstract fun bindWeatherCacheStore(
+        impl: WeatherCacheStoreImpl
+    ): WeatherCacheStore
 
     @Binds
     @Singleton

@@ -1,6 +1,7 @@
 package nvk.cotrip.data.repository
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import nvk.cotrip.data.cache.ExpensesCacheStore
 import nvk.cotrip.data.network.CoTripApi
 import nvk.cotrip.data.network.NetworkStateProvider
@@ -30,22 +31,24 @@ class ExpenseRepositoryImpl @Inject constructor(
         return expensesCacheStore.observeExpenses(tripId)
     }
 
-    override suspend fun listExpenses(tripId: String): List<ExpenseDto> {
-        if (!networkStateProvider.isOnline()) {
-            return expensesCacheStore.getExpenses(tripId)
+    override suspend fun getExpense(expenseId: String): Flow<ExpenseDto> {
+        if (networkStateProvider.isOnline()) {
+            runCatching { api.getExpense(expenseId) }
+                .onSuccess { expense ->
+                    safeLocalMutation("getExpense.upsertExpense(expenseId=$expenseId)") {
+                        expensesCacheStore.upsertExpense(expense.tripId, expense)
+                    }
+                }
+                .onFailure { error ->
+                    AppLogger.w(
+                        TAG,
+                        "getExpense network fetch failed for expenseId=$expenseId",
+                        error
+                    )
+                }
         }
-        return refreshExpenses(tripId)
-    }
-
-    override suspend fun getExpense(expenseId: String): ExpenseDto {
-        if (!networkStateProvider.isOnline()) {
-            return expensesCacheStore.findExpenseById(expenseId)
-                ?: throw IOException("Expense $expenseId is not available offline")
-        }
-        return try {
-            api.getExpense(expenseId)
-        } catch (e: IOException) {
-            expensesCacheStore.findExpenseById(expenseId) ?: throw e
+        return expensesCacheStore.observeExpenseById(expenseId).map { cached ->
+            cached ?: throw IOException("Expense $expenseId is not available in cache")
         }
     }
 
@@ -70,7 +73,9 @@ class ExpenseRepositoryImpl @Inject constructor(
     }
 
     override suspend fun deleteExpense(expenseId: String) {
-        val expenseTripId = runCatching { api.getExpense(expenseId).tripId }
+        val cachedTripId =
+            runCatching { expensesCacheStore.findExpenseById(expenseId)?.tripId }.getOrNull()
+        val expenseTripId = cachedTripId ?: runCatching { api.getExpense(expenseId).tripId }
             .onFailure { AppLogger.w(TAG, "deleteExpense prefetch failed for expenseId=$expenseId", it) }
             .getOrNull()
         try {
@@ -89,11 +94,12 @@ class ExpenseRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun refreshExpenses(tripId: String): List<ExpenseDto> {
-        val expenses = api.listExpenses(tripId).items
-        safeLocalMutation("refreshExpenses.setExpenses(tripId=$tripId)") {
-            expensesCacheStore.setExpenses(tripId, expenses)
+    override suspend fun refreshExpenses(tripId: String): Result<Unit> {
+        return runCatching {
+            val expenses = api.listExpenses(tripId).items
+            safeLocalMutation("refreshExpenses.setExpenses(tripId=$tripId)") {
+                expensesCacheStore.setExpenses(tripId, expenses)
+            }
         }
-        return expenses
     }
 }

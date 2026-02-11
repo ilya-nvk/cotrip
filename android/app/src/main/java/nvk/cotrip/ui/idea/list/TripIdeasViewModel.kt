@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -111,15 +112,13 @@ class TripIdeasViewModel @Inject constructor(
         viewModelScope.launch {
             combine(
                 ideaRepository.observeIdeas(tripId),
-                tripRepository.observeTrip(tripId),
+                tripRepository.getTrip(tripId),
                 itineraryRepository.observeItinerary(tripId),
                 isRefreshing,
             ) { ideas, trip, itinerary, refreshing ->
                 Quadruple(ideas, trip, itinerary, refreshing)
             }.collect { (ideas, trip, itinerary, refreshing) ->
-                if (trip != null) {
-                    currencySymbol = currencySymbolFor(trip.currencyCode)
-                }
+                currencySymbol = currencySymbolFor(trip.currencyCode)
                 dayOptions = itinerary
                     .filter { !it.isOutOfRange }
                     .map { it.toDayOption() }
@@ -146,9 +145,9 @@ class TripIdeasViewModel @Inject constructor(
             }
             when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
-                    tripRepository.getTrip(tripId)
-                    ideaRepository.refreshIdeas(tripId)
-                    itineraryRepository.refreshItinerary(tripId)
+                    tripRepository.getTrip(tripId).first()
+                    ideaRepository.refreshIdeas(tripId).getOrThrow()
+                    itineraryRepository.refreshItinerary(tripId).getOrThrow()
                 }
             }) {
                 is ApiResult.Success -> Unit
@@ -199,7 +198,7 @@ class TripIdeasViewModel @Inject constructor(
                         )
                     }
                     withContext(Dispatchers.IO) {
-                        itineraryRepository.refreshItinerary(tripId)
+                        itineraryRepository.refreshItinerary(tripId).getOrThrow()
                     }
                     emit(TripIdeasEffect.ShowToastRes(R.string.ideas_added_to_itinerary_toast))
                 }

@@ -5,6 +5,7 @@ import nvk.cotrip.data.network.dto.IdeaDto
 
 interface IdeasCacheStore {
     fun observeIdeas(tripId: String): Flow<List<IdeaDto>>
+    fun observeIdeaById(ideaId: String): Flow<IdeaDto?>
     suspend fun getIdeas(tripId: String): List<IdeaDto>
     suspend fun findIdeaById(ideaId: String): IdeaDto?
     suspend fun setIdeas(tripId: String, ideas: List<IdeaDto>)

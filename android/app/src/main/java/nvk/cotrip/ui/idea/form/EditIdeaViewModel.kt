@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -93,8 +94,8 @@ class EditIdeaViewModel @Inject constructor(
         viewModelScope.launch {
             when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
-                    val idea = ideaRepository.getIdea(ideaId)
-                    val trip = tripRepository.getTrip(tripId)
+                    val idea = ideaRepository.getIdea(ideaId).first()
+                    val trip = tripRepository.getTrip(tripId).first()
                     LoadedIdea(
                         title = idea.title,
                         city = idea.city.orEmpty(),

@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nvk.cotrip.R
@@ -72,8 +73,9 @@ class OutOfRangeDaysViewModel @Inject constructor(
         viewModelScope.launch {
             when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
-                    val trip = tripRepository.getTrip(tripId)
-                    val itinerary = itineraryRepository.refreshItinerary(tripId)
+                    val trip = tripRepository.getTrip(tripId).first()
+                    itineraryRepository.refreshItinerary(tripId).getOrThrow()
+                    val itinerary = itineraryRepository.getItinerary(tripId).first()
                     LoadedOutOfRange(
                         tripStart = LocalDate.parse(trip.startDate),
                         tripEnd = LocalDate.parse(trip.endDate),

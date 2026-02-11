@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -98,10 +99,10 @@ class ExpenseDetailsViewModel @Inject constructor(
         viewModelScope.launch {
             when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
-                    val expense = expenseRepository.getExpense(expenseId)
-                    val trip = tripRepository.getTrip(tripId)
-                    val members = tripRepository.listMembers(tripId)
-                    val me = userRepository.getMe()
+                    val expense = expenseRepository.getExpense(expenseId).first()
+                    val trip = tripRepository.getTrip(tripId).first()
+                    val members = tripRepository.tripMembers(tripId).first()
+                    val me = checkNotNull(userRepository.me.first())
                     ExpensePayload(expense, trip, members, me.id)
                 }
             }) {
