@@ -53,7 +53,8 @@ class CreateActivityViewModel @Inject constructor(
         ActivityFormState(
             mode = ActivityFormMode.Create,
             activityId = null,
-            headerText = null,
+            headerDayNumber = null,
+            headerCity = null,
             title = "",
             dateText = "",
             timeText = "",
@@ -130,7 +131,8 @@ class CreateActivityViewModel @Inject constructor(
                             currencySymbol = meta.currencySymbol,
                             dateText = meta.firstDay?.let { day -> formatDate(LocalDate.parse(day.date)) }
                                 .orEmpty(),
-                            headerText = meta.firstDay?.let { day -> headerFor(day) }
+                            headerDayNumber = meta.firstDay?.dayNumber,
+                            headerCity = meta.firstDay?.city?.takeIf { city -> city.isNotBlank() }
                         )
                     }
                 }
@@ -153,7 +155,8 @@ class CreateActivityViewModel @Inject constructor(
         _state.update {
             it.copy(
                 dateText = formatDate(date),
-                headerText = headerFor(day)
+                headerDayNumber = day.dayNumber,
+                headerCity = day.city?.takeIf { city -> city.isNotBlank() }
             )
         }
     }
@@ -276,14 +279,6 @@ class CreateActivityViewModel @Inject constructor(
 
 private fun formatDate(date: LocalDate): String {
     return date.format(DateTimeFormatter.ofPattern("dd.MM.yyyy", Locale.getDefault()))
-}
-
-private fun headerFor(day: ItineraryDayDto): String {
-    return if (day.city.isNullOrBlank()) {
-        "Day ${day.dayNumber}"
-    } else {
-        "Day ${day.dayNumber} · ${day.city}"
-    }
 }
 
 private fun parseAmount(amount: String): Double? {

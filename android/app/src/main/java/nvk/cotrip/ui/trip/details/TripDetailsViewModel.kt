@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nvk.cotrip.data.network.ApiCaller
@@ -56,14 +57,14 @@ class TripDetailsViewModel @Inject constructor(
 
     init {
         observeCachedTripData()
-        loadTrip(isUserRefresh = false)
+        refreshTripData(isUserRefresh = false)
     }
 
     fun onEvent(event: TripDetailsEvent) {
         when (event) {
             TripDetailsEvent.OnBackClick -> appNavigator.popBackStack()
-            TripDetailsEvent.OnAutoRefresh -> loadTrip(isUserRefresh = false)
-            TripDetailsEvent.OnUserRefresh -> loadTrip(isUserRefresh = true)
+            TripDetailsEvent.OnAutoRefresh -> refreshTripData(isUserRefresh = false)
+            TripDetailsEvent.OnUserRefresh -> refreshTripData(isUserRefresh = true)
             TripDetailsEvent.OnEditClick -> {
                 if (_state.value.isOwner) {
                     appNavigator.navigate(Destination.EditTrip(tripId))
@@ -147,63 +148,45 @@ class TripDetailsViewModel @Inject constructor(
 
     private fun observeCachedTripData() {
         viewModelScope.launch {
+            val membersFlow = runCatching { tripRepository.tripMembers(tripId) }
+                .getOrElse { flowOf(emptyList()) }
             combine(
                 tripRepository.getTrip(tripId),
+                membersFlow,
                 ideaRepository.observeIdeas(tripId),
-                expenseRepository.observeExpenses(tripId)
-            ) { trip, ideas, expenses ->
-                Triple(trip, ideas, expenses)
-            }.collect { (trip, ideas, expenses) ->
-                val current = _state.value
-                val loaded = LoadedTrip(
+                expenseRepository.observeExpenses(tripId),
+                userRepository.me,
+            ) { trip, members, ideas, expenses, me ->
+                LoadedTrip(
                     trip = trip,
-                    members = emptyList(),
+                    members = members,
                     ideas = ideas,
                     expenses = expenses,
-                    isOwner = current.isOwner,
+                    isOwner = me?.id == trip.ownerId,
                 )
-                val cacheState = buildState(loaded)
-                val mergedState = if (current.travelers.isNotEmpty()) {
-                    cacheState.copy(
-                        travelers = current.travelers,
-                        peopleCountText = current.peopleCountText,
-                    )
-                } else {
-                    cacheState
-                }
-                _state.value = mergedState.copy(isRefreshing = current.isRefreshing)
+            }.collect { loaded ->
+                val current = _state.value
+                _state.value = buildState(loaded).copy(isRefreshing = current.isRefreshing)
             }
         }
     }
 
-    private fun loadTrip(isUserRefresh: Boolean) {
+    private fun refreshTripData(isUserRefresh: Boolean) {
         viewModelScope.launch {
             if (isUserRefresh) {
                 _state.value = _state.value.copy(isRefreshing = true)
             }
             val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
-                    val trip = tripRepository.getTrip(tripId).first()
-                    val members = tripRepository.tripMembers(tripId).first()
+                    tripRepository.refreshTrips().getOrThrow()
+                    tripRepository.tripMembers(tripId).first()
                     ideaRepository.refreshIdeas(tripId).getOrThrow()
                     expenseRepository.refreshExpenses(tripId).getOrThrow()
-                    val ideas = ideaRepository.observeIdeas(tripId).first()
-                    val expenses = expenseRepository.observeExpenses(tripId).first()
-                    val meId = runCatching { userRepository.me.first()?.id }.getOrNull()
-                    LoadedTrip(
-                        trip = trip,
-                        members = members,
-                        ideas = ideas,
-                        expenses = expenses,
-                        isOwner = meId != null && trip.ownerId == meId
-                    )
                 }
             }
 
             when (result) {
-                is ApiResult.Success -> {
-                    _state.value = buildState(result.data).copy(isRefreshing = false)
-                }
+                is ApiResult.Success -> _state.value = _state.value.copy(isRefreshing = false)
 
                 is ApiResult.Failure -> {
                     _state.value = _state.value.copy(isRefreshing = false)

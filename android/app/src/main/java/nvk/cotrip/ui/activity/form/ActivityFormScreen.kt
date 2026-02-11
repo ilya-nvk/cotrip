@@ -200,9 +200,15 @@ private fun ActivityFormScreen(
         ) {
             Spacer(Modifier.height(CoTripTokens.spacing.x1))
 
-            state.headerText?.let {
+            state.headerDayNumber?.let { dayNumber ->
+                val headerCity = state.headerCity
+                val headerText = if (headerCity.isNullOrBlank()) {
+                    stringResource(R.string.itinerary_day_title, dayNumber)
+                } else {
+                    stringResource(R.string.ideas_pick_day_label, dayNumber, headerCity)
+                }
                 Text(
-                    text = it,
+                    text = headerText,
                     style = MaterialTheme.typography.labelMedium,
                     color = TextSecondary
                 )

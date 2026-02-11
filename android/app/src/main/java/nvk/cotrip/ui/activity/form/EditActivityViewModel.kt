@@ -58,7 +58,8 @@ class EditActivityViewModel @Inject constructor(
         ActivityFormState(
             mode = ActivityFormMode.Edit,
             activityId = activityId,
-            headerText = null,
+            headerDayNumber = null,
+            headerCity = null,
             title = "",
             dateText = "",
             timeText = "",
@@ -119,7 +120,8 @@ class EditActivityViewModel @Inject constructor(
                     dayByDate = info.days.associateBy { LocalDate.parse(it.date) }
                     _state.update {
                         it.copy(
-                            headerText = headerFor(info.day),
+                            headerDayNumber = info.day.dayNumber,
+                            headerCity = info.day.city?.takeIf { city -> city.isNotBlank() },
                             title = info.activity.title,
                             dateText = formatDate(LocalDate.parse(info.day.date)),
                             timeText = info.activity.timeText.orEmpty(),
@@ -163,7 +165,8 @@ class EditActivityViewModel @Inject constructor(
         _state.update {
             it.copy(
                 dateText = formatDate(date),
-                headerText = headerFor(day)
+                headerDayNumber = day.dayNumber,
+                headerCity = day.city?.takeIf { city -> city.isNotBlank() }
             )
         }
     }
@@ -319,14 +322,6 @@ class EditActivityViewModel @Inject constructor(
 
 private fun formatDate(date: LocalDate): String {
     return date.format(DateTimeFormatter.ofPattern("dd.MM.yyyy", Locale.getDefault()))
-}
-
-private fun headerFor(day: ItineraryDayDto): String {
-    return if (day.city.isNullOrBlank()) {
-        "Day ${day.dayNumber}"
-    } else {
-        "Day ${day.dayNumber} · ${day.city}"
-    }
 }
 
 private fun String?.toCostType(): CostType {

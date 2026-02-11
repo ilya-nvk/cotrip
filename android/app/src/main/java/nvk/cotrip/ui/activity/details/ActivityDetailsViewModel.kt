@@ -5,11 +5,16 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nvk.cotrip.R
@@ -42,19 +47,8 @@ class ActivityDetailsViewModel @Inject constructor(
     private val activityId: String =
         (savedStateHandle.get<String>(Destination.ActivityDetails.ARG_ACTIVITY_ID)).orEmpty()
 
-    private val _state = MutableStateFlow(
-        ActivityDetailsState(
-            dayId = "",
-            activityId = activityId,
-            dayAndCity = "",
-            title = "",
-            dateText = "",
-            timeText = "",
-            locationName = null,
-            link = null,
-            costText = null,
-            notes = null,
-        )
+    private val _state: MutableStateFlow<ActivityDetailsState> = MutableStateFlow(
+        ActivityDetailsState.Init(activityId = activityId)
     )
     val state = _state.asStateFlow()
 
@@ -63,19 +57,21 @@ class ActivityDetailsViewModel @Inject constructor(
     private var currentTripId: String? = null
 
     init {
-        loadActivity()
+        observeActivity()
+        refreshActivity(showErrorToast = false)
     }
 
     fun onEvent(event: ActivityDetailsEvent) {
         when (event) {
             ActivityDetailsEvent.OnBackClick -> appNavigator.popBackStack()
-            ActivityDetailsEvent.OnRefresh -> loadActivity()
+            ActivityDetailsEvent.OnRefresh -> refreshActivity(showErrorToast = true)
             ActivityDetailsEvent.OnEditClick -> appNavigator.navigate(
                 Destination.EditActivity(activityId)
             )
 
             ActivityDetailsEvent.OnOpenLinkClick -> {
-                val link = _state.value.link?.trim().orEmpty()
+                val contentState = _state.value as? ActivityDetailsState.Content ?: return
+                val link = contentState.link?.trim().orEmpty()
                 if (link.isNotBlank()) {
                     val normalized = if (link.startsWith("http://") || link.startsWith("https://")) {
                         link
@@ -89,36 +85,37 @@ class ActivityDetailsViewModel @Inject constructor(
         }
     }
 
-    private fun loadActivity() {
+    private fun observeActivity() {
+        viewModelScope.launch {
+            buildActivityFlow(activityId).collect { lookup ->
+                if (lookup == null) {
+                    currentTripId = null
+                    _state.value = ActivityDetailsState.Init(activityId = activityId)
+                } else {
+                    currentTripId = lookup.trip.id
+                    _state.value = lookup.toUiState()
+                }
+            }
+        }
+    }
+
+    private fun refreshActivity(showErrorToast: Boolean) {
         viewModelScope.launch {
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) { findActivity(activityId) }
-            }) {
-                is ApiResult.Success -> {
-                    val info = result.data
-                    currentTripId = info.trip.id
-                    val currencySymbol = currencySymbolFor(info.trip.currencyCode)
-                    val dateText = formatDay(info.day.date)
-                    val dayAndCity = if (info.day.city.isNullOrBlank()) {
-                        "Day ${info.day.dayNumber}"
-                    } else {
-                        "Day ${info.day.dayNumber} · ${info.day.city}"
+                withContext(Dispatchers.IO) {
+                    tripRepository.refreshTrips().getOrThrow()
+                    val tripIds = tripRepository.trips.first().map { it.id }
+                    tripIds.forEach { tripId ->
+                        itineraryRepository.refreshItinerary(tripId).getOrThrow()
                     }
-                    _state.value = ActivityDetailsState(
-                        dayId = info.day.id,
-                        activityId = info.activity.id,
-                        dayAndCity = dayAndCity,
-                        title = info.activity.title,
-                        dateText = dateText,
-                        timeText = info.activity.timeText.orEmpty(),
-                        locationName = info.activity.locationName,
-                        link = info.activity.link,
-                        costText = info.activity.costAmount?.let { formatCost(it, currencySymbol) },
-                        notes = info.activity.notes,
-                    )
                 }
-
-                is ApiResult.Failure -> emitToast(uiErrorMapper.messageRes(result))
+            }) {
+                is ApiResult.Success -> Unit
+                is ApiResult.Failure -> if (showErrorToast) emitToast(
+                    uiErrorMapper.messageRes(
+                        result
+                    )
+                )
             }
         }
     }
@@ -141,18 +138,27 @@ class ActivityDetailsViewModel @Inject constructor(
         }
     }
 
-    private suspend fun findActivity(activityId: String): ActivityLookup {
-        val trips = tripRepository.trips.first()
-        for (trip in trips) {
-            val itinerary = itineraryRepository.getItinerary(trip.id).first()
-            for (day in itinerary) {
-                val match = day.activities.firstOrNull { it.id == activityId }
-                if (match != null) {
-                    return ActivityLookup(trip, day, match)
+    private fun buildActivityFlow(activityId: String): Flow<ActivityLookup?> {
+        return tripRepository.trips.flatMapLatest { trips ->
+            if (trips.isEmpty()) {
+                flowOf(null)
+            } else {
+                val itineraryFlows = trips.map { trip ->
+                    itineraryRepository.observeItinerary(trip.id).map { days -> trip to days }
+                }
+                combine(itineraryFlows) { tripAndDaysArray ->
+                    tripAndDaysArray.asList()
+                        .firstNotNullOfOrNull { (trip, days) ->
+                            val day = days.firstOrNull { itineraryDay ->
+                                itineraryDay.activities.any { activity -> activity.id == activityId }
+                            } ?: return@firstNotNullOfOrNull null
+                            val activity = day.activities.firstOrNull { it.id == activityId }
+                                ?: return@firstNotNullOfOrNull null
+                            ActivityLookup(trip = trip, day = day, activity = activity)
+                        }
                 }
             }
         }
-        throw IllegalStateException("Activity not found")
     }
 
     private fun emitToast(resId: Int) {
@@ -161,6 +167,23 @@ class ActivityDetailsViewModel @Inject constructor(
 
     private fun emit(effect: ActivityDetailsEffect) {
         viewModelScope.launch { _effects.emit(effect) }
+    }
+
+    private fun ActivityLookup.toUiState(): ActivityDetailsState.Content {
+        val currencySymbol = currencySymbolFor(trip.currencyCode)
+        return ActivityDetailsState.Content(
+            dayId = day.id,
+            activityId = activity.id,
+            dayNumber = day.dayNumber,
+            city = day.city?.takeIf { it.isNotBlank() },
+            title = activity.title,
+            dateText = formatDay(day.date),
+            timeText = activity.timeText.orEmpty(),
+            locationName = activity.locationName,
+            link = activity.link,
+            costText = activity.costAmount?.let { formatCost(it, currencySymbol) },
+            notes = activity.notes,
+        )
     }
 
     private data class ActivityLookup(

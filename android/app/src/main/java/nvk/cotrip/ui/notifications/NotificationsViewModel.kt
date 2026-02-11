@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -45,33 +45,42 @@ class NotificationsViewModel @Inject constructor(
     val effects = _effects.asSharedFlow()
 
     init {
-        loadNotifications()
+        observeNotifications()
+        refreshNotifications(showErrorToast = false)
     }
 
     fun onEvent(event: NotificationsEvent) {
         when (event) {
             NotificationsEvent.OnBackClick -> appNavigator.popBackStack()
-            NotificationsEvent.OnRefresh -> loadNotifications()
+            NotificationsEvent.OnRefresh -> refreshNotifications(showErrorToast = true)
             is NotificationsEvent.OnNotificationClick -> markRead(event.id)
         }
     }
 
-    private fun loadNotifications() {
+    private fun observeNotifications() {
+        viewModelScope.launch {
+            notificationRepository.notifications
+                .map { notifications -> notifications.map { it.toUi() } }
+                .collect { items ->
+                    _state.update { it.copy(isLoading = false, items = items) }
+                }
+        }
+    }
+
+    private fun refreshNotifications(showErrorToast: Boolean) {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
             when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
                     notificationRepository.refreshNotifications().getOrThrow()
-                    notificationRepository.notifications.first()
                 }
             }) {
-                is ApiResult.Success -> {
-                    val items = result.data.map { it.toUi() }
-                    _state.update { it.copy(isLoading = false, items = items) }
-                }
+                is ApiResult.Success -> Unit
                 is ApiResult.Failure -> {
                     _state.update { it.copy(isLoading = false) }
-                    emit(NotificationsEffect.ShowToastRes(uiErrorMapper.messageRes(result)))
+                    if (showErrorToast) {
+                        emit(NotificationsEffect.ShowToastRes(uiErrorMapper.messageRes(result)))
+                    }
                 }
             }
         }

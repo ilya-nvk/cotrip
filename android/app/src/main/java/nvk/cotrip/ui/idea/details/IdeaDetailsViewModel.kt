@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -107,7 +108,8 @@ class IdeaDetailsViewModel @Inject constructor(
     init {
         observeSocket()
         connectSocket()
-        loadDetails()
+        observeDetails()
+        refreshDetails(showErrorToast = false)
     }
 
     override fun onCleared() {
@@ -118,7 +120,7 @@ class IdeaDetailsViewModel @Inject constructor(
     fun onEvent(event: IdeaDetailsEvent) {
         when (event) {
             IdeaDetailsEvent.OnBackClick -> appNavigator.popBackStack()
-            IdeaDetailsEvent.OnRefresh -> loadDetails()
+            IdeaDetailsEvent.OnRefresh -> refreshDetails(showErrorToast = true)
             IdeaDetailsEvent.OnEditClick -> appNavigator.navigate(
                 Destination.EditIdea(tripId, ideaId)
             )
@@ -140,70 +142,88 @@ class IdeaDetailsViewModel @Inject constructor(
         }
     }
 
-    private fun loadDetails() {
+    private fun observeDetails() {
+        viewModelScope.launch {
+            val ideaFlow = ideaRepository.getIdea(ideaId)
+            val tripFlow = tripRepository.getTrip(tripId)
+            val itineraryFlow = itineraryRepository.observeItinerary(tripId)
+            val membersFlow = tripRepository.tripMembers(tripId)
+            val commentsFlow = ideaRepository.observeComments(ideaId)
+            combine(
+                ideaFlow,
+                tripFlow,
+                itineraryFlow,
+                membersFlow,
+                commentsFlow,
+            ) { idea, trip, itinerary, members, comments ->
+                val memberMap = members.associateBy { it.userId }
+                val addedDay = itinerary
+                    .sortedBy { it.dayNumber }
+                    .firstOrNull { day ->
+                        day.activities.any { activity -> activity.sourceIdeaId == idea.id }
+                    }
+                    ?.dayNumber
+                ObservedPayloadBase(
+                    idea = idea,
+                    trip = trip,
+                    comments = comments,
+                    itinerary = itinerary,
+                    membersById = memberMap,
+                    addedDay = addedDay,
+                )
+            }.combine(userRepository.me) { base, me ->
+                val myId = me?.id
+                val isOwner = myId != null && base.trip.ownerId == myId
+                ObservedPayload(
+                    idea = base.idea,
+                    trip = base.trip,
+                    comments = base.comments,
+                    itinerary = base.itinerary,
+                    membersById = base.membersById,
+                    meId = myId,
+                    isOwner = isOwner,
+                    addedDay = base.addedDay,
+                )
+            }.collect { payload ->
+                currencySymbol = currencySymbolFor(payload.trip.currencyCode)
+                membersById = payload.membersById
+                meId = payload.meId
+                dayOptions = payload.itinerary.filter { !it.isOutOfRange }.map { it.toDayOption() }
+                val discussion = payload.comments
+                    .sortedBy { parseTimestamp(it.createdAt)?.toEpochMilli() ?: 0L }
+                    .map { it.toDiscussion(meId, membersById) }
+                _state.update { current ->
+                    current.copy(
+                        title = payload.idea.title,
+                        city = payload.idea.city.orEmpty(),
+                        link = payload.idea.link.orEmpty(),
+                        cost = payload.idea.costAmount?.let { formatCost(it, currencySymbol) }
+                            .orEmpty(),
+                        notes = payload.idea.notes.orEmpty(),
+                        status = payload.idea.status,
+                        addedDay = payload.addedDay,
+                        isOwner = payload.isOwner,
+                        commentsCount = discussion.count { it is IdeaDiscussionItemUi.Message },
+                        discussion = discussion
+                    )
+                }
+            }
+        }
+    }
+
+    private fun refreshDetails(showErrorToast: Boolean) {
         viewModelScope.launch {
             when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
-                    val idea = ideaRepository.getIdea(ideaId).first()
-                    val trip = tripRepository.getTrip(tripId).first()
-                    val me = checkNotNull(userRepository.me.first())
-                    val itinerary = runCatching {
-                        itineraryRepository.refreshItinerary(tripId).getOrThrow()
-                        itineraryRepository.getItinerary(tripId).first()
-                    }
-                        .getOrDefault(emptyList())
-                    val members = runCatching { tripRepository.tripMembers(tripId).first() }
-                        .getOrDefault(emptyList())
-                    val comments = runCatching {
-                        ideaRepository.refreshComments(ideaId).getOrThrow()
-                        ideaRepository.observeComments(ideaId).first()
-                    }
-                        .getOrDefault(emptyList())
-
-                    currencySymbol = currencySymbolFor(trip.currencyCode)
-                    membersById = members.associateBy { it.userId }
-                    meId = me.id
-                    dayOptions = itinerary.filter { !it.isOutOfRange }.map { it.toDayOption() }
-                    val isOwner = trip.ownerId == me.id
-                    val addedDay = itinerary
-                        .sortedBy { it.dayNumber }
-                        .firstOrNull { day ->
-                            day.activities.any { activity -> activity.sourceIdeaId == idea.id }
-                        }
-                        ?.dayNumber
-
-                    IdeaDetailsPayload(
-                        idea = idea,
-                        comments = comments,
-                        isOwner = isOwner,
-                        addedDay = addedDay,
-                    )
+                    tripRepository.refreshTrips().getOrThrow()
+                    tripRepository.tripMembers(tripId).first()
+                    itineraryRepository.refreshItinerary(tripId).getOrThrow()
+                    ideaRepository.refreshIdeas(tripId).getOrThrow()
+                    ideaRepository.refreshComments(ideaId).getOrThrow()
                 }
             }) {
-                is ApiResult.Success -> {
-                    val payload = result.data
-                    val idea = payload.idea
-                    val discussion = payload.comments
-                        .sortedBy { parseTimestamp(it.createdAt)?.toEpochMilli() ?: 0L }
-                        .map { it.toDiscussion(meId, membersById) }
-                    _state.update { current ->
-                        current.copy(
-                            title = idea.title,
-                            city = idea.city.orEmpty(),
-                            link = idea.link.orEmpty(),
-                            cost = idea.costAmount?.let { formatCost(it, currencySymbol) }
-                                .orEmpty(),
-                            notes = idea.notes.orEmpty(),
-                            status = idea.status,
-                            addedDay = payload.addedDay,
-                            isOwner = payload.isOwner,
-                            commentsCount = discussion.count { it is IdeaDiscussionItemUi.Message },
-                            discussion = discussion
-                        )
-                    }
-                }
-
-                is ApiResult.Failure -> {
+                is ApiResult.Success -> Unit
+                is ApiResult.Failure -> if (showErrorToast) {
                     emit(IdeaDetailsEffect.ShowToastRes(uiErrorMapper.messageRes(result)))
                 }
             }
@@ -389,10 +409,23 @@ class IdeaDetailsViewModel @Inject constructor(
         }
     }
 
-    private data class IdeaDetailsPayload(
+    private data class ObservedPayload(
         val idea: IdeaDto,
+        val trip: nvk.cotrip.data.network.dto.TripDto,
         val comments: List<CommentDto>,
+        val itinerary: List<ItineraryDayDto>,
+        val membersById: Map<String, MemberDto>,
+        val meId: String?,
         val isOwner: Boolean,
+        val addedDay: Int?,
+    )
+
+    private data class ObservedPayloadBase(
+        val idea: IdeaDto,
+        val trip: nvk.cotrip.data.network.dto.TripDto,
+        val comments: List<CommentDto>,
+        val itinerary: List<ItineraryDayDto>,
+        val membersById: Map<String, MemberDto>,
         val addedDay: Int?,
     )
 }

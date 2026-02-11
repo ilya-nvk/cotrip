@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -58,6 +59,7 @@ class ExpenseDetailsViewModel @Inject constructor(
         ExpenseDetailsState(
             tripId = tripId,
             expenseId = expenseId,
+            isLoading = true,
             title = "",
             amount = "",
             status = ExpenseDetailsStatus.Planned,
@@ -75,13 +77,14 @@ class ExpenseDetailsViewModel @Inject constructor(
     val effects = _effects.asSharedFlow()
 
     init {
-        loadExpense()
+        observeExpense()
+        refreshExpense(showErrorToast = false)
     }
 
     fun onEvent(event: ExpenseDetailsEvent) {
         when (event) {
             ExpenseDetailsEvent.OnBackClick -> appNavigator.popBackStack()
-            ExpenseDetailsEvent.OnRefresh -> loadExpense()
+            ExpenseDetailsEvent.OnRefresh -> refreshExpense(showErrorToast = true)
             ExpenseDetailsEvent.OnEditClick -> appNavigator.navigate(
                 Destination.EditExpense(
                     tripId = tripId,
@@ -95,34 +98,61 @@ class ExpenseDetailsViewModel @Inject constructor(
         }
     }
 
-    private fun loadExpense() {
+    private fun observeExpense() {
         viewModelScope.launch {
+            val expenseFlow = expenseRepository.getExpense(expenseId)
+            val tripFlow = tripRepository.getTrip(tripId)
+            val membersFlow = tripRepository.tripMembers(tripId)
+            combine(
+                expenseFlow,
+                tripFlow,
+                membersFlow,
+                userRepository.me,
+            ) { expense, trip, members, me ->
+                ExpensePayload(
+                    expense = expense,
+                    trip = trip,
+                    members = members,
+                    meId = me?.id,
+                )
+            }.collect { payload ->
+                currentExpense = payload.expense
+                currencySymbol = currencySymbolFor(payload.trip.currencyCode)
+                membersById = payload.members.associateBy { it.userId }
+                meId = payload.meId
+                _state.update {
+                    payload.expense.toState(
+                        meId = payload.meId.orEmpty(),
+                        membersById = membersById,
+                        currencySymbol = currencySymbol,
+                    ).copy(isLoading = false)
+                }
+            }
+        }
+    }
+
+    private fun refreshExpense(showErrorToast: Boolean) {
+        viewModelScope.launch {
+            _state.update { it.copy(isLoading = true) }
             when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
-                    val expense = expenseRepository.getExpense(expenseId).first()
-                    val trip = tripRepository.getTrip(tripId).first()
-                    val members = tripRepository.tripMembers(tripId).first()
-                    val me = checkNotNull(userRepository.me.first())
-                    ExpensePayload(expense, trip, members, me.id)
+                    tripRepository.refreshTrips().getOrThrow()
+                    tripRepository.tripMembers(tripId).first()
+                    expenseRepository.refreshExpenses(tripId).getOrThrow()
                 }
             }) {
-                is ApiResult.Success -> {
-                    val payload = result.data
-                    currentExpense = payload.expense
-                    currencySymbol = currencySymbolFor(payload.trip.currencyCode)
-                    membersById = payload.members.associateBy { it.userId }
-                    meId = payload.meId
-                    _state.update {
-                        payload.expense.toState(
-                            payload.meId,
-                            membersById,
-                            currencySymbol
+                is ApiResult.Success -> Unit
+                is ApiResult.Failure -> {
+                    _state.update { it.copy(isLoading = false) }
+                    if (showErrorToast) {
+                        _effects.emit(
+                            ExpenseDetailsEffect.ShowToastRes(
+                                uiErrorMapper.messageRes(
+                                    result
+                                )
+                            )
                         )
                     }
-                }
-
-                is ApiResult.Failure -> {
-                    _effects.emit(ExpenseDetailsEffect.ShowToastRes(uiErrorMapper.messageRes(result)))
                 }
             }
         }
@@ -176,7 +206,7 @@ class ExpenseDetailsViewModel @Inject constructor(
                     expenseRepository.updateExpense(expenseId, request)
                 }
             }) {
-                is ApiResult.Success -> loadExpense()
+                is ApiResult.Success -> refreshExpense(showErrorToast = false)
                 is ApiResult.Failure -> {
                     _effects.emit(ExpenseDetailsEffect.ShowToastRes(uiErrorMapper.messageRes(result)))
                 }
@@ -188,7 +218,7 @@ class ExpenseDetailsViewModel @Inject constructor(
         val expense: ExpenseDto,
         val trip: TripDto,
         val members: List<MemberDto>,
-        val meId: String,
+        val meId: String?,
     )
 }
 
@@ -226,6 +256,7 @@ private fun ExpenseDto.toState(
     return ExpenseDetailsState(
         tripId = tripId,
         expenseId = id,
+        isLoading = false,
         title = title,
         amount = formatMoney(amount, currencySymbol),
         status = statusUi,

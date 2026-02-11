@@ -9,7 +9,8 @@ data class LocationSuggestionUi(
 data class ActivityFormState(
     val mode: ActivityFormMode,
     val activityId: String?,
-    val headerText: String?,
+    val headerDayNumber: Int?,
+    val headerCity: String?,
     val title: String,
     val dateText: String,
     val timeText: String,

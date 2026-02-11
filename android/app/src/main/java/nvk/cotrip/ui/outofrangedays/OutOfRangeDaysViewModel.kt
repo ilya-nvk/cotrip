@@ -155,23 +155,17 @@ private fun ItineraryDayDto.toUi(): OutOfRangeDayUi {
     val date = LocalDate.parse(date)
     val dateText = date.format(DateTimeFormatter.ofPattern("EEE, MMM d", Locale.getDefault()))
     val activities = activities.sortedBy { it.orderIndex }
-    val preview = activities.take(2).map { it.title }.toMutableList()
-    if (activities.size > 2) {
-        preview += "and ${activities.size - 2} more…"
-    }
-    val activitiesTitle = when (activities.size) {
-        0 -> "No activities"
-        1 -> "1 activity"
-        else -> "${activities.size} activities"
-    }
+    val preview = activities.take(2).map { it.title }
+    val hiddenActivitiesCount = (activities.size - preview.size).coerceAtLeast(0)
 
     return OutOfRangeDayUi(
         id = id,
-        dayTitle = "Day $dayNumber",
+        dayNumber = dayNumber,
         dateText = dateText,
         city = city,
-        activitiesTitle = activitiesTitle,
+        activitiesCount = activities.size,
         activitiesPreview = preview,
+        hiddenActivitiesCount = hiddenActivitiesCount,
     )
 }
 

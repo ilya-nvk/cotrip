@@ -124,8 +124,17 @@
     <string name="out_of_range_days_keep">Keep extra days</string>
     <string name="out_of_range_days_remove">Remove extra days (%1$d)</string>
     <string name="out_of_range_days_no_city">No city</string>
+    <string name="out_of_range_days_activities_none">No activities</string>
     <string name="out_of_range_days_kept_toast">Extra days kept</string>
     <string name="out_of_range_days_removed_toast">Extra days removed</string>
+    <plurals name="out_of_range_days_activities_count">
+        <item quantity="one">%d activity</item>
+        <item quantity="other">%d activities</item>
+    </plurals>
+    <plurals name="out_of_range_days_activities_more">
+        <item quantity="one">and %d more…</item>
+        <item quantity="other">and %d more…</item>
+    </plurals>
 
     <!--Itinerary-->
     <string name="itinerary_title">Itinerary</string>
@@ -302,6 +311,8 @@
     <string name="activity_details_link_label">LINK</string>
     <string name="activity_details_cost_label">COST</string>
     <string name="activity_details_notes_label">NOTES</string>
+    <string name="activity_details_day_only">Day %1$d</string>
+    <string name="activity_details_day_with_city">Day %1$d · %2$s</string>
     <string name="activity_details_per_person">per person</string>
     <string name="activity_details_empty">—</string>
     <string name="activity_details_delete">Delete activity</string>
