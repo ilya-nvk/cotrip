@@ -203,7 +203,7 @@ class IdeaDetailsViewModel @Inject constructor(
                 meId = payload.meId
                 dayOptions = payload.itinerary.filter { !it.isOutOfRange }.map { it.toDayOption() }
                 val serverDiscussion = payload.comments
-                    .sortedBy { parseTimestamp(it.createdAt)?.toEpochMilli() ?: 0L }
+                    .sortedByDescending { parseTimestamp(it.createdAt)?.toEpochMilli() ?: 0L }
                     .map { it.toDiscussion(meId, membersById) }
                 val discussion = mergeDiscussionWithPending(
                     serverDiscussion = serverDiscussion,
@@ -322,7 +322,7 @@ class IdeaDetailsViewModel @Inject constructor(
                 current.discussion
             }
             current.copy(
-                discussion = withoutLocal + message,
+                discussion = listOf(message) + withoutLocal,
                 commentsCount = current.commentsCount + increment
             )
         }
@@ -437,7 +437,7 @@ class IdeaDetailsViewModel @Inject constructor(
                 meId = meId,
                 membersById = membersById
             )
-            current.copy(discussion = current.discussion + pendingMessage)
+            current.copy(discussion = listOf(pendingMessage) + current.discussion)
         }
     }
 
@@ -731,14 +731,14 @@ private fun mergeDiscussionWithPending(
     membersById: Map<String, MemberDto>,
 ): List<IdeaDiscussionItemUi> {
     if (pending.isEmpty()) return serverDiscussion
-    val merged = serverDiscussion.toMutableList()
-    val existingIds = merged.mapTo(mutableSetOf()) { it.id }
-    pending.sortedBy { it.createdAtMillis }.forEach { item ->
+    val pendingMessages = mutableListOf<IdeaDiscussionItemUi>()
+    val existingIds = serverDiscussion.mapTo(mutableSetOf()) { it.id }
+    pending.sortedByDescending { it.createdAtMillis }.forEach { item ->
         val localId = localMessageId(item.localId)
         if (localId in existingIds) return@forEach
-        merged += pendingToMessage(item, meId, membersById)
+        pendingMessages += pendingToMessage(item, meId, membersById)
     }
-    return merged
+    return pendingMessages + serverDiscussion
 }
 
 private fun localMessageId(localId: String): String = "local:$localId"

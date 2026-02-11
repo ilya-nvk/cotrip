@@ -148,8 +148,6 @@ class SettingsViewModel @Inject constructor(
                 updated
             }
 
-            SettingsEvent.OnNotificationsClick -> appNavigator.navigate(Destination.Notifications)
-
             SettingsEvent.OnLogoutClick -> {
                 userRepository.clearSession()
                 appNavigator.navigate(Destination.SignIn) {

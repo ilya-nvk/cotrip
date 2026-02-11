@@ -386,16 +386,16 @@ private fun IdeaDiscussionContent(
     onDeletePendingComment: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val listState = rememberLazyListState()
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = 0)
     LaunchedEffect(state.discussion.size) {
-        val lastIndex = state.discussion.lastIndex
-        if (lastIndex >= 0) {
-            listState.animateScrollToItem(lastIndex)
+        if (state.discussion.isNotEmpty()) {
+            listState.animateScrollToItem(0)
         }
     }
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
         state = listState,
+        reverseLayout = true,
         contentPadding = PaddingValues(
             horizontal = CoTripTokens.spacing.x2,
             vertical = CoTripTokens.spacing.x2
