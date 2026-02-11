@@ -1,7 +1,12 @@
 package nvk.cotrip.data.repository
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.launch
+import nvk.cotrip.data.cache.TripMembersCacheStore
 import nvk.cotrip.data.cache.TripsCacheStore
 import nvk.cotrip.data.network.CoTripApi
 import nvk.cotrip.data.network.NetworkStateProvider
@@ -20,6 +25,7 @@ import javax.inject.Inject
 class TripRepositoryImpl @Inject constructor(
     private val api: CoTripApi,
     private val tripsCacheStore: TripsCacheStore,
+    private val tripMembersCacheStore: TripMembersCacheStore,
     private val syncQueueRepository: SyncQueueRepository,
     private val networkStateProvider: NetworkStateProvider,
 ) : TripRepository {
@@ -27,6 +33,8 @@ class TripRepositoryImpl @Inject constructor(
     private companion object {
         private const val TAG = "TripRepository"
     }
+
+    private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override val trips: Flow<List<TripDto>> = tripsCacheStore.trips
 
@@ -42,76 +50,59 @@ class TripRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun listTrips(): List<TripDto> {
-        if (!networkStateProvider.isOnline()) {
-            return runCatching { tripsCacheStore.getTrips() }
-                .onFailure { AppLogger.w(TAG, "listTrips offline cache read failed", it) }
-                .getOrDefault(emptyList())
-        }
-
-        val trips = api.listTrips().items
-        safeLocalMutation("listTrips.setTrips") {
-            tripsCacheStore.setTrips(trips)
-        }
-        return trips
-    }
-
-    override suspend fun getTrip(tripId: String): TripDto {
-        if (!networkStateProvider.isOnline()) {
-            return tripsCacheStore.getTrips().firstOrNull { it.id == tripId }
-                ?: throw IOException("Trip $tripId is not available offline")
-        }
-        return try {
-            val trip = api.getTrip(tripId)
-            safeLocalMutation("getTrip.upsertTrip(tripId=$tripId)") {
-                tripsCacheStore.upsertTrip(trip)
+    override fun getTrip(tripId: String): Flow<TripDto> {
+        if (networkStateProvider.isOnline()) {
+            ioScope.launch {
+                runCatching {
+                    val trip = api.getTrip(tripId)
+                    safeLocalMutation("getTrip.upsertTrip(tripId=$tripId)") {
+                        tripsCacheStore.upsertTrip(trip)
+                    }
+                }.onFailure { error ->
+                    AppLogger.w(TAG, "getTrip network refresh failed for $tripId", error)
+                }
             }
-            trip
-        } catch (e: IOException) {
-            tripsCacheStore.getTrips().firstOrNull { it.id == tripId } ?: throw e
         }
-    }
-
-    override fun observeTrip(tripId: String): Flow<TripDto?> {
-        return tripsCacheStore.trips.map { trips ->
+        return tripsCacheStore.trips.mapNotNull { trips ->
             trips.firstOrNull { it.id == tripId }
         }
     }
 
-    override suspend fun createTrip(request: CreateTripRequest): TripDto {
+    override suspend fun createTrip(request: CreateTripRequest): String {
         val trip = api.createTrip(request)
         safeLocalMutation("createTrip.upsertTrip(tripId=${trip.id})") {
             tripsCacheStore.upsertTrip(trip)
         }
-        return trip
+        return trip.id
     }
 
-    override suspend fun updateTrip(tripId: String, request: UpdateTripRequest): TripDto {
+    override suspend fun updateTrip(tripId: String, request: UpdateTripRequest): Result<Unit> {
         return try {
             val trip = api.updateTrip(tripId, request)
             safeLocalMutation("updateTrip.upsertTrip(tripId=$tripId)") {
                 tripsCacheStore.upsertTrip(trip)
             }
-            trip
+            Result.success(Unit)
         } catch (e: IOException) {
             val local = runCatching { tripsCacheStore.getTrips().firstOrNull { it.id == tripId } }
                 .onFailure { AppLogger.w(TAG, "updateTrip cache read failed for $tripId", it) }
                 .getOrNull()
             syncQueueRepository.enqueueUpsert(SyncEntities.TRIP, tripId, request)
-            if (local == null) throw e
-            val updatedLocal = local.copy(
-                title = request.title ?: local.title,
-                description = request.description ?: local.description,
-                startDate = request.startDate ?: local.startDate,
-                endDate = request.endDate ?: local.endDate,
-                locationLine = request.locationLine ?: local.locationLine,
-                coverUrl = request.coverUrl ?: local.coverUrl,
-                currencyCode = request.currencyCode ?: local.currencyCode,
-            )
-            safeLocalMutation("updateTrip.offlineUpsert(tripId=$tripId)") {
-                tripsCacheStore.upsertTrip(updatedLocal)
+            if (local != null) {
+                val updatedLocal = local.copy(
+                    title = request.title ?: local.title,
+                    description = request.description ?: local.description,
+                    startDate = request.startDate ?: local.startDate,
+                    endDate = request.endDate ?: local.endDate,
+                    locationLine = request.locationLine ?: local.locationLine,
+                    coverUrl = request.coverUrl ?: local.coverUrl,
+                    currencyCode = request.currencyCode ?: local.currencyCode,
+                )
+                safeLocalMutation("updateTrip.offlineUpsert(tripId=$tripId)") {
+                    tripsCacheStore.upsertTrip(updatedLocal)
+                }
             }
-            updatedLocal
+            Result.failure(e)
         }
     }
 
@@ -153,11 +144,28 @@ class TripRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun listMembers(tripId: String): List<MemberDto> {
-        return api.listMembers(tripId).items
+    override fun tripMembers(tripId: String): Flow<List<MemberDto>> {
+        // Return cached flow immediately; refresh in background.
+        if (networkStateProvider.isOnline()) {
+            ioScope.launch {
+                runCatching { api.listMembers(tripId).items }
+                    .onSuccess { members ->
+                        safeLocalMutation("tripMembers.setMembers(tripId=$tripId)") {
+                            tripMembersCacheStore.setMembers(tripId, members)
+                        }
+                    }
+                    .onFailure { error ->
+                        AppLogger.w(TAG, "tripMembers network refresh failed for $tripId", error)
+                    }
+            }
+        }
+        return tripMembersCacheStore.observeMembers(tripId)
     }
 
     override suspend fun removeMember(tripId: String, memberId: String) {
         api.removeMember(tripId, memberId).requireSuccess()
+        safeLocalMutation("removeMember.removeMember(tripId=$tripId, memberId=$memberId)") {
+            tripMembersCacheStore.removeMember(tripId, memberId)
+        }
     }
 }

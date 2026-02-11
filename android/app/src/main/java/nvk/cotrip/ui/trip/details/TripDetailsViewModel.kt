@@ -10,6 +10,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nvk.cotrip.data.network.ApiCaller
@@ -27,6 +30,7 @@ import nvk.cotrip.ui.components.AvatarStackItem
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import nvk.cotrip.ui.trip.form.TripCurrency
+import nvk.cotrip.util.AppLogger
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -55,14 +59,15 @@ class TripDetailsViewModel @Inject constructor(
 
     init {
         observeCachedTripData()
-        loadTrip(isUserRefresh = false)
+        primeTripCache()
+        refreshTripData(isUserRefresh = false)
     }
 
     fun onEvent(event: TripDetailsEvent) {
         when (event) {
             TripDetailsEvent.OnBackClick -> appNavigator.popBackStack()
-            TripDetailsEvent.OnAutoRefresh -> loadTrip(isUserRefresh = false)
-            TripDetailsEvent.OnUserRefresh -> loadTrip(isUserRefresh = true)
+            TripDetailsEvent.OnAutoRefresh -> refreshTripData(isUserRefresh = false)
+            TripDetailsEvent.OnUserRefresh -> refreshTripData(isUserRefresh = true)
             TripDetailsEvent.OnEditClick -> {
                 if (_state.value.isOwner) {
                     appNavigator.navigate(Destination.EditTrip(tripId))
@@ -146,74 +151,116 @@ class TripDetailsViewModel @Inject constructor(
 
     private fun observeCachedTripData() {
         viewModelScope.launch {
+            val membersFlow = runCatching { tripRepository.tripMembers(tripId) }
+                .getOrElse { flowOf(emptyList()) }
+            val tripFlow = tripRepository.trips.map { trips ->
+                trips.firstOrNull { it.id == tripId }
+            }
             combine(
-                tripRepository.observeTrip(tripId),
+                tripFlow,
+                membersFlow,
                 ideaRepository.observeIdeas(tripId),
-                expenseRepository.observeExpenses(tripId)
-            ) { trip, ideas, expenses ->
-                Triple(trip, ideas, expenses)
-            }.collect { (trip, ideas, expenses) ->
-                val resolvedTrip = trip ?: return@collect
-                val current = _state.value
-                val loaded = LoadedTrip(
-                    trip = resolvedTrip,
-                    members = emptyList(),
-                    ideas = ideas,
-                    expenses = expenses,
-                    isOwner = current.isOwner,
-                )
-                val cacheState = buildState(loaded)
-                val mergedState = if (current.travelers.isNotEmpty()) {
-                    cacheState.copy(
-                        travelers = current.travelers,
-                        peopleCountText = current.peopleCountText,
-                    )
+                expenseRepository.observeExpenses(tripId),
+                userRepository.me,
+            ) { trip, members, ideas, expenses, me ->
+                if (trip == null) {
+                    null
                 } else {
-                    cacheState
+                    LoadedTrip(
+                        trip = trip,
+                        members = members,
+                        ideas = ideas,
+                        expenses = expenses,
+                        isOwner = me?.id == trip.ownerId,
+                    )
                 }
-                _state.value = mergedState.copy(isRefreshing = current.isRefreshing)
+            }.collect { loaded ->
+                if (loaded == null) return@collect
+                val current = _state.value
+                _state.value = buildState(loaded).copy(isRefreshing = current.isRefreshing)
+                AppLogger.i(TAG, "trip details state updated for tripId=$tripId")
             }
         }
     }
 
-    private fun loadTrip(isUserRefresh: Boolean) {
+    private fun primeTripCache() {
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    tripRepository.getTrip(tripId).first()
+                }
+            }.onFailure { error ->
+                AppLogger.w(TAG, "primeTripCache failed for tripId=$tripId", error)
+            }
+        }
+    }
+
+    private fun refreshTripData(isUserRefresh: Boolean) {
         viewModelScope.launch {
             if (isUserRefresh) {
                 _state.value = _state.value.copy(isRefreshing = true)
             }
             val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
-                    val trip = tripRepository.getTrip(tripId)
-                    val members = tripRepository.listMembers(tripId)
-                    val ideas = ideaRepository.refreshIdeas(tripId)
-                    val expenses = expenseRepository.refreshExpenses(tripId)
-                    val meId = runCatching { userRepository.getMe().id }.getOrNull()
-                    LoadedTrip(
-                        trip = trip,
-                        members = members,
-                        ideas = ideas,
-                        expenses = expenses,
-                        isOwner = meId != null && trip.ownerId == meId
-                    )
+                    // Best-effort: list refresh may fail while direct trip fetch still works.
+                    runCatching { tripRepository.refreshTrips().getOrThrow() }
+                        .onFailure {
+                            AppLogger.w(
+                                TAG,
+                                "refreshTrips failed for tripId=$tripId",
+                                it
+                            )
+                        }
+                    // Mandatory: details screen depends on this trip being in cache.
+                    tripRepository.getTrip(tripId).first()
+                    runCatching { tripRepository.tripMembers(tripId).first() }
+                        .onFailure {
+                            AppLogger.w(
+                                TAG,
+                                "tripMembers refresh failed for tripId=$tripId",
+                                it
+                            )
+                        }
+                    runCatching { ideaRepository.refreshIdeas(tripId).getOrThrow() }
+                        .onFailure {
+                            AppLogger.w(
+                                TAG,
+                                "refreshIdeas failed for tripId=$tripId",
+                                it
+                            )
+                        }
+                    runCatching { expenseRepository.refreshExpenses(tripId).getOrThrow() }
+                        .onFailure {
+                            AppLogger.w(
+                                TAG,
+                                "refreshExpenses failed for tripId=$tripId",
+                                it
+                            )
+                        }
                 }
             }
 
             when (result) {
                 is ApiResult.Success -> {
-                    _state.value = buildState(result.data).copy(isRefreshing = false)
+                    _state.value = _state.value.copy(isRefreshing = false)
+                    AppLogger.i(TAG, "refreshTripData success for tripId=$tripId")
                 }
 
                 is ApiResult.Failure -> {
                     _state.value = _state.value.copy(isRefreshing = false)
+                    AppLogger.w(
+                        TAG,
+                        "refreshTripData failed for tripId=$tripId code=${result.httpCode} apiCode=${result.error?.code.orEmpty()}",
+                        result.cause
+                    )
                     emitToast(uiErrorMapper.messageRes(result))
-                    if (_state.value.header.title.isBlank()) {
-                        appNavigator.popBackStack()
-                    }
                 }
             }
         }
     }
 }
+
+private const val TAG = "TripDetailsVM"
 
 private data class LoadedTrip(
     val trip: TripDto,

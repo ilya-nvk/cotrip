@@ -5,11 +5,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -35,6 +38,7 @@ import nvk.cotrip.ui.idea.common.IdeaDayPickerState
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import nvk.cotrip.ui.trip.form.TripCurrency
+import nvk.cotrip.util.AppLogger
 import okhttp3.OkHttpClient
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -61,6 +65,7 @@ class TripIdeasViewModel @Inject constructor(
     private var dayOptions: List<IdeaDayOptionUi> = emptyList()
     private var currencySymbol: String = "€"
     private val commentsSocket = CommentsWebSocket(okHttpClient, json)
+    private var reconnectJob: Job? = null
 
     private val _state = MutableStateFlow(
         TripIdeasState(
@@ -84,6 +89,7 @@ class TripIdeasViewModel @Inject constructor(
     }
 
     override fun onCleared() {
+        reconnectJob?.cancel()
         commentsSocket.disconnect()
         super.onCleared()
     }
@@ -111,15 +117,13 @@ class TripIdeasViewModel @Inject constructor(
         viewModelScope.launch {
             combine(
                 ideaRepository.observeIdeas(tripId),
-                tripRepository.observeTrip(tripId),
+                tripRepository.getTrip(tripId),
                 itineraryRepository.observeItinerary(tripId),
                 isRefreshing,
             ) { ideas, trip, itinerary, refreshing ->
                 Quadruple(ideas, trip, itinerary, refreshing)
             }.collect { (ideas, trip, itinerary, refreshing) ->
-                if (trip != null) {
-                    currencySymbol = currencySymbolFor(trip.currencyCode)
-                }
+                currencySymbol = currencySymbolFor(trip.currencyCode)
                 dayOptions = itinerary
                     .filter { !it.isOutOfRange }
                     .map { it.toDayOption() }
@@ -146,9 +150,9 @@ class TripIdeasViewModel @Inject constructor(
             }
             when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
-                    tripRepository.getTrip(tripId)
-                    ideaRepository.refreshIdeas(tripId)
-                    itineraryRepository.refreshItinerary(tripId)
+                    tripRepository.getTrip(tripId).first()
+                    ideaRepository.refreshIdeas(tripId).getOrThrow()
+                    itineraryRepository.refreshItinerary(tripId).getOrThrow()
                 }
             }) {
                 is ApiResult.Success -> Unit
@@ -199,7 +203,7 @@ class TripIdeasViewModel @Inject constructor(
                         )
                     }
                     withContext(Dispatchers.IO) {
-                        itineraryRepository.refreshItinerary(tripId)
+                        itineraryRepository.refreshItinerary(tripId).getOrThrow()
                     }
                     emit(TripIdeasEffect.ShowToastRes(R.string.ideas_added_to_itinerary_toast))
                 }
@@ -216,6 +220,7 @@ class TripIdeasViewModel @Inject constructor(
     private fun connectSocket() {
         val token = sessionStore.getAccessToken().orEmpty()
         if (token.isBlank()) return
+        reconnectJob?.cancel()
         commentsSocket.connect(BuildConfig.API_BASE_URL, tripId, token)
     }
 
@@ -225,9 +230,25 @@ class TripIdeasViewModel @Inject constructor(
                 when (event) {
                     is CommentWsEvent.CommentCreated -> handleCommentCreated(event.payload)
                     is CommentWsEvent.CommentDeleted -> handleCommentDeleted(event.payload)
-                    is CommentWsEvent.Error -> Unit
+                    is CommentWsEvent.Closed -> scheduleReconnect()
+                    is CommentWsEvent.Error -> {
+                        AppLogger.w(
+                            TAG,
+                            "trip ideas socket error, scheduling reconnect",
+                            event.cause
+                        )
+                        scheduleReconnect()
+                    }
                 }
             }
+        }
+    }
+
+    private fun scheduleReconnect() {
+        if (reconnectJob?.isActive == true) return
+        reconnectJob = viewModelScope.launch {
+            delay(1_500L)
+            connectSocket()
         }
     }
 
@@ -322,3 +343,5 @@ private data class Quadruple<A, B, C, D>(
     val third: C,
     val fourth: D,
 )
+
+private const val TAG = "TripIdeasVM"

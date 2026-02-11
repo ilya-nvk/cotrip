@@ -124,8 +124,17 @@
     <string name="out_of_range_days_keep">Keep extra days</string>
     <string name="out_of_range_days_remove">Remove extra days (%1$d)</string>
     <string name="out_of_range_days_no_city">No city</string>
+    <string name="out_of_range_days_activities_none">No activities</string>
     <string name="out_of_range_days_kept_toast">Extra days kept</string>
     <string name="out_of_range_days_removed_toast">Extra days removed</string>
+    <plurals name="out_of_range_days_activities_count">
+        <item quantity="one">%d activity</item>
+        <item quantity="other">%d activities</item>
+    </plurals>
+    <plurals name="out_of_range_days_activities_more">
+        <item quantity="one">and %d more…</item>
+        <item quantity="other">and %d more…</item>
+    </plurals>
 
     <!--Itinerary-->
     <string name="itinerary_title">Itinerary</string>
@@ -168,6 +177,10 @@
     <string name="idea_details_approve">Approve</string>
     <string name="idea_details_reject">Reject</string>
     <string name="idea_details_add_comment">Add a comment</string>
+    <string name="idea_details_comment_sending">Sending…</string>
+    <string name="idea_details_comment_failed">Not sent</string>
+    <string name="idea_details_retry_comment">Retry</string>
+    <string name="idea_details_delete_pending_comment">Delete</string>
     <string name="idea_details_added_toast">Idea added to itinerary</string>
     <string name="idea_details_deleted_toast">Idea deleted</string>
     <string name="idea_details_approved_toast">Idea approved</string>
@@ -224,7 +237,6 @@
     <string name="settings_name_label">Name</string>
     <string name="settings_name_hint">Used as display name in trips, discussions, expenses</string>
     <string name="settings_notifications">NOTIFICATIONS</string>
-    <string name="settings_view_notifications">View notifications</string>
     <string name="settings_danger_zone">DANGER ZONE</string>
     <string name="settings_log_out">Log out</string>
     <string name="settings_delete_profile">Delete profile</string>
@@ -232,10 +244,6 @@
     <string name="settings_delete_dialog_message">All your trips, ideas, expenses, and data will be permanently deleted.</string>
     <string name="settings_photo_changed_toast">Photo updated</string>
     <string name="settings_profile_deleted_toast">Profile deleted</string>
-
-    <!--Notifications-->
-    <string name="notifications_title">Notifications</string>
-    <string name="notifications_empty">No notifications yet</string>
 
     <!--Expenses-->
     <string name="expenses_title">Expenses</string>
@@ -302,6 +310,8 @@
     <string name="activity_details_link_label">LINK</string>
     <string name="activity_details_cost_label">COST</string>
     <string name="activity_details_notes_label">NOTES</string>
+    <string name="activity_details_day_only">Day %1$d</string>
+    <string name="activity_details_day_with_city">Day %1$d · %2$s</string>
     <string name="activity_details_per_person">per person</string>
     <string name="activity_details_empty">—</string>
     <string name="activity_details_delete">Delete activity</string>

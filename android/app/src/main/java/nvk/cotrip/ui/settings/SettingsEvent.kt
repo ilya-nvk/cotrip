@@ -6,7 +6,6 @@ sealed interface SettingsEvent {
     data object OnChangePhotoClick : SettingsEvent
     data class OnPhotoPicked(val uriString: String?) : SettingsEvent
     data object OnRemovePhotoClick : SettingsEvent
-    data object OnNotificationsClick : SettingsEvent
     data class OnNameChange(val value: String) : SettingsEvent
     data class OnToggleNotifications(val key: String, val enabled: Boolean) : SettingsEvent
     data object OnLogoutClick : SettingsEvent

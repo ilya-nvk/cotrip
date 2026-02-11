@@ -1,6 +1,12 @@
 package nvk.cotrip.data.repository
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.launch
+import nvk.cotrip.data.cache.IdeaCommentsCacheStore
 import nvk.cotrip.data.cache.IdeasCacheStore
 import nvk.cotrip.data.network.CoTripApi
 import nvk.cotrip.data.network.NetworkStateProvider
@@ -21,6 +27,7 @@ class IdeaRepositoryImpl @Inject constructor(
     private val api: CoTripApi,
     private val syncQueueRepository: SyncQueueRepository,
     private val ideasCacheStore: IdeasCacheStore,
+    private val commentsCacheStore: IdeaCommentsCacheStore,
     private val networkStateProvider: NetworkStateProvider,
 ) : IdeaRepository {
 
@@ -28,31 +35,31 @@ class IdeaRepositoryImpl @Inject constructor(
         private const val TAG = "IdeaRepository"
     }
 
+    private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     override fun observeIdeas(tripId: String): Flow<List<IdeaDto>> {
         return ideasCacheStore.observeIdeas(tripId)
     }
 
-    override suspend fun listIdeas(tripId: String): List<IdeaDto> {
-        if (!networkStateProvider.isOnline()) {
-            return ideasCacheStore.getIdeas(tripId)
+    override fun getIdea(ideaId: String): Flow<IdeaDto> {
+        if (networkStateProvider.isOnline()) {
+            ioScope.launch {
+                runCatching { api.getIdea(ideaId) }
+                    .onSuccess { idea ->
+                        safeLocalMutation("getIdea.upsertIdea(ideaId=$ideaId)") {
+                            ideasCacheStore.upsertIdea(idea.tripId, idea)
+                        }
+                    }
+                    .onFailure { error ->
+                        AppLogger.w(TAG, "getIdea network fetch failed for ideaId=$ideaId", error)
+                    }
+            }
         }
-        return refreshIdeas(tripId)
+        return ideasCacheStore.observeIdeaById(ideaId).mapNotNull { it }
     }
 
-    override suspend fun getIdea(ideaId: String): IdeaDto {
-        if (!networkStateProvider.isOnline()) {
-            return ideasCacheStore.findIdeaById(ideaId)
-                ?: throw IOException("Idea $ideaId is not available offline")
-        }
-        return try {
-            api.getIdea(ideaId)
-        } catch (e: IOException) {
-            ideasCacheStore.findIdeaById(ideaId) ?: throw e
-        }
-    }
-
-    override suspend fun listComments(ideaId: String): List<CommentDto> {
-        return api.listComments(ideaId).items
+    override fun observeComments(ideaId: String): Flow<List<CommentDto>> {
+        return commentsCacheStore.observeComments(ideaId)
     }
 
     override suspend fun createIdea(tripId: String, request: CreateIdeaRequest): IdeaDto {
@@ -76,7 +83,8 @@ class IdeaRepositoryImpl @Inject constructor(
     }
 
     override suspend fun deleteIdea(ideaId: String) {
-        val ideaTripId = runCatching { api.getIdea(ideaId).tripId }
+        val cachedTripId = runCatching { ideasCacheStore.findIdeaById(ideaId)?.tripId }.getOrNull()
+        val ideaTripId = cachedTripId ?: runCatching { api.getIdea(ideaId).tripId }
             .onFailure { AppLogger.w(TAG, "deleteIdea prefetch failed for ideaId=$ideaId", it) }
             .getOrNull()
         try {
@@ -92,6 +100,9 @@ class IdeaRepositoryImpl @Inject constructor(
             safeLocalMutation("deleteIdea.removeIdea(ideaId=$ideaId)") {
                 ideasCacheStore.removeIdea(ideaTripId, ideaId)
             }
+        }
+        safeLocalMutation("deleteIdea.clearComments(ideaId=$ideaId)") {
+            commentsCacheStore.clearIdea(ideaId)
         }
     }
 
@@ -115,13 +126,21 @@ class IdeaRepositoryImpl @Inject constructor(
         return idea
     }
 
-    override suspend fun refreshIdeas(tripId: String): List<IdeaDto> {
-        val ideas = api.listIdeas(tripId).items
-        safeLocalMutation("refreshIdeas.setIdeas(tripId=$tripId)") {
-            ideasCacheStore.setIdeas(tripId, ideas)
+    override suspend fun refreshIdeas(tripId: String): Result<Unit> {
+        return runCatching {
+            val ideas = api.listIdeas(tripId).items
+            safeLocalMutation("refreshIdeas.setIdeas(tripId=$tripId)") {
+                ideasCacheStore.setIdeas(tripId, ideas)
+            }
         }
-        return ideas
     }
 
-    override suspend fun refreshComments(ideaId: String): List<CommentDto> = listComments(ideaId)
+    override suspend fun refreshComments(ideaId: String): Result<Unit> {
+        return runCatching {
+            val comments = api.listComments(ideaId).items
+            safeLocalMutation("refreshComments.setComments(ideaId=$ideaId)") {
+                commentsCacheStore.setComments(ideaId, comments)
+            }
+        }
+    }
 }

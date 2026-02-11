@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -137,12 +138,12 @@ class CreateTripViewModel @Inject constructor(
 
             when (result) {
                 is ApiResult.Success -> {
-                    AppLogger.i(TAG, "createTrip succeeded tripId=${result.data.id}")
-                    markTripCreationPending(result.data.id)
+                    AppLogger.i(TAG, "createTrip succeeded tripId=${result.data}")
+                    markTripCreationPending(result.data)
                     emitToastRes(R.string.create_trip_created_toast)
                     appNavigator.navigate(
                         Destination.TripItinerary(
-                            tripId = result.data.id,
+                            tripId = result.data,
                             requireCities = true,
                             creationFlow = true,
                         )
@@ -181,7 +182,7 @@ class CreateTripViewModel @Inject constructor(
         return withContext(Dispatchers.IO) {
             runCatching {
                 tripRepository.refreshTrips()
-                val candidates = tripRepository.listTrips()
+                val candidates = tripRepository.trips.first()
                     .filter {
                         it.title.trim() == request.title.trim() &&
                             it.startDate == request.startDate &&

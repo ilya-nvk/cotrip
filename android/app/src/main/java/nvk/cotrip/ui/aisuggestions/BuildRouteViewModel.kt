@@ -4,10 +4,11 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import nvk.cotrip.data.repository.ItineraryRepository
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
@@ -135,7 +136,7 @@ class BuildRouteViewModel @Inject constructor(
     private fun loadCitiesFromItinerary() {
         viewModelScope.launch {
             val cities = runCatching {
-                itineraryRepository.getItinerary(tripId)
+                itineraryRepository.getItinerary(tripId).first()
                     .mapNotNull { it.city?.trim()?.takeIf { city -> city.isNotBlank() } }
                     .distinct()
             }.getOrNull().orEmpty()

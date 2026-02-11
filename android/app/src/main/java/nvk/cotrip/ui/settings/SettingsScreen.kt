@@ -33,9 +33,9 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -44,10 +44,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
@@ -55,7 +55,6 @@ import kotlinx.coroutines.flow.collectLatest
 import nvk.cotrip.R
 import nvk.cotrip.ui.components.CoTripDivider
 import nvk.cotrip.ui.components.CoTripIconButton
-import nvk.cotrip.ui.components.CoTripListItem
 import nvk.cotrip.ui.components.CoTripTextField
 import nvk.cotrip.ui.theme.Border
 import nvk.cotrip.ui.theme.BorderStrong
@@ -69,8 +68,6 @@ import nvk.cotrip.ui.theme.TextPrimary
 import nvk.cotrip.ui.theme.TextSecondary
 
 private const val KEY_PROFILE = "profile"
-private const val KEY_NOTIFICATION_TITLE = "notifications_title"
-private const val KEY_NOTIFICATION_LIST = "notifications_list"
 private const val KEY_DANGER_ZONE = "danger_zone"
 private const val KEY_BOTTOM = "bottom"
 
@@ -157,21 +154,6 @@ fun SettingsScreen(
                     onNameChange = { viewModel.onEvent(SettingsEvent.OnNameChange(it)) },
                     onChangePhoto = { viewModel.onEvent(SettingsEvent.OnChangePhotoClick) },
                     onRemovePhoto = { viewModel.onEvent(SettingsEvent.OnRemovePhotoClick) }
-                )
-            }
-
-            item(key = KEY_NOTIFICATION_TITLE) {
-                SectionHeader(
-                    title = stringResource(R.string.settings_notifications),
-                    modifier = Modifier.padding(horizontal = CoTripTokens.spacing.x2)
-                )
-            }
-
-            item(key = KEY_NOTIFICATION_LIST) {
-                CoTripListItem(
-                    title = stringResource(R.string.settings_view_notifications),
-                    onClick = { viewModel.onEvent(SettingsEvent.OnNotificationsClick) },
-                    modifier = Modifier.padding(horizontal = CoTripTokens.spacing.x2)
                 )
             }
 

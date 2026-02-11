@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -155,90 +156,118 @@ fun ActivityDetailsScreen(
             }
         }
     ) { padding ->
-        androidx.compose.foundation.layout.Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = CoTripTokens.spacing.x2),
-            verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x2)
-        ) {
-            Spacer(Modifier.height(CoTripTokens.spacing.x1))
+        when (val uiState = state) {
+            is ActivityDetailsState.Init -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            }
 
-            Text(
-                text = state.dayAndCity.uppercase(),
-                style = MaterialTheme.typography.labelMedium,
-                color = TextSecondary
-            )
-
-            Text(
-                text = state.title,
-                style = MaterialTheme.typography.displaySmall,
-                fontWeight = FontWeight.SemiBold,
-                color = TextPrimary,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            SectionLabel(text = stringResource(R.string.activity_details_date_time_label))
-            InfoRow(
-                icon = CoTripIcons.Schedule,
-                title = state.dateText,
-                subtitle = state.timeText,
-                trailing = null
-            )
-
-            Divider()
-
-            SectionLabel(text = stringResource(R.string.activity_details_location_label))
-            InfoRow(
-                icon = CoTripIcons.Location,
-                title = state.locationName ?: stringResource(R.string.activity_details_empty),
-                subtitle = null,
-                trailing = null
-            )
-
-            Divider()
-
-            SectionLabel(text = stringResource(R.string.activity_details_link_label))
-            InfoRow(
-                icon = CoTripIcons.Link,
-                title = state.link ?: stringResource(R.string.activity_details_empty),
-                subtitle = null,
-                trailing = if (state.link != null) {
-                    {
-                        CoTripIconButton(
-                            icon = CoTripIcons.OpenInNew,
-                            contentDescription = null,
-                            onClick = { viewModel.onEvent(ActivityDetailsEvent.OnOpenLinkClick) }
+            is ActivityDetailsState.Content -> {
+                androidx.compose.foundation.layout.Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = CoTripTokens.spacing.x2),
+                    verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x2)
+                ) {
+                    val dayAndCity = if (uiState.city.isNullOrBlank()) {
+                        stringResource(
+                            R.string.activity_details_day_only,
+                            uiState.dayNumber
+                        )
+                    } else {
+                        stringResource(
+                            R.string.activity_details_day_with_city,
+                            uiState.dayNumber,
+                            uiState.city
                         )
                     }
-                } else null,
-                titleColor = if (state.link != null) PrimaryBlue else TextMedium
-            )
+                    Spacer(Modifier.height(CoTripTokens.spacing.x1))
 
-            Divider()
+                    Text(
+                        text = dayAndCity.uppercase(),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = TextSecondary
+                    )
 
-            SectionLabel(text = stringResource(R.string.activity_details_cost_label))
-            InfoRow(
-                icon = CoTripIcons.AccountBalance,
-                title = state.costText ?: stringResource(R.string.activity_details_empty),
-                subtitle = if (state.costText != null) stringResource(R.string.activity_details_per_person) else null,
-                trailing = null
-            )
+                    Text(
+                        text = uiState.title,
+                        style = MaterialTheme.typography.displaySmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TextPrimary,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis
+                    )
 
-            Divider()
+                    SectionLabel(text = stringResource(R.string.activity_details_date_time_label))
+                    InfoRow(
+                        icon = CoTripIcons.Schedule,
+                        title = uiState.dateText,
+                        subtitle = uiState.timeText,
+                        trailing = null
+                    )
 
-            SectionLabel(text = stringResource(R.string.activity_details_notes_label))
-            Text(
-                text = state.notes ?: stringResource(R.string.activity_details_empty),
-                style = MaterialTheme.typography.bodyLarge,
-                color = if (state.notes != null) TextPrimary else TextSecondary,
-                maxLines = KEY_NOTES_MAX_LINES,
-                overflow = TextOverflow.Ellipsis
-            )
+                    Divider()
 
-            Spacer(Modifier.height(110.dp))
+                    SectionLabel(text = stringResource(R.string.activity_details_location_label))
+                    InfoRow(
+                        icon = CoTripIcons.Location,
+                        title = uiState.locationName
+                            ?: stringResource(R.string.activity_details_empty),
+                        subtitle = null,
+                        trailing = null
+                    )
+
+                    Divider()
+
+                    SectionLabel(text = stringResource(R.string.activity_details_link_label))
+                    InfoRow(
+                        icon = CoTripIcons.Link,
+                        title = uiState.link ?: stringResource(R.string.activity_details_empty),
+                        subtitle = null,
+                        trailing = if (uiState.link != null) {
+                            {
+                                CoTripIconButton(
+                                    icon = CoTripIcons.OpenInNew,
+                                    contentDescription = null,
+                                    onClick = { viewModel.onEvent(ActivityDetailsEvent.OnOpenLinkClick) }
+                                )
+                            }
+                        } else null,
+                        titleColor = if (uiState.link != null) PrimaryBlue else TextMedium
+                    )
+
+                    Divider()
+
+                    SectionLabel(text = stringResource(R.string.activity_details_cost_label))
+                    InfoRow(
+                        icon = CoTripIcons.AccountBalance,
+                        title = uiState.costText ?: stringResource(R.string.activity_details_empty),
+                        subtitle = if (uiState.costText != null) stringResource(R.string.activity_details_per_person) else null,
+                        trailing = null
+                    )
+
+                    Divider()
+
+                    SectionLabel(text = stringResource(R.string.activity_details_notes_label))
+                    Text(
+                        text = uiState.notes ?: stringResource(R.string.activity_details_empty),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = if (uiState.notes != null) TextPrimary else TextSecondary,
+                        maxLines = KEY_NOTES_MAX_LINES,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    Spacer(Modifier.height(110.dp))
+                }
+            }
         }
     }
 }

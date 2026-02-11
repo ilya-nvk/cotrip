@@ -5,6 +5,7 @@ import nvk.cotrip.data.network.dto.ExpenseDto
 
 interface ExpensesCacheStore {
     fun observeExpenses(tripId: String): Flow<List<ExpenseDto>>
+    fun observeExpenseById(expenseId: String): Flow<ExpenseDto?>
     suspend fun getExpenses(tripId: String): List<ExpenseDto>
     suspend fun findExpenseById(expenseId: String): ExpenseDto?
     suspend fun setExpenses(tripId: String, expenses: List<ExpenseDto>)

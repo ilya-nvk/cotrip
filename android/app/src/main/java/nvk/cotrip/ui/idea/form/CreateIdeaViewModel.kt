@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -92,7 +93,7 @@ class CreateIdeaViewModel @Inject constructor(
         viewModelScope.launch {
             when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
-                    val trip = tripRepository.getTrip(tripId)
+                    val trip = tripRepository.getTrip(tripId).first()
                     TripMeta(
                         currencySymbol = currencySymbolFor(trip.currencyCode)
                     )

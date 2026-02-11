@@ -5,10 +5,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -41,6 +45,7 @@ import nvk.cotrip.ui.idea.common.IdeaDayPickerState
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import nvk.cotrip.ui.trip.form.TripCurrency
+import nvk.cotrip.util.AppLogger
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -48,6 +53,7 @@ import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import java.util.UUID
 import javax.inject.Inject
 
 @HiltViewModel
@@ -73,6 +79,10 @@ class IdeaDetailsViewModel @Inject constructor(
         checkNotNull(savedStateHandle[Destination.IdeaDetails.ARG_IDEA_ID])
 
     private val commentsSocket = CommentsWebSocket(okHttpClient, json)
+    private var reconnectJob: Job? = null
+    private var reconnectAttempt: Int = 0
+    private val pendingComments = linkedMapOf<String, PendingComment>()
+    private val pendingTimeoutJobs = mutableMapOf<String, Job>()
     private var dayOptions: List<IdeaDayOptionUi> = emptyList()
     private var membersById: Map<String, MemberDto> = emptyMap()
     private var meId: String? = null
@@ -106,10 +116,14 @@ class IdeaDetailsViewModel @Inject constructor(
     init {
         observeSocket()
         connectSocket()
-        loadDetails()
+        observeDetails()
+        refreshDetails(showErrorToast = false)
     }
 
     override fun onCleared() {
+        reconnectJob?.cancel()
+        pendingTimeoutJobs.values.forEach { it.cancel() }
+        pendingTimeoutJobs.clear()
         commentsSocket.disconnect()
         super.onCleared()
     }
@@ -117,7 +131,7 @@ class IdeaDetailsViewModel @Inject constructor(
     fun onEvent(event: IdeaDetailsEvent) {
         when (event) {
             IdeaDetailsEvent.OnBackClick -> appNavigator.popBackStack()
-            IdeaDetailsEvent.OnRefresh -> loadDetails()
+            IdeaDetailsEvent.OnRefresh -> refreshDetails(showErrorToast = true)
             IdeaDetailsEvent.OnEditClick -> appNavigator.navigate(
                 Destination.EditIdea(tripId, ideaId)
             )
@@ -136,67 +150,99 @@ class IdeaDetailsViewModel @Inject constructor(
             }
             is IdeaDetailsEvent.OnCommentChange -> _state.update { it.copy(commentInput = event.value) }
             IdeaDetailsEvent.OnSendComment -> sendComment()
+            is IdeaDetailsEvent.OnRetryComment -> retryComment(event.localId)
+            is IdeaDetailsEvent.OnDeletePendingComment -> deletePendingComment(event.localId)
         }
     }
 
-    private fun loadDetails() {
+    private fun observeDetails() {
+        viewModelScope.launch {
+            val ideaFlow = ideaRepository.getIdea(ideaId)
+            val tripFlow = tripRepository.getTrip(tripId)
+            val itineraryFlow = itineraryRepository.observeItinerary(tripId)
+            val membersFlow = tripRepository.tripMembers(tripId)
+            val commentsFlow = ideaRepository.observeComments(ideaId)
+            combine(
+                ideaFlow,
+                tripFlow,
+                itineraryFlow,
+                membersFlow,
+                commentsFlow,
+            ) { idea, trip, itinerary, members, comments ->
+                val memberMap = members.associateBy { it.userId }
+                val addedDay = itinerary
+                    .sortedBy { it.dayNumber }
+                    .firstOrNull { day ->
+                        day.activities.any { activity -> activity.sourceIdeaId == idea.id }
+                    }
+                    ?.dayNumber
+                ObservedPayloadBase(
+                    idea = idea,
+                    trip = trip,
+                    comments = comments,
+                    itinerary = itinerary,
+                    membersById = memberMap,
+                    addedDay = addedDay,
+                )
+            }.combine(userRepository.me) { base, me ->
+                val myId = me?.id
+                val isOwner = myId != null && base.trip.ownerId == myId
+                ObservedPayload(
+                    idea = base.idea,
+                    trip = base.trip,
+                    comments = base.comments,
+                    itinerary = base.itinerary,
+                    membersById = base.membersById,
+                    meId = myId,
+                    isOwner = isOwner,
+                    addedDay = base.addedDay,
+                )
+            }.collect { payload ->
+                currencySymbol = currencySymbolFor(payload.trip.currencyCode)
+                membersById = payload.membersById
+                meId = payload.meId
+                dayOptions = payload.itinerary.filter { !it.isOutOfRange }.map { it.toDayOption() }
+                val serverDiscussion = payload.comments
+                    .sortedByDescending { parseTimestamp(it.createdAt)?.toEpochMilli() ?: 0L }
+                    .map { it.toDiscussion(meId, membersById) }
+                val discussion = mergeDiscussionWithPending(
+                    serverDiscussion = serverDiscussion,
+                    pending = pendingComments.values.toList(),
+                    meId = meId,
+                    membersById = membersById
+                )
+                _state.update { current ->
+                    current.copy(
+                        title = payload.idea.title,
+                        city = payload.idea.city.orEmpty(),
+                        link = payload.idea.link.orEmpty(),
+                        cost = payload.idea.costAmount?.let { formatCost(it, currencySymbol) }
+                            .orEmpty(),
+                        notes = payload.idea.notes.orEmpty(),
+                        status = payload.idea.status,
+                        addedDay = payload.addedDay,
+                        isOwner = payload.isOwner,
+                        commentsCount = serverDiscussion.count { it is IdeaDiscussionItemUi.Message },
+                        discussion = discussion
+                    )
+                }
+            }
+        }
+    }
+
+    private fun refreshDetails(showErrorToast: Boolean) {
         viewModelScope.launch {
             when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
-                    val idea = ideaRepository.getIdea(ideaId)
-                    val trip = tripRepository.getTrip(tripId)
-                    val me = userRepository.getMe()
-                    val itinerary = runCatching { itineraryRepository.getItinerary(tripId) }
-                        .getOrDefault(emptyList())
-                    val members = runCatching { tripRepository.listMembers(tripId) }
-                        .getOrDefault(emptyList())
-                    val comments = runCatching { ideaRepository.listComments(ideaId) }
-                        .getOrDefault(emptyList())
-
-                    currencySymbol = currencySymbolFor(trip.currencyCode)
-                    membersById = members.associateBy { it.userId }
-                    meId = me.id
-                    dayOptions = itinerary.filter { !it.isOutOfRange }.map { it.toDayOption() }
-                    val isOwner = trip.ownerId == me.id
-                    val addedDay = itinerary
-                        .sortedBy { it.dayNumber }
-                        .firstOrNull { day ->
-                            day.activities.any { activity -> activity.sourceIdeaId == idea.id }
-                        }
-                        ?.dayNumber
-
-                    IdeaDetailsPayload(
-                        idea = idea,
-                        comments = comments,
-                        isOwner = isOwner,
-                        addedDay = addedDay,
-                    )
+                    tripRepository.refreshTrips().getOrThrow()
+                    tripRepository.tripMembers(tripId).first()
+                    itineraryRepository.refreshItinerary(tripId).getOrThrow()
+                    ideaRepository.refreshIdeas(tripId).getOrThrow()
+                    ideaRepository.refreshComments(ideaId).getOrThrow()
                 }
             }) {
-                is ApiResult.Success -> {
-                    val payload = result.data
-                    val idea = payload.idea
-                    val discussion = payload.comments
-                        .sortedBy { parseTimestamp(it.createdAt)?.toEpochMilli() ?: 0L }
-                        .map { it.toDiscussion(meId, membersById) }
-                    _state.update { current ->
-                        current.copy(
-                            title = idea.title,
-                            city = idea.city.orEmpty(),
-                            link = idea.link.orEmpty(),
-                            cost = idea.costAmount?.let { formatCost(it, currencySymbol) }
-                                .orEmpty(),
-                            notes = idea.notes.orEmpty(),
-                            status = idea.status,
-                            addedDay = payload.addedDay,
-                            isOwner = payload.isOwner,
-                            commentsCount = discussion.count { it is IdeaDiscussionItemUi.Message },
-                            discussion = discussion
-                        )
-                    }
-                }
-
-                is ApiResult.Failure -> {
+                is ApiResult.Success -> Unit
+                is ApiResult.Failure -> if (showErrorToast) {
                     emit(IdeaDetailsEffect.ShowToastRes(uiErrorMapper.messageRes(result)))
                 }
             }
@@ -205,8 +251,14 @@ class IdeaDetailsViewModel @Inject constructor(
 
     private fun connectSocket() {
         val token = sessionStore.getAccessToken().orEmpty()
-        if (token.isBlank()) return
+        if (token.isBlank()) {
+            scheduleReconnect()
+            return
+        }
+        reconnectJob?.cancel()
         commentsSocket.connect(BuildConfig.API_BASE_URL, tripId, token)
+        reconnectAttempt = 0
+        refreshCommentsSilently()
     }
 
     private fun observeSocket() {
@@ -215,27 +267,69 @@ class IdeaDetailsViewModel @Inject constructor(
                 when (event) {
                     is CommentWsEvent.CommentCreated -> handleCommentCreated(event.payload)
                     is CommentWsEvent.CommentDeleted -> handleCommentDeleted(event.payload.id)
-                    is CommentWsEvent.Error -> Unit
+                    is CommentWsEvent.Closed -> {
+                        AppLogger.w(
+                            TAG,
+                            "comments socket closed code=${event.code} reason=${event.reason}, scheduling reconnect"
+                        )
+                        scheduleReconnect()
+                    }
+                    is CommentWsEvent.Error -> {
+                        AppLogger.w(TAG, "comments socket error, scheduling reconnect", event.cause)
+                        scheduleReconnect()
+                    }
                 }
+            }
+        }
+    }
+
+    private fun scheduleReconnect() {
+        if (reconnectJob?.isActive == true) return
+        val delayMs = (SOCKET_RECONNECT_BASE_DELAY_MS * (1L shl reconnectAttempt.coerceAtMost(5)))
+            .coerceAtMost(SOCKET_RECONNECT_MAX_DELAY_MS)
+        reconnectAttempt += 1
+        reconnectJob = viewModelScope.launch {
+            delay(delayMs)
+            connectSocket()
+        }
+    }
+
+    private fun refreshCommentsSilently() {
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    ideaRepository.refreshComments(ideaId).getOrThrow()
+                }
+            }.onFailure { error ->
+                AppLogger.w(TAG, "refreshCommentsSilently failed for ideaId=$ideaId", error)
             }
         }
     }
 
     private fun handleCommentCreated(payload: CommentCreatedPayload) {
         if (payload.ideaId != ideaId) return
+        val resolvedLocalId = resolvePendingOnCreated(payload)
         _state.update { current ->
             val exists = current.discussion.any { item -> item.id == payload.id }
             if (exists) return@update current
             val message = payload.toDiscussionItem(meId, membersById)
             val increment = if (message is IdeaDiscussionItemUi.Message) 1 else 0
+            val withoutLocal = if (resolvedLocalId != null) {
+                current.discussion.filterNot { item ->
+                    (item as? IdeaDiscussionItemUi.Message)?.localId == resolvedLocalId
+                }
+            } else {
+                current.discussion
+            }
             current.copy(
-                discussion = current.discussion + message,
+                discussion = listOf(message) + withoutLocal,
                 commentsCount = current.commentsCount + increment
             )
         }
         if (_state.value.selectedTab == IdeaDetailsTab.Discussion) {
             markDiscussionNotificationsRead()
         }
+        refreshCommentsSilently()
     }
 
     private fun handleCommentDeleted(commentId: String) {
@@ -249,6 +343,7 @@ class IdeaDetailsViewModel @Inject constructor(
                 commentsCount = (current.commentsCount - decrement).coerceAtLeast(0)
             )
         }
+        refreshCommentsSilently()
     }
 
     private fun openDayPicker() {
@@ -281,7 +376,7 @@ class IdeaDetailsViewModel @Inject constructor(
             }) {
                 is ApiResult.Success -> {
                     withContext(Dispatchers.IO) {
-                        itineraryRepository.refreshItinerary(tripId)
+                        itineraryRepository.refreshItinerary(tripId).getOrThrow()
                     }
                     _state.update { it.copy(addedDay = day.dayNumber) }
                     emit(IdeaDetailsEffect.ShowToastRes(R.string.idea_details_added_toast))
@@ -302,8 +397,117 @@ class IdeaDetailsViewModel @Inject constructor(
             emit(IdeaDetailsEffect.ShowToastRes(R.string.common_error_message))
             return
         }
-        commentsSocket.sendCreate(ideaId, input)
+        val localId = UUID.randomUUID().toString()
+        addPendingComment(localId = localId, text = input)
         _state.update { it.copy(commentInput = "") }
+        sendPendingComment(localId)
+    }
+
+    private fun retryComment(localId: String) {
+        val pending = pendingComments[localId] ?: return
+        if (pending.status == PendingStatus.Sending) return
+        pendingComments[localId] = pending.copy(status = PendingStatus.Sending)
+        updatePendingMessageStatus(localId, IdeaDiscussionItemUi.DeliveryState.Sending)
+        sendPendingComment(localId)
+    }
+
+    private fun deletePendingComment(localId: String) {
+        pendingComments.remove(localId)
+        pendingTimeoutJobs.remove(localId)?.cancel()
+        _state.update { current ->
+            current.copy(
+                discussion = current.discussion.filterNot { item ->
+                    (item as? IdeaDiscussionItemUi.Message)?.localId == localId
+                }
+            )
+        }
+    }
+
+    private fun addPendingComment(localId: String, text: String) {
+        val nowMillis = System.currentTimeMillis()
+        pendingComments[localId] = PendingComment(
+            localId = localId,
+            text = text,
+            createdAtMillis = nowMillis,
+            status = PendingStatus.Sending
+        )
+        _state.update { current ->
+            val pendingMessage = pendingToMessage(
+                pending = pendingComments.getValue(localId),
+                meId = meId,
+                membersById = membersById
+            )
+            current.copy(discussion = listOf(pendingMessage) + current.discussion)
+        }
+    }
+
+    private fun sendPendingComment(localId: String) {
+        val pending = pendingComments[localId] ?: return
+        val sent = commentsSocket.sendCreate(
+            ideaId = ideaId,
+            body = pending.text,
+            clientMessageId = localId
+        )
+        if (!sent) {
+            markPendingFailed(localId)
+            scheduleReconnect()
+            return
+        }
+        startPendingTimeout(localId)
+    }
+
+    private fun startPendingTimeout(localId: String) {
+        pendingTimeoutJobs.remove(localId)?.cancel()
+        pendingTimeoutJobs[localId] = viewModelScope.launch {
+            delay(COMMENT_SEND_TIMEOUT_MS)
+            val pending = pendingComments[localId] ?: return@launch
+            if (pending.status == PendingStatus.Sending) {
+                markPendingFailed(localId)
+            }
+        }
+    }
+
+    private fun markPendingFailed(localId: String) {
+        val pending = pendingComments[localId] ?: return
+        pendingComments[localId] = pending.copy(status = PendingStatus.Failed)
+        updatePendingMessageStatus(localId, IdeaDiscussionItemUi.DeliveryState.Failed)
+    }
+
+    private fun updatePendingMessageStatus(
+        localId: String,
+        deliveryState: IdeaDiscussionItemUi.DeliveryState,
+    ) {
+        _state.update { current ->
+            current.copy(
+                discussion = current.discussion.map { item ->
+                    val message = item as? IdeaDiscussionItemUi.Message ?: return@map item
+                    if (message.localId == localId) {
+                        message.copy(deliveryState = deliveryState)
+                    } else {
+                        message
+                    }
+                }
+            )
+        }
+    }
+
+    private fun resolvePendingOnCreated(payload: CommentCreatedPayload): String? {
+        val directLocalId = payload.clientMessageId?.takeIf { pendingComments.containsKey(it) }
+        val fallbackLocalId = if (directLocalId == null &&
+            payload.authorId == meId &&
+            !payload.type.equals("system", ignoreCase = true)
+        ) {
+            pendingComments.values
+                .filter { it.text == payload.body && it.status == PendingStatus.Sending }
+                .minByOrNull { it.createdAtMillis }
+                ?.localId
+        } else {
+            null
+        }
+        val localId = directLocalId ?: fallbackLocalId ?: return null
+        pendingComments.remove(localId)
+        pendingTimeoutJobs.remove(localId)?.cancel()
+        return localId
     }
 
     private fun updateStatus(approved: Boolean) {
@@ -364,7 +568,8 @@ class IdeaDetailsViewModel @Inject constructor(
             runCatching {
                 withContext(Dispatchers.IO) {
                     systemNotificationManager.onIdeaDiscussionRead(ideaId)
-                    val items = notificationRepository.listNotifications()
+                    notificationRepository.refreshNotifications().getOrThrow()
+                    val items = notificationRepository.notifications.first()
                     val toMark = items.filter { item ->
                         item.readAt == null &&
                             item.type == "idea_comment" &&
@@ -372,7 +577,7 @@ class IdeaDetailsViewModel @Inject constructor(
                                 item.payload.jsonObject["ideaId"]?.jsonPrimitive?.contentOrNull == ideaId
                             }.getOrDefault(false)
                     }
-                    toMark.forEach { item ->
+                    for (item in toMark) {
                         runCatching { notificationRepository.markRead(item.id) }
                         systemNotificationManager.onMarkedRead(item.id)
                     }
@@ -381,12 +586,26 @@ class IdeaDetailsViewModel @Inject constructor(
         }
     }
 
-    private data class IdeaDetailsPayload(
+    private data class ObservedPayload(
         val idea: IdeaDto,
+        val trip: nvk.cotrip.data.network.dto.TripDto,
         val comments: List<CommentDto>,
+        val itinerary: List<ItineraryDayDto>,
+        val membersById: Map<String, MemberDto>,
+        val meId: String?,
         val isOwner: Boolean,
         val addedDay: Int?,
     )
+
+    private data class ObservedPayloadBase(
+        val idea: IdeaDto,
+        val trip: nvk.cotrip.data.network.dto.TripDto,
+        val comments: List<CommentDto>,
+        val itinerary: List<ItineraryDayDto>,
+        val membersById: Map<String, MemberDto>,
+        val addedDay: Int?,
+    )
+
 }
 
 private fun CommentDto.toDiscussion(
@@ -428,7 +647,8 @@ private fun CommentCreatedPayload.toDiscussion(
         photoUrl = member?.photoUrl,
         text = body,
         time = formatTimestamp(createdAt),
-        isMe = authorId == meId
+        isMe = authorId == meId,
+        deliveryState = IdeaDiscussionItemUi.DeliveryState.Sent
     )
 }
 
@@ -478,6 +698,67 @@ private fun parseTimestamp(raw: String): Instant? {
             LocalDateTime.parse(raw).atZone(ZoneId.systemDefault()).toInstant()
         }.getOrNull()
 }
+
+private fun pendingToMessage(
+    pending: PendingComment,
+    meId: String?,
+    membersById: Map<String, MemberDto>,
+): IdeaDiscussionItemUi.Message {
+    val me = meId?.let { membersById[it] }
+    val name = me?.name ?: "You"
+    val initials = me?.initials ?: initialsFromName(name)
+    val deliveryState = when (pending.status) {
+        PendingStatus.Sending -> IdeaDiscussionItemUi.DeliveryState.Sending
+        PendingStatus.Failed -> IdeaDiscussionItemUi.DeliveryState.Failed
+    }
+    return IdeaDiscussionItemUi.Message(
+        id = localMessageId(pending.localId),
+        author = name,
+        initials = initials,
+        photoUrl = me?.photoUrl,
+        text = pending.text,
+        time = formatTimestamp(Instant.ofEpochMilli(pending.createdAtMillis).toString()),
+        isMe = true,
+        deliveryState = deliveryState,
+        localId = pending.localId
+    )
+}
+
+private fun mergeDiscussionWithPending(
+    serverDiscussion: List<IdeaDiscussionItemUi>,
+    pending: List<PendingComment>,
+    meId: String?,
+    membersById: Map<String, MemberDto>,
+): List<IdeaDiscussionItemUi> {
+    if (pending.isEmpty()) return serverDiscussion
+    val pendingMessages = mutableListOf<IdeaDiscussionItemUi>()
+    val existingIds = serverDiscussion.mapTo(mutableSetOf()) { it.id }
+    pending.sortedByDescending { it.createdAtMillis }.forEach { item ->
+        val localId = localMessageId(item.localId)
+        if (localId in existingIds) return@forEach
+        pendingMessages += pendingToMessage(item, meId, membersById)
+    }
+    return pendingMessages + serverDiscussion
+}
+
+private fun localMessageId(localId: String): String = "local:$localId"
+
+private data class PendingComment(
+    val localId: String,
+    val text: String,
+    val createdAtMillis: Long,
+    val status: PendingStatus,
+)
+
+private enum class PendingStatus {
+    Sending,
+    Failed,
+}
+
+private const val TAG = "IdeaDetailsVM"
+private const val SOCKET_RECONNECT_BASE_DELAY_MS = 1_000L
+private const val SOCKET_RECONNECT_MAX_DELAY_MS = 30_000L
+private const val COMMENT_SEND_TIMEOUT_MS = 8_000L
 
 private fun formatTimestamp(raw: String): String {
     val instant = parseTimestamp(raw) ?: return raw

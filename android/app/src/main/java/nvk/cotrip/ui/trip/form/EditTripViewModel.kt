@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -110,13 +111,13 @@ class EditTripViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
             val result = apiCaller.call {
-                withContext(Dispatchers.IO) { tripRepository.getTrip(id) }
+                withContext(Dispatchers.IO) { tripRepository.getTrip(id).first() }
             }
             when (result) {
                 is ApiResult.Success -> {
                     val trip = result.data
                     val meId = runCatching {
-                        withContext(Dispatchers.IO) { userRepository.getMe().id }
+                        withContext(Dispatchers.IO) { userRepository.me.first()?.id }
                     }.getOrNull()
                     if (meId == null || trip.ownerId != meId) {
                         _state.update { it.copy(isLoading = false) }
@@ -196,6 +197,11 @@ class EditTripViewModel @Inject constructor(
 
             when (result) {
                 is ApiResult.Success -> {
+                    if (result.data.isFailure) {
+                        emitToastRes(R.string.common_error_message)
+                        _state.update { it.copy(isLoading = false) }
+                        return@launch
+                    }
                     emitToastRes(R.string.edit_trip_saved_toast)
                     val oldStart = originalStartDate ?: startDate
                     val oldEnd = originalEndDate ?: endDate

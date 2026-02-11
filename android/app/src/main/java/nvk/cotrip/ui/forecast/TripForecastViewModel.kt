@@ -4,16 +4,12 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import java.time.LocalDate
-import java.time.OffsetDateTime
-import java.time.format.DateTimeFormatter
-import java.util.Locale
-import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nvk.cotrip.R
@@ -31,6 +27,11 @@ import nvk.cotrip.ui.theme.CoTripIcons
 import nvk.cotrip.ui.theme.Info
 import nvk.cotrip.ui.theme.TextSecondary
 import nvk.cotrip.ui.theme.Warning
+import java.time.LocalDate
+import java.time.OffsetDateTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
+import javax.inject.Inject
 
 @HiltViewModel
 class TripForecastViewModel @Inject constructor(
@@ -102,8 +103,9 @@ class TripForecastViewModel @Inject constructor(
 
             val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
-                    val trip = tripRepository.getTrip(tripId)
-                    val itinerary = itineraryRepository.refreshItinerary(tripId)
+                    val trip = tripRepository.getTrip(tripId).first()
+                    itineraryRepository.refreshItinerary(tripId).getOrThrow()
+                    val itinerary = itineraryRepository.getItinerary(tripId).first()
                     val cityOptions = collectCityOptions(itinerary)
                     val selectedCity = selectCity(itinerary, _state.value.city)
                     if (selectedCity == null) {
@@ -118,21 +120,20 @@ class TripForecastViewModel @Inject constructor(
                             isUserRefresh ||
                                 _state.value.days.isEmpty() ||
                                 !_state.value.city.equals(selectedCity.city, ignoreCase = true)
-                        val response = if (shouldRefresh) {
+                        if (shouldRefresh) {
                             weatherRepository.refreshWeather(
                                 tripId = tripId,
                                 city = selectedCity.city,
                                 start = trip.startDate,
                                 end = trip.endDate,
-                            )
-                        } else {
-                            weatherRepository.getWeather(
-                                tripId = tripId,
-                                city = selectedCity.city,
-                                start = trip.startDate,
-                                end = trip.endDate,
-                            )
+                            ).getOrThrow()
                         }
+                        val response = weatherRepository.getWeather(
+                            tripId = tripId,
+                            city = selectedCity.city,
+                            start = trip.startDate,
+                            end = trip.endDate,
+                        ).first()
                         WeatherLoadResult(
                             city = selectedCity.city,
                             cityOptions = cityOptions,

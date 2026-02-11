@@ -5,12 +5,12 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -23,6 +23,7 @@ import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import java.util.Locale
+import javax.inject.Inject
 
 private const val INVITE_HOST = "api.cotrip.site"
 private val INVITE_TOKEN_REGEX = Regex("^[a-f0-9]{32}$", RegexOption.IGNORE_CASE)
@@ -100,10 +101,10 @@ class JoinTripViewModel @Inject constructor(
             val preflight = apiCaller.call {
                 withContext(Dispatchers.IO) {
                     runCatching { tripRepository.refreshTrips() }
-                    val joinedIds = tripRepository.listTrips().mapTo(mutableSetOf()) { it.id }
+                    val joinedIds = tripRepository.trips.first().mapTo(mutableSetOf()) { it.id }
                     when (target) {
                         is JoinTarget.InviteToken -> {
-                            val invite = inviteRepository.getInvite(target.token)
+                            val invite = inviteRepository.getInvite(target.token).first()
                             joinedIds.contains(invite.tripId)
                         }
                         is JoinTarget.TripId -> joinedIds.contains(target.tripId)

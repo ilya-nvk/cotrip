@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import nvk.cotrip.data.network.dto.TripDto
@@ -107,7 +108,7 @@ class TripsListViewModel @Inject constructor(
     }
 
     private suspend fun refreshTripMembers() {
-        val trips = runCatching { tripRepository.listTrips() }.getOrDefault(emptyList())
+        val trips = runCatching { tripRepository.trips.first() }.getOrDefault(emptyList())
         if (trips.isEmpty()) {
             membersByTrip.value = emptyMap()
             return
@@ -115,7 +116,9 @@ class TripsListViewModel @Inject constructor(
         val resolved = mutableMapOf<String, List<AvatarStackItem>>()
         trips.forEach { trip ->
             val members =
-                runCatching { tripRepository.listMembers(trip.id) }.getOrDefault(emptyList())
+                runCatching {
+                    tripRepository.tripMembers(trip.id).first()
+                }.getOrDefault(emptyList())
             resolved[trip.id] = members.map { member ->
                 AvatarStackItem(
                     initials = member.initials,

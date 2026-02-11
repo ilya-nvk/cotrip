@@ -1,14 +1,21 @@
 package nvk.cotrip.ui.activity.details
 
-data class ActivityDetailsState(
-    val dayId: String,
-    val activityId: String,
-    val dayAndCity: String,
-    val title: String,
-    val dateText: String,
-    val timeText: String,
-    val locationName: String?,
-    val link: String?,
-    val costText: String?,
-    val notes: String?,
-)
+sealed interface ActivityDetailsState {
+    data class Init(
+        val activityId: String,
+    ) : ActivityDetailsState
+
+    data class Content(
+        val dayId: String,
+        val activityId: String,
+        val dayNumber: Int,
+        val city: String?,
+        val title: String,
+        val dateText: String,
+        val timeText: String,
+        val locationName: String?,
+        val link: String?,
+        val costText: String?,
+        val notes: String?,
+    ) : ActivityDetailsState
+}

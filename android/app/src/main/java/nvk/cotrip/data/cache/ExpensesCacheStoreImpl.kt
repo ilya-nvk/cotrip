@@ -23,6 +23,15 @@ class ExpensesCacheStoreImpl @Inject constructor(
         }
     }
 
+    override fun observeExpenseById(expenseId: String): Flow<ExpenseDto?> {
+        return dataStore.data.map { prefs ->
+            decodeCache(prefs[EXPENSES_KEY]).byTrip.values
+                .asSequence()
+                .flatten()
+                .firstOrNull { it.id == expenseId }
+        }
+    }
+
     override suspend fun getExpenses(tripId: String): List<ExpenseDto> {
         val prefs = dataStore.data.first()
         return decodeCache(prefs[EXPENSES_KEY]).byTrip[tripId].orEmpty()

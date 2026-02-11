@@ -21,10 +21,6 @@ sealed interface Destination {
         override val route = "settings"
     }
 
-    data object Notifications : Destination {
-        override val route = "notifications"
-    }
-
     data class JoinTrip(val token: String? = null) : Destination {
         override val route: String =
             if (token.isNullOrBlank()) "trips/join" else "trips/join?token=$token"

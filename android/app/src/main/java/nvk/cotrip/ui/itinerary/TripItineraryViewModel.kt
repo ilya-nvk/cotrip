@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -65,7 +66,6 @@ class TripItineraryViewModel @Inject constructor(
             mode = ItineraryMode.Empty,
             days = emptyList(),
             cityPicker = null,
-            isReordering = false,
             isCitySelectionRequired = requireCitySelection,
             pendingCitySelectionCount = 0,
             isRefreshing = false,
@@ -103,7 +103,6 @@ class TripItineraryViewModel @Inject constructor(
             TripItineraryEvent.OnCompleteRequiredCitySelection -> completeRequiredCitySelection()
             TripItineraryEvent.OnAutoRefresh -> refreshItinerary(isUserRefresh = false)
             TripItineraryEvent.OnUserRefresh -> refreshItinerary(isUserRefresh = true)
-            TripItineraryEvent.OnToggleReorder -> toggleReorder()
             TripItineraryEvent.OnAddActivityClick -> appNavigator.navigate(
                 Destination.CreateActivity(tripId)
             )
@@ -119,10 +118,6 @@ class TripItineraryViewModel @Inject constructor(
             is TripItineraryEvent.OnChooseCityClick -> openCityPicker(event.dayId)
             is TripItineraryEvent.OnCityQueryChange -> updateCityQuery(event.value)
             is TripItineraryEvent.OnCitySelected -> selectCity(event.city)
-            is TripItineraryEvent.OnReorderMove ->
-                reorderInState(event.dayId, event.fromIndex, event.toIndex)
-            is TripItineraryEvent.OnReorderCommit ->
-                commitReorder(event.dayId)
         }
     }
 
@@ -165,21 +160,18 @@ class TripItineraryViewModel @Inject constructor(
     private fun observeData() {
         viewModelScope.launch {
             combine(
-                tripRepository.observeTrip(tripId),
+                tripRepository.getTrip(tripId),
                 itineraryRepository.observeItinerary(tripId)
             ) { trip, itinerary -> Pair(trip, itinerary) }
                 .collect { (trip, itinerary) ->
-                    if (trip != null) {
-                        currencySymbol = currencySymbolFor(trip.currencyCode)
-                    }
+                    currencySymbol = currencySymbolFor(trip.currencyCode)
                     allCities = collectTripCities(itinerary)
                     val pendingCitySelectionCount = itinerary.count {
                         !it.isOutOfRange && it.city.isNullOrBlank()
                     }
 
                     val dayUis = itinerary.map { it.toUi(currencySymbol) }
-                    val dateRange = trip?.let { formatRange(it.startDate, it.endDate) }
-                        ?: _state.value.dateRange
+                    val dateRange = formatRange(trip.startDate, trip.endDate)
                     _state.update {
                         val picker = it.cityPicker
                         val updatedPicker = if (picker != null && picker.query.isBlank()) {
@@ -210,8 +202,8 @@ class TripItineraryViewModel @Inject constructor(
             }
             when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
-                    tripRepository.getTrip(tripId)
-                    itineraryRepository.refreshItinerary(tripId)
+                    tripRepository.getTrip(tripId).first()
+                    itineraryRepository.refreshItinerary(tripId).getOrThrow()
                 }
             }) {
                 is ApiResult.Success -> Unit
@@ -252,49 +244,6 @@ class TripItineraryViewModel @Inject constructor(
                     isSearching = false,
                 )
             )
-        }
-    }
-
-    private fun toggleReorder() {
-        if (_state.value.isCitySelectionRequired) return
-        _state.update { it.copy(isReordering = !it.isReordering) }
-    }
-
-    private fun reorderInState(dayId: String, fromIndex: Int, toIndex: Int) {
-        val current = _state.value
-        val dayIndex = current.days.indexOfFirst { it.id == dayId }
-        if (dayIndex == -1) return
-        val day = current.days[dayIndex]
-        if (fromIndex !in day.activities.indices) return
-        val targetIndex = toIndex.coerceIn(0, day.activities.lastIndex)
-        if (targetIndex == fromIndex) return
-        val moved = day.activities.toMutableList().apply {
-            add(targetIndex, removeAt(fromIndex))
-        }
-
-        val updatedDays = current.days.toMutableList().apply {
-            set(dayIndex, day.copy(activities = moved))
-        }
-        _state.update { it.copy(days = updatedDays) }
-    }
-
-    private fun commitReorder(dayId: String) {
-        val day = _state.value.days.firstOrNull { it.id == dayId } ?: return
-        viewModelScope.launch {
-            when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    itineraryRepository.reorderActivities(
-                        dayId = dayId,
-                        orderedIds = day.activities.map { it.id }
-                    )
-                }
-            }) {
-                is ApiResult.Success -> Unit
-                is ApiResult.Failure -> {
-                    emitToast(uiErrorMapper.messageRes(result))
-                    refreshItinerary(isUserRefresh = false)
-                }
-            }
         }
     }
 
@@ -422,7 +371,10 @@ class TripItineraryViewModel @Inject constructor(
             }
 
             val latestDays = withContext(Dispatchers.IO) {
-                runCatching { itineraryRepository.refreshItinerary(tripId) }.getOrNull()
+                runCatching {
+                    itineraryRepository.refreshItinerary(tripId).getOrThrow()
+                    itineraryRepository.getItinerary(tripId).first()
+                }.getOrNull()
             }.orEmpty()
             val resolvedDay = latestDays.firstOrNull { it.date == picker.dayDate }
                 ?: latestDays.firstOrNull { it.dayNumber == picker.dayNumber }
@@ -457,7 +409,8 @@ class TripItineraryViewModel @Inject constructor(
 
             val appliedOnServer = withContext(Dispatchers.IO) {
                 runCatching {
-                    itineraryRepository.refreshItinerary(tripId).any { day ->
+                    itineraryRepository.refreshItinerary(tripId).getOrThrow()
+                    itineraryRepository.getItinerary(tripId).first().any { day ->
                         (day.id == targetDayId ||
                             day.date == picker.dayDate ||
                             day.dayNumber == picker.dayNumber) &&
@@ -523,7 +476,7 @@ class TripItineraryViewModel @Inject constructor(
             )
         }
         withContext(Dispatchers.IO) {
-            runCatching { itineraryRepository.refreshItinerary(tripId) }
+            runCatching { itineraryRepository.refreshItinerary(tripId).getOrThrow() }
         }
     }
 

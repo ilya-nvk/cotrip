@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -57,7 +58,8 @@ class EditActivityViewModel @Inject constructor(
         ActivityFormState(
             mode = ActivityFormMode.Edit,
             activityId = activityId,
-            headerText = null,
+            headerDayNumber = null,
+            headerCity = null,
             title = "",
             dateText = "",
             timeText = "",
@@ -118,7 +120,8 @@ class EditActivityViewModel @Inject constructor(
                     dayByDate = info.days.associateBy { LocalDate.parse(it.date) }
                     _state.update {
                         it.copy(
-                            headerText = headerFor(info.day),
+                            headerDayNumber = info.day.dayNumber,
+                            headerCity = info.day.city?.takeIf { city -> city.isNotBlank() },
                             title = info.activity.title,
                             dateText = formatDate(LocalDate.parse(info.day.date)),
                             timeText = info.activity.timeText.orEmpty(),
@@ -162,7 +165,8 @@ class EditActivityViewModel @Inject constructor(
         _state.update {
             it.copy(
                 dateText = formatDate(date),
-                headerText = headerFor(day)
+                headerDayNumber = day.dayNumber,
+                headerCity = day.city?.takeIf { city -> city.isNotBlank() }
             )
         }
     }
@@ -291,10 +295,10 @@ class EditActivityViewModel @Inject constructor(
     }
 
     private suspend fun findActivity(activityId: String): ActivityLookup {
-        val trips = tripRepository.listTrips()
-        trips.forEach { trip ->
-            val itinerary = itineraryRepository.getItinerary(trip.id)
-            itinerary.forEach { day ->
+        val trips = tripRepository.trips.first()
+        for (trip in trips) {
+            val itinerary = itineraryRepository.getItinerary(trip.id).first()
+            for (day in itinerary) {
                 val match = day.activities.firstOrNull { it.id == activityId }
                 if (match != null) {
                     return ActivityLookup(trip, day, match, itinerary)
@@ -318,14 +322,6 @@ class EditActivityViewModel @Inject constructor(
 
 private fun formatDate(date: LocalDate): String {
     return date.format(DateTimeFormatter.ofPattern("dd.MM.yyyy", Locale.getDefault()))
-}
-
-private fun headerFor(day: ItineraryDayDto): String {
-    return if (day.city.isNullOrBlank()) {
-        "Day ${day.dayNumber}"
-    } else {
-        "Day ${day.dayNumber} · ${day.city}"
-    }
 }
 
 private fun String?.toCostType(): CostType {

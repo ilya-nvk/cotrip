@@ -99,6 +99,7 @@ object NetworkModule {
             .cache(httpCache)
             .connectTimeout(20, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
+            .pingInterval(20, TimeUnit.SECONDS)
             .build()
     }
 

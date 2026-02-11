@@ -23,6 +23,15 @@ class IdeasCacheStoreImpl @Inject constructor(
         }
     }
 
+    override fun observeIdeaById(ideaId: String): Flow<IdeaDto?> {
+        return dataStore.data.map { prefs ->
+            decodeCache(prefs[IDEAS_KEY]).byTrip.values
+                .asSequence()
+                .flatten()
+                .firstOrNull { it.id == ideaId }
+        }
+    }
+
     override suspend fun getIdeas(tripId: String): List<IdeaDto> {
         val prefs = dataStore.data.first()
         return decodeCache(prefs[IDEAS_KEY]).byTrip[tripId].orEmpty()

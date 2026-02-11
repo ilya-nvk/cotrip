@@ -5,7 +5,11 @@ import io.ktor.websocket.send
 import kotlinx.serialization.encodeToString
 import nvk.cotrip.backend.db.CommentRow
 
-suspend fun publishCommentCreated(tripId: String, comment: CommentRow) {
+suspend fun publishCommentCreated(
+    tripId: String,
+    comment: CommentRow,
+    clientMessageId: String? = null,
+) {
     val payload = CommentCreatedMessage(
         payload = CommentCreatedPayload(
             id = comment.id,
@@ -14,6 +18,7 @@ suspend fun publishCommentCreated(tripId: String, comment: CommentRow) {
             type = comment.type,
             body = comment.body,
             createdAt = comment.createdAt.toString(),
+            clientMessageId = clientMessageId,
         )
     )
     val text = WsJson.instance.encodeToString(payload)

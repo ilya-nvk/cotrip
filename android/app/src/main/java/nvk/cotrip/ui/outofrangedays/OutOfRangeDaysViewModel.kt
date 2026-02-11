@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nvk.cotrip.R
@@ -72,8 +73,9 @@ class OutOfRangeDaysViewModel @Inject constructor(
         viewModelScope.launch {
             when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
-                    val trip = tripRepository.getTrip(tripId)
-                    val itinerary = itineraryRepository.refreshItinerary(tripId)
+                    val trip = tripRepository.getTrip(tripId).first()
+                    itineraryRepository.refreshItinerary(tripId).getOrThrow()
+                    val itinerary = itineraryRepository.getItinerary(tripId).first()
                     LoadedOutOfRange(
                         tripStart = LocalDate.parse(trip.startDate),
                         tripEnd = LocalDate.parse(trip.endDate),
@@ -153,23 +155,17 @@ private fun ItineraryDayDto.toUi(): OutOfRangeDayUi {
     val date = LocalDate.parse(date)
     val dateText = date.format(DateTimeFormatter.ofPattern("EEE, MMM d", Locale.getDefault()))
     val activities = activities.sortedBy { it.orderIndex }
-    val preview = activities.take(2).map { it.title }.toMutableList()
-    if (activities.size > 2) {
-        preview += "and ${activities.size - 2} more…"
-    }
-    val activitiesTitle = when (activities.size) {
-        0 -> "No activities"
-        1 -> "1 activity"
-        else -> "${activities.size} activities"
-    }
+    val preview = activities.take(2).map { it.title }
+    val hiddenActivitiesCount = (activities.size - preview.size).coerceAtLeast(0)
 
     return OutOfRangeDayUi(
         id = id,
-        dayTitle = "Day $dayNumber",
+        dayNumber = dayNumber,
         dateText = dateText,
         city = city,
-        activitiesTitle = activitiesTitle,
+        activitiesCount = activities.size,
         activitiesPreview = preview,
+        hiddenActivitiesCount = hiddenActivitiesCount,
     )
 }
 

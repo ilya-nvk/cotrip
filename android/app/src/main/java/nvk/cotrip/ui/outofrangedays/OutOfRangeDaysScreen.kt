@@ -27,6 +27,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -173,6 +174,15 @@ private fun WarningBanner(
 
 @Composable
 private fun DayItem(day: OutOfRangeDayUi) {
+    val activitiesTitle = if (day.activitiesCount == 0) {
+        stringResource(R.string.out_of_range_days_activities_none)
+    } else {
+        pluralStringResource(
+            R.plurals.out_of_range_days_activities_count,
+            day.activitiesCount,
+            day.activitiesCount
+        )
+    }
     androidx.compose.foundation.layout.Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -183,7 +193,7 @@ private fun DayItem(day: OutOfRangeDayUi) {
         verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x1)
     ) {
         Text(
-            text = day.dayTitle,
+            text = stringResource(R.string.itinerary_day_title, day.dayNumber),
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.SemiBold
         )
@@ -202,7 +212,7 @@ private fun DayItem(day: OutOfRangeDayUi) {
         )
 
         Text(
-            text = day.activitiesTitle,
+            text = activitiesTitle,
             style = MaterialTheme.typography.bodyLarge,
             color = TextSecondary
         )
@@ -215,6 +225,17 @@ private fun DayItem(day: OutOfRangeDayUi) {
                 day.activitiesPreview.forEach { line ->
                     Text(
                         text = "• $line",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = TextSecondary
+                    )
+                }
+                if (day.hiddenActivitiesCount > 0) {
+                    Text(
+                        text = pluralStringResource(
+                            R.plurals.out_of_range_days_activities_more,
+                            day.hiddenActivitiesCount,
+                            day.hiddenActivitiesCount
+                        ),
                         style = MaterialTheme.typography.bodyLarge,
                         color = TextSecondary
                     )
