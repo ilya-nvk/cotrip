@@ -508,8 +508,27 @@ fun Route.itineraryRoutes(weatherConfig: WeatherConfig) {
             when (request.action) {
                 "keep" -> ItineraryDayRepository.markOutOfRange(request.dayIds, true)
                 "remove" -> ItineraryDayRepository.deleteDays(request.dayIds)
+                "extend_end" -> {
+                    val updated = TripRepository.extendTripEndByOutOfRangeDays(
+                        ownerId = userId,
+                        tripId = tripId,
+                        dayIds = request.dayIds,
+                    )
+                    if (updated == null) {
+                        call.respond(HttpStatusCode.Forbidden)
+                        return@post
+                    }
+                }
                 else -> {
-                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to mapOf("code" to "invalid_action", "message" to "Action must be keep or remove")))
+                    call.respond(
+                        HttpStatusCode.BadRequest,
+                        mapOf(
+                            "error" to mapOf(
+                                "code" to "invalid_action",
+                                "message" to "Action must be keep, remove, or extend_end",
+                            )
+                        )
+                    )
                     return@post
                 }
             }

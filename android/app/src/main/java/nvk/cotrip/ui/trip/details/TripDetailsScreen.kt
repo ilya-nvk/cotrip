@@ -149,21 +149,25 @@ fun TripDetailsScreen(
                         travelers = state.travelers,
                         peopleCountText = state.peopleCountText,
                         isEmpty = state.isEmpty,
+                        canInvite = state.isOwner,
                         onInvite = { viewModel.onEvent(TripDetailsEvent.OnInviteTravelersClick) },
                         onMembers = { viewModel.onEvent(TripDetailsEvent.OnMembersClick) }
                     )
                 }
 
-                if (!state.isEmpty) {
+                if (state.weather.days.isNotEmpty()) {
                     item(key = KEY_WEATHER) {
                         WeatherCard(
                             city = state.weather.city,
                             days = state.weather.days,
+                            notice = state.weather.notice,
                             onCityClick = { viewModel.onEvent(TripDetailsEvent.OnWeatherCityClick) },
                             onViewForecast = { viewModel.onEvent(TripDetailsEvent.OnViewForecastClick) }
                         )
                     }
+                }
 
+                if (!state.isEmpty) {
                     item(key = KEY_NEXT) {
                         NextInTripCard(
                             title = stringResource(R.string.trip_details_next_in_trip),
@@ -341,6 +345,7 @@ private fun TravelersSection(
     travelers: List<AvatarStackItem>,
     peopleCountText: String,
     isEmpty: Boolean,
+    canInvite: Boolean,
     onInvite: () -> Unit,
     onMembers: () -> Unit,
 ) {
@@ -377,19 +382,21 @@ private fun TravelersSection(
 
             Spacer(Modifier.width(CoTripTokens.spacing.x1_5))
 
-            Surface(
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(1.dp, Border)
-            ) {
-                CoTripIconButton(
-                    icon = CoTripIcons.Add,
-                    contentDescription = stringResource(R.string.trip_details_invite),
-                    onClick = onInvite
-                )
-            }
+            if (canInvite) {
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(1.dp, Border)
+                ) {
+                    CoTripIconButton(
+                        icon = CoTripIcons.Add,
+                        contentDescription = stringResource(R.string.trip_details_invite),
+                        onClick = onInvite
+                    )
+                }
 
-            Spacer(Modifier.width(CoTripTokens.spacing.x1_5))
+                Spacer(Modifier.width(CoTripTokens.spacing.x1_5))
+            }
 
             Text(
                 text = peopleCountText,
@@ -429,6 +436,7 @@ private fun TravelersSection(
 private fun WeatherCard(
     city: String,
     days: List<WeatherDayUi>,
+    notice: WeatherCardNotice,
     onCityClick: () -> Unit,
     onViewForecast: () -> Unit,
 ) {
@@ -452,7 +460,7 @@ private fun WeatherCard(
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 TertiaryTextButton(
-                    text = city,
+                    text = city.ifBlank { stringResource(R.string.weather_forecast_city_missing) },
                     onClick = onCityClick,
                     enabled = true
                 )
@@ -474,29 +482,47 @@ private fun WeatherCard(
                 modifier = Modifier.padding(CoTripTokens.spacing.x2),
                 verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x2)
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    days.take(5).forEach { day ->
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = day.label,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = TextSecondary
-                            )
-                            Spacer(Modifier.height(CoTripTokens.spacing.x0_5))
-                            Icon(
-                                imageVector = day.icon,
-                                contentDescription = null,
-                                tint = day.tint
-                            )
-                            Spacer(Modifier.height(CoTripTokens.spacing.x0_5))
-                            Text(
-                                text = day.temp,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = TextPrimary
-                            )
+                val noticeText = when (notice) {
+                    WeatherCardNotice.None -> null
+                    WeatherCardNotice.CityMissing -> stringResource(R.string.trip_details_weather_city_missing)
+                    WeatherCardNotice.NoData -> stringResource(R.string.trip_details_weather_no_data)
+                    WeatherCardNotice.Partial -> stringResource(R.string.trip_details_weather_partial)
+                    WeatherCardNotice.Unavailable -> stringResource(R.string.trip_details_weather_unavailable)
+                }
+
+                if (noticeText != null) {
+                    Text(
+                        text = noticeText,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextSecondary
+                    )
+                }
+
+                if (days.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        days.take(5).forEach { day ->
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = day.label,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = TextSecondary
+                                )
+                                Spacer(Modifier.height(CoTripTokens.spacing.x0_5))
+                                Icon(
+                                    imageVector = day.icon,
+                                    contentDescription = null,
+                                    tint = day.tint
+                                )
+                                Spacer(Modifier.height(CoTripTokens.spacing.x0_5))
+                                Text(
+                                    text = day.temp,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = TextPrimary
+                                )
+                            }
                         }
                     }
                 }
