@@ -38,6 +38,10 @@ import nvk.cotrip.ui.components.AvatarStackItem
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import nvk.cotrip.ui.trip.form.TripCurrency
+import nvk.cotrip.ui.theme.CoTripIcons
+import nvk.cotrip.ui.theme.Info
+import nvk.cotrip.ui.theme.TextSecondary
+import nvk.cotrip.ui.theme.Warning
 import nvk.cotrip.util.AppLogger
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -454,6 +458,26 @@ private fun buildState(
         )
     )
 }
+
+private fun pickWeatherCity(days: List<ItineraryDayDto>): String? {
+    return days
+        .sortedBy { it.dayNumber }
+        .firstOrNull { !it.city.isNullOrBlank() && it.cityLat != null && it.cityLon != null }
+        ?.city
+        ?.trim()
+        ?.takeIf { it.isNotEmpty() }
+}
+
+private fun buildTempText(tempMin: Double?, tempMax: Double?): String {
+    return when {
+        tempMin != null && tempMax != null -> "${tempMin.roundTemp()}°/${tempMax.roundTemp()}°"
+        tempMax != null -> "${tempMax.roundTemp()}°"
+        tempMin != null -> "${tempMin.roundTemp()}°"
+        else -> "—"
+    }
+}
+
+private fun Double.roundTemp(): Int = kotlin.math.round(this).toInt()
 
 private fun formatRange(start: LocalDate, end: LocalDate): String {
     val locale = Locale.getDefault()
