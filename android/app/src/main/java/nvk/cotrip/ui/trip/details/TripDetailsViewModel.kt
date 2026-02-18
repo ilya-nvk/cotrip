@@ -19,7 +19,6 @@ import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.network.dto.ExpenseDto
 import nvk.cotrip.data.network.dto.IdeaDto
-import nvk.cotrip.data.network.dto.ItineraryDayDto
 import nvk.cotrip.data.network.dto.MemberDto
 import nvk.cotrip.data.network.dto.TripDto
 import nvk.cotrip.data.repository.ExpenseRepository
@@ -33,10 +32,6 @@ import nvk.cotrip.ui.components.AvatarStackItem
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import nvk.cotrip.ui.trip.form.TripCurrency
-import nvk.cotrip.ui.theme.CoTripIcons
-import nvk.cotrip.ui.theme.Info
-import nvk.cotrip.ui.theme.TextSecondary
-import nvk.cotrip.ui.theme.Warning
 import nvk.cotrip.util.AppLogger
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -59,9 +54,10 @@ class TripDetailsViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val tripId: String = checkNotNull(savedStateHandle["tripId"])
+    private var latestWeather: WeatherCardUi = TripDetailsWeatherMapper.cityMissingCard()
 
     private val _state =
-        MutableStateFlow(createPlaceholderState(tripId))
+        MutableStateFlow<TripDetailsState>(TripDetailsState.Loading)
     val state = _state.asStateFlow()
 
     private val _effects = MutableSharedFlow<TripDetailsEffect>()
@@ -79,7 +75,8 @@ class TripDetailsViewModel @Inject constructor(
             TripDetailsEvent.OnAutoRefresh -> refreshTripData(isUserRefresh = false)
             TripDetailsEvent.OnUserRefresh -> refreshTripData(isUserRefresh = true)
             TripDetailsEvent.OnEditClick -> {
-                if (_state.value.isOwner) {
+                val content = _state.value as? TripDetailsState.Content
+                if (content?.isOwner == true) {
                     appNavigator.navigate(Destination.EditTrip(tripId))
                 }
             }
@@ -118,7 +115,8 @@ class TripDetailsViewModel @Inject constructor(
             TripDetailsEvent.OnIdeasClick -> appNavigator.navigate(Destination.TripIdeas(tripId))
             TripDetailsEvent.OnExpensesClick -> appNavigator.navigate(Destination.Expenses(tripId))
             TripDetailsEvent.OnPrimaryCtaClick -> {
-                if (_state.value.isEmpty) appNavigator.navigate(Destination.BuildRoute(tripId))
+                val content = _state.value as? TripDetailsState.Content ?: return
+                if (content.isEmpty) appNavigator.navigate(Destination.BuildRoute(tripId))
                 else appNavigator.navigate(Destination.BuildRoute(tripId))
             }
         }
@@ -126,38 +124,6 @@ class TripDetailsViewModel @Inject constructor(
 
     private fun emitToast(resId: Int) {
         viewModelScope.launch { _effects.emit(TripDetailsEffect.ShowToastRes(resId)) }
-    }
-
-    private fun createPlaceholderState(tripId: String): TripDetailsState {
-        return TripDetailsState(
-            isEmpty = true,
-            isOwner = false,
-            header = TripHeaderUi(
-                tripId = tripId,
-                title = "",
-                dateRange = "",
-                locationLine = "",
-                coverUrl = null,
-            ),
-            travelers = emptyList(),
-            peopleCountText = "0 people",
-            weather = WeatherCardUi(
-                city = "",
-                days = emptyList(),
-                notice = WeatherCardNotice.CityMissing,
-            ),
-            nextInTrip = NextInTripUi(
-                subtitle = "",
-                lines = emptyList()
-            ),
-            overview = TripOverviewUi(
-                ideasCount = 0,
-                ideasSubtitle = "",
-                expensesAmount = "",
-                expensesSubtitle = ""
-            ),
-            isRefreshing = false,
-        )
     }
 
     private fun observeCachedTripData() {
@@ -187,9 +153,9 @@ class TripDetailsViewModel @Inject constructor(
                 }
             }.collect { loaded ->
                 if (loaded == null) return@collect
-                val current = _state.value
-                _state.value = buildState(loaded, current.weather)
-                    .copy(isRefreshing = current.isRefreshing)
+                val current = _state.value as? TripDetailsState.Content
+                _state.value = buildState(loaded, latestWeather)
+                    .copy(isRefreshing = current?.isRefreshing ?: false)
                 AppLogger.i(TAG, "trip details state updated for tripId=$tripId")
             }
         }
@@ -210,7 +176,10 @@ class TripDetailsViewModel @Inject constructor(
     private fun refreshTripData(isUserRefresh: Boolean) {
         viewModelScope.launch {
             if (isUserRefresh) {
-                _state.value = _state.value.copy(isRefreshing = true)
+                val current = _state.value as? TripDetailsState.Content
+                if (current != null) {
+                    _state.value = current.copy(isRefreshing = true)
+                }
             }
             val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
@@ -263,15 +232,22 @@ class TripDetailsViewModel @Inject constructor(
 
             when (result) {
                 is ApiResult.Success -> {
-                    _state.value = _state.value.copy(
-                        weather = result.data,
-                        isRefreshing = false,
-                    )
+                    latestWeather = result.data
+                    val current = _state.value as? TripDetailsState.Content
+                    if (current != null) {
+                        _state.value = current.copy(
+                            weather = result.data,
+                            isRefreshing = false,
+                        )
+                    }
                     AppLogger.i(TAG, "refreshTripData success for tripId=$tripId")
                 }
 
                 is ApiResult.Failure -> {
-                    _state.value = _state.value.copy(isRefreshing = false)
+                    val current = _state.value as? TripDetailsState.Content
+                    if (current != null) {
+                        _state.value = current.copy(isRefreshing = false)
+                    }
                     AppLogger.w(
                         TAG,
                         "refreshTripData failed for tripId=$tripId code=${result.httpCode} apiCode=${result.error?.code.orEmpty()}",
@@ -285,12 +261,8 @@ class TripDetailsViewModel @Inject constructor(
 
     private suspend fun loadWeatherCard(trip: TripDto): WeatherCardUi {
         val itinerary = itineraryRepository.getItinerary(trip.id).first()
-        val selectedCity = pickWeatherCity(itinerary)
-            ?: return WeatherCardUi(
-                city = "",
-                days = emptyList(),
-                notice = WeatherCardNotice.CityMissing,
-            )
+        val selectedCity = TripDetailsWeatherMapper.pickCity(itinerary)
+            ?: return TripDetailsWeatherMapper.cityMissingCard()
 
         val start = trip.startDate
         val end = trip.endDate
@@ -311,44 +283,11 @@ class TripDetailsViewModel @Inject constructor(
                 start = start,
                 end = end,
             ).first()
-        } ?: return WeatherCardUi(
+        } ?: return TripDetailsWeatherMapper.unavailableCard(selectedCity)
+
+        return TripDetailsWeatherMapper.mapResponse(
             city = selectedCity,
-            days = emptyList(),
-            notice = WeatherCardNotice.Unavailable,
-        )
-
-        val days = response.items
-            .sortedBy { it.date }
-            .take(5)
-            .map { forecast ->
-                val dayDate = runCatching { LocalDate.parse(forecast.date) }.getOrNull()
-                WeatherDayUi(
-                    label = dayDate?.format(DateTimeFormatter.ofPattern("EEE", Locale.getDefault()))
-                        ?: "—",
-                    temp = buildTempText(forecast.tempMin, forecast.tempMax),
-                    icon = when {
-                        forecast.iconCode?.startsWith("01") == true -> CoTripIcons.WeatherSunny
-                        forecast.iconCode?.startsWith("09") == true || forecast.iconCode?.startsWith("10") == true -> CoTripIcons.WeatherRain
-                        else -> CoTripIcons.WeatherCloudy
-                    },
-                    tint = when {
-                        forecast.iconCode?.startsWith("01") == true -> Warning
-                        forecast.iconCode?.startsWith("09") == true || forecast.iconCode?.startsWith("10") == true -> Info
-                        else -> TextSecondary
-                    },
-                )
-            }
-
-        val notice = when {
-            days.isEmpty() -> WeatherCardNotice.NoData
-            response.missingDates.isNotEmpty() -> WeatherCardNotice.Partial
-            else -> WeatherCardNotice.None
-        }
-
-        return WeatherCardUi(
-            city = selectedCity,
-            days = days,
-            notice = notice,
+            response = response,
         )
     }
 }
@@ -363,7 +302,7 @@ private data class LoadedTrip(
     val isOwner: Boolean,
 )
 
-private fun buildState(loaded: LoadedTrip, weather: WeatherCardUi): TripDetailsState {
+private fun buildState(loaded: LoadedTrip, weather: WeatherCardUi): TripDetailsState.Content {
     val trip = loaded.trip
     val start = LocalDate.parse(trip.startDate)
     val end = LocalDate.parse(trip.endDate)
@@ -386,7 +325,7 @@ private fun buildState(loaded: LoadedTrip, weather: WeatherCardUi): TripDetailsS
 
     val peopleText = if (peopleCount == 1) "1 person" else "$peopleCount people"
 
-    return TripDetailsState(
+    return TripDetailsState.Content(
         isEmpty = isEmpty,
         isOwner = loaded.isOwner,
         header = TripHeaderUi(
@@ -415,26 +354,6 @@ private fun buildState(loaded: LoadedTrip, weather: WeatherCardUi): TripDetailsS
         )
     )
 }
-
-private fun pickWeatherCity(days: List<ItineraryDayDto>): String? {
-    return days
-        .sortedBy { it.dayNumber }
-        .firstOrNull { !it.city.isNullOrBlank() && it.cityLat != null && it.cityLon != null }
-        ?.city
-        ?.trim()
-        ?.takeIf { it.isNotEmpty() }
-}
-
-private fun buildTempText(tempMin: Double?, tempMax: Double?): String {
-    return when {
-        tempMin != null && tempMax != null -> "${tempMin.roundTemp()}°/${tempMax.roundTemp()}°"
-        tempMax != null -> "${tempMax.roundTemp()}°"
-        tempMin != null -> "${tempMin.roundTemp()}°"
-        else -> "—"
-    }
-}
-
-private fun Double.roundTemp(): Int = kotlin.math.round(this).toInt()
 
 private fun formatRange(start: LocalDate, end: LocalDate): String {
     val locale = Locale.getDefault()
