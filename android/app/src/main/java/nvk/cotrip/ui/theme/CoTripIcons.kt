@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.JoinRight
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.LocationOn
@@ -37,6 +38,7 @@ object CoTripIcons {
     val Edit: ImageVector = Icons.Filled.Edit
     val Delete: ImageVector = Icons.Filled.Delete
     val Share: ImageVector = Icons.Filled.Share
+    val Join: ImageVector = Icons.Filled.JoinRight
     val PhotoCamera: ImageVector = Icons.Filled.Edit
     val Copy: ImageVector = Icons.Filled.Info
     val OpenInNew: ImageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight
