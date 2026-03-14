@@ -2,12 +2,15 @@ package nvk.cotrip.ui.common
 
 import nvk.cotrip.R
 import nvk.cotrip.data.network.ApiResult
+import nvk.cotrip.data.network.NetworkStateProvider
 import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class UiErrorMapper @Inject constructor() {
+class UiErrorMapper @Inject constructor(
+    private val networkStateProvider: NetworkStateProvider,
+) {
     fun messageRes(failure: ApiResult.Failure): Int {
         val code = failure.error?.code.orEmpty()
         return when (failure.error?.code) {
@@ -25,7 +28,7 @@ class UiErrorMapper @Inject constructor() {
                 failure.httpCode == 401 -> R.string.common_error_unauthorized
                 failure.httpCode == 403 -> R.string.common_error_forbidden
                 failure.httpCode == 404 -> R.string.common_error_not_found
-                failure.cause is IOException -> R.string.common_error_network
+                failure.cause is IOException -> ioErrorMessageRes()
                 code.startsWith("auth_", ignoreCase = true) -> R.string.common_error_unauthorized
                 else -> R.string.common_error_message
             }
@@ -34,9 +37,17 @@ class UiErrorMapper @Inject constructor() {
 
     fun messageRes(cause: Throwable): Int {
         return if (cause is IOException) {
-            R.string.common_error_network
+            ioErrorMessageRes()
         } else {
             R.string.common_error_message
+        }
+    }
+
+    private fun ioErrorMessageRes(): Int {
+        return if (networkStateProvider.isOnline()) {
+            R.string.common_error_server_unreachable
+        } else {
+            R.string.common_error_network
         }
     }
 }

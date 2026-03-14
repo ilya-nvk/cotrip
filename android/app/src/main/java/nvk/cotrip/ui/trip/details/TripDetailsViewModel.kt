@@ -23,8 +23,10 @@ import nvk.cotrip.data.network.dto.MemberDto
 import nvk.cotrip.data.network.dto.TripDto
 import nvk.cotrip.data.repository.ExpenseRepository
 import nvk.cotrip.data.repository.IdeaRepository
+import nvk.cotrip.data.repository.ItineraryRepository
 import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.data.repository.UserRepository
+import nvk.cotrip.data.repository.WeatherRepository
 import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.components.AvatarStackItem
 import nvk.cotrip.ui.navigation.AppNavigator
@@ -35,6 +37,7 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import javax.inject.Inject
+import kotlinx.coroutines.withTimeoutOrNull
 
 @HiltViewModel
 class TripDetailsViewModel @Inject constructor(
@@ -44,14 +47,17 @@ class TripDetailsViewModel @Inject constructor(
     private val userRepository: UserRepository,
     private val ideaRepository: IdeaRepository,
     private val expenseRepository: ExpenseRepository,
+    private val itineraryRepository: ItineraryRepository,
+    private val weatherRepository: WeatherRepository,
     private val apiCaller: ApiCaller,
     private val uiErrorMapper: UiErrorMapper,
 ) : ViewModel() {
 
     private val tripId: String = checkNotNull(savedStateHandle["tripId"])
+    private var latestWeather: WeatherCardUi = TripDetailsWeatherMapper.cityMissingCard()
 
     private val _state =
-        MutableStateFlow(createPlaceholderState(tripId))
+        MutableStateFlow<TripDetailsState>(TripDetailsState.Loading)
     val state = _state.asStateFlow()
 
     private val _effects = MutableSharedFlow<TripDetailsEffect>()
@@ -69,7 +75,8 @@ class TripDetailsViewModel @Inject constructor(
             TripDetailsEvent.OnAutoRefresh -> refreshTripData(isUserRefresh = false)
             TripDetailsEvent.OnUserRefresh -> refreshTripData(isUserRefresh = true)
             TripDetailsEvent.OnEditClick -> {
-                if (_state.value.isOwner) {
+                val content = _state.value as? TripDetailsState.Content
+                if (content?.isOwner == true) {
                     appNavigator.navigate(Destination.EditTrip(tripId))
                 }
             }
@@ -108,7 +115,8 @@ class TripDetailsViewModel @Inject constructor(
             TripDetailsEvent.OnIdeasClick -> appNavigator.navigate(Destination.TripIdeas(tripId))
             TripDetailsEvent.OnExpensesClick -> appNavigator.navigate(Destination.Expenses(tripId))
             TripDetailsEvent.OnPrimaryCtaClick -> {
-                if (_state.value.isEmpty) appNavigator.navigate(Destination.BuildRoute(tripId))
+                val content = _state.value as? TripDetailsState.Content ?: return
+                if (content.isEmpty) appNavigator.navigate(Destination.BuildRoute(tripId))
                 else appNavigator.navigate(Destination.BuildRoute(tripId))
             }
         }
@@ -116,37 +124,6 @@ class TripDetailsViewModel @Inject constructor(
 
     private fun emitToast(resId: Int) {
         viewModelScope.launch { _effects.emit(TripDetailsEffect.ShowToastRes(resId)) }
-    }
-
-    private fun createPlaceholderState(tripId: String): TripDetailsState {
-        return TripDetailsState(
-            isEmpty = true,
-            isOwner = false,
-            header = TripHeaderUi(
-                tripId = tripId,
-                title = "",
-                dateRange = "",
-                locationLine = "",
-                coverUrl = null,
-            ),
-            travelers = emptyList(),
-            peopleCountText = "0 people",
-            weather = WeatherCardUi(
-                city = "",
-                days = emptyList()
-            ),
-            nextInTrip = NextInTripUi(
-                subtitle = "",
-                lines = emptyList()
-            ),
-            overview = TripOverviewUi(
-                ideasCount = 0,
-                ideasSubtitle = "",
-                expensesAmount = "",
-                expensesSubtitle = ""
-            ),
-            isRefreshing = false,
-        )
     }
 
     private fun observeCachedTripData() {
@@ -176,8 +153,9 @@ class TripDetailsViewModel @Inject constructor(
                 }
             }.collect { loaded ->
                 if (loaded == null) return@collect
-                val current = _state.value
-                _state.value = buildState(loaded).copy(isRefreshing = current.isRefreshing)
+                val current = _state.value as? TripDetailsState.Content
+                _state.value = buildState(loaded, latestWeather)
+                    .copy(isRefreshing = current?.isRefreshing ?: false)
                 AppLogger.i(TAG, "trip details state updated for tripId=$tripId")
             }
         }
@@ -198,7 +176,10 @@ class TripDetailsViewModel @Inject constructor(
     private fun refreshTripData(isUserRefresh: Boolean) {
         viewModelScope.launch {
             if (isUserRefresh) {
-                _state.value = _state.value.copy(isRefreshing = true)
+                val current = _state.value as? TripDetailsState.Content
+                if (current != null) {
+                    _state.value = current.copy(isRefreshing = true)
+                }
             }
             val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
@@ -212,7 +193,7 @@ class TripDetailsViewModel @Inject constructor(
                             )
                         }
                     // Mandatory: details screen depends on this trip being in cache.
-                    tripRepository.getTrip(tripId).first()
+                    val trip = tripRepository.getTrip(tripId).first()
                     runCatching { tripRepository.tripMembers(tripId).first() }
                         .onFailure {
                             AppLogger.w(
@@ -237,17 +218,36 @@ class TripDetailsViewModel @Inject constructor(
                                 it
                             )
                         }
+                    runCatching { itineraryRepository.refreshItinerary(tripId).getOrThrow() }
+                        .onFailure {
+                            AppLogger.w(
+                                TAG,
+                                "refreshItinerary failed for tripId=$tripId",
+                                it
+                            )
+                        }
+                    loadWeatherCard(trip)
                 }
             }
 
             when (result) {
                 is ApiResult.Success -> {
-                    _state.value = _state.value.copy(isRefreshing = false)
+                    latestWeather = result.data
+                    val current = _state.value as? TripDetailsState.Content
+                    if (current != null) {
+                        _state.value = current.copy(
+                            weather = result.data,
+                            isRefreshing = false,
+                        )
+                    }
                     AppLogger.i(TAG, "refreshTripData success for tripId=$tripId")
                 }
 
                 is ApiResult.Failure -> {
-                    _state.value = _state.value.copy(isRefreshing = false)
+                    val current = _state.value as? TripDetailsState.Content
+                    if (current != null) {
+                        _state.value = current.copy(isRefreshing = false)
+                    }
                     AppLogger.w(
                         TAG,
                         "refreshTripData failed for tripId=$tripId code=${result.httpCode} apiCode=${result.error?.code.orEmpty()}",
@@ -257,6 +257,38 @@ class TripDetailsViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    private suspend fun loadWeatherCard(trip: TripDto): WeatherCardUi {
+        val itinerary = itineraryRepository.getItinerary(trip.id).first()
+        val selectedCity = TripDetailsWeatherMapper.pickCity(itinerary)
+            ?: return TripDetailsWeatherMapper.cityMissingCard()
+
+        val start = trip.startDate
+        val end = trip.endDate
+        val refreshResult = weatherRepository.refreshWeather(
+            tripId = trip.id,
+            city = selectedCity,
+            start = start,
+            end = end,
+        )
+        if (refreshResult.isFailure) {
+            AppLogger.w(TAG, "refreshWeather failed for tripId=${trip.id}, city=$selectedCity", refreshResult.exceptionOrNull())
+        }
+
+        val response = withTimeoutOrNull(1_000) {
+            weatherRepository.getWeather(
+                tripId = trip.id,
+                city = selectedCity,
+                start = start,
+                end = end,
+            ).first()
+        } ?: return TripDetailsWeatherMapper.unavailableCard(selectedCity)
+
+        return TripDetailsWeatherMapper.mapResponse(
+            city = selectedCity,
+            response = response,
+        )
     }
 }
 
@@ -270,7 +302,7 @@ private data class LoadedTrip(
     val isOwner: Boolean,
 )
 
-private fun buildState(loaded: LoadedTrip): TripDetailsState {
+private fun buildState(loaded: LoadedTrip, weather: WeatherCardUi): TripDetailsState.Content {
     val trip = loaded.trip
     val start = LocalDate.parse(trip.startDate)
     val end = LocalDate.parse(trip.endDate)
@@ -293,7 +325,7 @@ private fun buildState(loaded: LoadedTrip): TripDetailsState {
 
     val peopleText = if (peopleCount == 1) "1 person" else "$peopleCount people"
 
-    return TripDetailsState(
+    return TripDetailsState.Content(
         isEmpty = isEmpty,
         isOwner = loaded.isOwner,
         header = TripHeaderUi(
@@ -306,8 +338,9 @@ private fun buildState(loaded: LoadedTrip): TripDetailsState {
         travelers = avatars,
         peopleCountText = peopleText,
         weather = WeatherCardUi(
-            city = trip.locationLine?.split(",")?.firstOrNull()?.trim().orEmpty(),
-            days = emptyList(),
+            city = weather.city,
+            days = weather.days,
+            notice = weather.notice,
         ),
         nextInTrip = NextInTripUi(
             subtitle = "",

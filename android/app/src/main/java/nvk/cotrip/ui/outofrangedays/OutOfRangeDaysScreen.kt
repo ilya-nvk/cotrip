@@ -107,8 +107,11 @@ fun OutOfRangeDaysScreen(
                     verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x2)
                 ) {
                     PrimaryButton(
-                        text = stringResource(R.string.out_of_range_days_keep),
-                        onClick = { viewModel.onEvent(OutOfRangeDaysEvent.OnKeepClick) },
+                        text = stringResource(
+                            R.string.out_of_range_days_extend_end,
+                            state.proposedEndDateText
+                        ),
+                        onClick = { viewModel.onEvent(OutOfRangeDaysEvent.OnExtendEndClick) },
                         modifier = Modifier.fillMaxWidth()
                     )
                     DestructiveOutlinedButton(
@@ -134,7 +137,8 @@ fun OutOfRangeDaysScreen(
                 WarningBanner(
                     text = stringResource(
                         R.string.out_of_range_days_banner,
-                        state.dateRangeText
+                        state.dateRangeText,
+                        state.proposedEndDateText
                     )
                 )
             }

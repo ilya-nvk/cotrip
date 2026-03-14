@@ -139,7 +139,7 @@ fun TripsListScreen(
                 },
                 actions = {
                     CoTripIconButton(
-                        icon = CoTripIcons.Link,
+                        icon = CoTripIcons.Join,
                         contentDescription = stringResource(R.string.join_trip),
                         onClick = { viewModel.onEvent(TripsListEvent.OnJoinTripClick) }
                     )

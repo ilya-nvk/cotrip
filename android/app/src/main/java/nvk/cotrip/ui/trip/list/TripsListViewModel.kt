@@ -54,11 +54,7 @@ class TripsListViewModel @Inject constructor(
             TripsListEvent.OnAutoRefresh -> refreshTrips(isUserRefresh = false)
             TripsListEvent.OnUserRefresh -> refreshTrips(isUserRefresh = true)
             is TripsListEvent.OnTripClick -> appNavigator.navigate(Destination.TripDetails(event.id))
-            TripsListEvent.OnTogglePast -> _state.update {
-                val current = it as? TripsListUiState.Content ?: return@update it
-                showPastTrips.value = !current.showPastTrips
-                current.copy(showPastTrips = showPastTrips.value)
-            }
+            TripsListEvent.OnTogglePast -> showPastTrips.update { !it }
         }
     }
 

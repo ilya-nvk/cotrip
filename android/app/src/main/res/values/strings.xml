@@ -37,6 +37,7 @@
     <string name="common_cancel">Cancel</string>
     <string name="common_error_message">Something went wrong. Try again.</string>
     <string name="common_error_network">No internet connection. Check your network and try again.</string>
+    <string name="common_error_server_unreachable">Could not reach server. Please try again.</string>
     <string name="common_error_unauthorized">Session expired. Please sign in again.</string>
     <string name="common_error_forbidden">You don\'t have permission for this action.</string>
     <string name="common_error_not_found">Requested item was not found.</string>
@@ -87,6 +88,10 @@
     <string name="trip_details_invite_travelers">Invite travelers</string>
     <string name="trip_details_weather">WEATHER</string>
     <string name="trip_details_view_full_forecast">View full forecast →</string>
+    <string name="trip_details_weather_city_missing">Select a city in itinerary to see weather.</string>
+    <string name="trip_details_weather_no_data">No forecast for selected trip dates yet.</string>
+    <string name="trip_details_weather_partial">Forecast is available only for part of trip dates.</string>
+    <string name="trip_details_weather_unavailable">Could not load weather right now.</string>
     <string name="trip_details_next_in_trip">NEXT IN YOUR TRIP</string>
     <string name="trip_details_view_full_itinerary">View full itinerary →</string>
     <string name="trip_details_start_planning">START PLANNING</string>
@@ -120,12 +125,13 @@
 
     <!--Out of Range Days-->
     <string name="out_of_range_days_title">Out of range days</string>
-    <string name="out_of_range_days_banner">These days fall outside your new trip dates (%1$s). You can keep them hidden or remove them permanently.</string>
-    <string name="out_of_range_days_keep">Keep extra days</string>
+    <string name="out_of_range_days_banner">These days fall outside your new trip dates (%1$s). Choose one action: remove these days, or move trip end date to %2$s so they stay in itinerary.</string>
+    <string name="out_of_range_days_extend_end">Move trip end date to %1$s</string>
     <string name="out_of_range_days_remove">Remove extra days (%1$d)</string>
     <string name="out_of_range_days_no_city">No city</string>
     <string name="out_of_range_days_activities_none">No activities</string>
     <string name="out_of_range_days_kept_toast">Extra days kept</string>
+    <string name="out_of_range_days_extended_toast">Trip end date extended</string>
     <string name="out_of_range_days_removed_toast">Extra days removed</string>
     <plurals name="out_of_range_days_activities_count">
         <item quantity="one">%d activity</item>

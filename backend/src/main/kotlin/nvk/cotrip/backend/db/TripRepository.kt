@@ -225,6 +225,98 @@ object TripRepository {
         updatedTrip
     }
 
+    fun extendTripEndByOutOfRangeDays(
+        ownerId: String,
+        tripId: String,
+        dayIds: List<String>,
+    ): TripRow? = dbQuery { conn ->
+        val trip = conn.prepareStatement(
+            """
+            SELECT id, owner_id, title, description, start_date, end_date, location_line, cover_url, currency_code, status, updated_at
+            FROM trips
+            WHERE id = ? AND owner_id = ? AND deleted_at IS NULL
+            """.trimIndent()
+        ).use { stmt ->
+            stmt.setObject(1, UUID.fromString(tripId))
+            stmt.setObject(2, UUID.fromString(ownerId))
+            stmt.executeQuery().use { rs ->
+                if (rs.next()) mapTrip(rs) else null
+            }
+        } ?: return@dbQuery null
+
+        if (dayIds.isEmpty()) return@dbQuery trip
+
+        val placeholders = dayIds.joinToString(",") { "?" }
+        val outOfRangeDays = conn.prepareStatement(
+            """
+            SELECT id, date
+            FROM itinerary_days
+            WHERE trip_id = ?
+              AND id IN ($placeholders)
+              AND is_out_of_range = true
+            ORDER BY date ASC, id ASC
+            """.trimIndent()
+        ).use { stmt ->
+            var index = 1
+            stmt.setObject(index++, UUID.fromString(tripId))
+            dayIds.forEach { id ->
+                stmt.setObject(index++, UUID.fromString(id))
+            }
+            stmt.executeQuery().use { rs ->
+                val result = mutableListOf<String>()
+                while (rs.next()) {
+                    result += rs.getObject("id", UUID::class.java).toString()
+                }
+                result
+            }
+        }
+
+        if (outOfRangeDays.isEmpty()) return@dbQuery trip
+
+        var nextDate = trip.endDate
+        conn.prepareStatement(
+            """
+            UPDATE itinerary_days
+            SET date = ?, is_out_of_range = false, updated_at = now()
+            WHERE id = ? AND trip_id = ?
+            """.trimIndent()
+        ).use { stmt ->
+            outOfRangeDays.forEach { dayId ->
+                nextDate = nextDate.plusDays(1)
+                stmt.setObject(1, nextDate)
+                stmt.setObject(2, UUID.fromString(dayId))
+                stmt.setObject(3, UUID.fromString(tripId))
+                stmt.addBatch()
+            }
+            stmt.executeBatch()
+        }
+
+        val updatedTrip = conn.prepareStatement(
+            """
+            UPDATE trips
+            SET end_date = ?, updated_at = now()
+            WHERE id = ? AND owner_id = ?
+            RETURNING id, owner_id, title, description, start_date, end_date, location_line, cover_url, currency_code, status, updated_at
+            """.trimIndent()
+        ).use { stmt ->
+            stmt.setObject(1, nextDate)
+            stmt.setObject(2, UUID.fromString(tripId))
+            stmt.setObject(3, UUID.fromString(ownerId))
+            stmt.executeQuery().use { rs ->
+                if (rs.next()) mapTrip(rs) else null
+            }
+        } ?: return@dbQuery null
+
+        reconcileItineraryDays(
+            conn = conn,
+            tripId = updatedTrip.id,
+            startDate = updatedTrip.startDate,
+            endDate = updatedTrip.endDate,
+        )
+
+        updatedTrip
+    }
+
     private fun reconcileItineraryDays(
         conn: Connection,
         tripId: String,

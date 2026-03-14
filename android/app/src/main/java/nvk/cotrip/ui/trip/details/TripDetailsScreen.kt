@@ -24,6 +24,7 @@ import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -108,6 +109,18 @@ fun TripDetailsScreen(
 
     val density = LocalDensity.current
     val statusBarTopInset = with(density) { WindowInsets.statusBars.getTop(this).toDp() }
+    if (state is TripDetailsState.Loading) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator()
+        }
+        return
+    }
+    val content = state as TripDetailsState.Content
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -115,7 +128,7 @@ fun TripDetailsScreen(
         contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { padding ->
         val pullRefreshState = rememberPullRefreshState(
-            refreshing = state.isRefreshing,
+            refreshing = content.isRefreshing,
             onRefresh = { viewModel.onEvent(TripDetailsEvent.OnUserRefresh) }
         )
         Box(
@@ -131,13 +144,13 @@ fun TripDetailsScreen(
             ) {
                 item {
                     Header(
-                        tripId = state.header.tripId,
-                        title = state.header.title,
-                        dateRange = state.header.dateRange,
-                        locationLine = state.header.locationLine,
-                        coverUrl = state.header.coverUrl,
+                        tripId = content.header.tripId,
+                        title = content.header.title,
+                        dateRange = content.header.dateRange,
+                        locationLine = content.header.locationLine,
+                        coverUrl = content.header.coverUrl,
                         statusBarTopInset = statusBarTopInset,
-                        canEdit = state.isOwner,
+                        canEdit = content.isOwner,
                         onBack = { viewModel.onEvent(TripDetailsEvent.OnBackClick) },
                         onEdit = { viewModel.onEvent(TripDetailsEvent.OnEditClick) }
                     )
@@ -146,29 +159,33 @@ fun TripDetailsScreen(
                 item(key = KEY_TRAVELERS) {
                     TravelersSection(
                         title = stringResource(R.string.trip_details_travelers),
-                        travelers = state.travelers,
-                        peopleCountText = state.peopleCountText,
-                        isEmpty = state.isEmpty,
+                        travelers = content.travelers,
+                        peopleCountText = content.peopleCountText,
+                        isEmpty = content.isEmpty,
+                        canInvite = content.isOwner,
                         onInvite = { viewModel.onEvent(TripDetailsEvent.OnInviteTravelersClick) },
                         onMembers = { viewModel.onEvent(TripDetailsEvent.OnMembersClick) }
                     )
                 }
 
-                if (!state.isEmpty) {
+                if (content.weather.days.isNotEmpty()) {
                     item(key = KEY_WEATHER) {
                         WeatherCard(
-                            city = state.weather.city,
-                            days = state.weather.days,
+                            city = content.weather.city,
+                            days = content.weather.days,
+                            notice = content.weather.notice,
                             onCityClick = { viewModel.onEvent(TripDetailsEvent.OnWeatherCityClick) },
                             onViewForecast = { viewModel.onEvent(TripDetailsEvent.OnViewForecastClick) }
                         )
                     }
+                }
 
+                if (!content.isEmpty) {
                     item(key = KEY_NEXT) {
                         NextInTripCard(
                             title = stringResource(R.string.trip_details_next_in_trip),
-                            subtitle = state.nextInTrip.subtitle,
-                            lines = state.nextInTrip.lines,
+                            subtitle = content.nextInTrip.subtitle,
+                            lines = content.nextInTrip.lines,
                             onViewItinerary = { viewModel.onEvent(TripDetailsEvent.OnViewItineraryClick) }
                         )
                     }
@@ -186,10 +203,10 @@ fun TripDetailsScreen(
                 item(key = KEY_OVERVIEW) {
                     OverviewSection(
                         title = stringResource(R.string.trip_details_overview),
-                        ideasCount = state.overview.ideasCount,
-                        ideasSubtitle = state.overview.ideasSubtitle,
-                        expensesAmount = state.overview.expensesAmount,
-                        expensesSubtitle = state.overview.expensesSubtitle,
+                        ideasCount = content.overview.ideasCount,
+                        ideasSubtitle = content.overview.ideasSubtitle,
+                        expensesAmount = content.overview.expensesAmount,
+                        expensesSubtitle = content.overview.expensesSubtitle,
                         onIdeasClick = { viewModel.onEvent(TripDetailsEvent.OnIdeasClick) },
                         onExpensesClick = { viewModel.onEvent(TripDetailsEvent.OnExpensesClick) }
                     )
@@ -197,7 +214,7 @@ fun TripDetailsScreen(
 
                 item(key = KEY_CTA) {
                     PrimaryButton(
-                        text = if (state.isEmpty)
+                        text = if (content.isEmpty)
                             stringResource(R.string.trip_details_build_route)
                         else
                             stringResource(R.string.trip_details_get_route_suggestions),
@@ -214,7 +231,7 @@ fun TripDetailsScreen(
                 }
             }
             PullRefreshIndicator(
-                refreshing = state.isRefreshing,
+                refreshing = content.isRefreshing,
                 state = pullRefreshState,
                 modifier = Modifier.align(Alignment.TopCenter)
             )
@@ -341,6 +358,7 @@ private fun TravelersSection(
     travelers: List<AvatarStackItem>,
     peopleCountText: String,
     isEmpty: Boolean,
+    canInvite: Boolean,
     onInvite: () -> Unit,
     onMembers: () -> Unit,
 ) {
@@ -377,19 +395,21 @@ private fun TravelersSection(
 
             Spacer(Modifier.width(CoTripTokens.spacing.x1_5))
 
-            Surface(
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(1.dp, Border)
-            ) {
-                CoTripIconButton(
-                    icon = CoTripIcons.Add,
-                    contentDescription = stringResource(R.string.trip_details_invite),
-                    onClick = onInvite
-                )
-            }
+            if (canInvite) {
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(1.dp, Border)
+                ) {
+                    CoTripIconButton(
+                        icon = CoTripIcons.Add,
+                        contentDescription = stringResource(R.string.trip_details_invite),
+                        onClick = onInvite
+                    )
+                }
 
-            Spacer(Modifier.width(CoTripTokens.spacing.x1_5))
+                Spacer(Modifier.width(CoTripTokens.spacing.x1_5))
+            }
 
             Text(
                 text = peopleCountText,
@@ -429,6 +449,7 @@ private fun TravelersSection(
 private fun WeatherCard(
     city: String,
     days: List<WeatherDayUi>,
+    notice: WeatherCardNotice,
     onCityClick: () -> Unit,
     onViewForecast: () -> Unit,
 ) {
@@ -452,7 +473,7 @@ private fun WeatherCard(
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 TertiaryTextButton(
-                    text = city,
+                    text = city.ifBlank { stringResource(R.string.weather_forecast_city_missing) },
                     onClick = onCityClick,
                     enabled = true
                 )
@@ -474,29 +495,47 @@ private fun WeatherCard(
                 modifier = Modifier.padding(CoTripTokens.spacing.x2),
                 verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x2)
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    days.take(5).forEach { day ->
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = day.label,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = TextSecondary
-                            )
-                            Spacer(Modifier.height(CoTripTokens.spacing.x0_5))
-                            Icon(
-                                imageVector = day.icon,
-                                contentDescription = null,
-                                tint = day.tint
-                            )
-                            Spacer(Modifier.height(CoTripTokens.spacing.x0_5))
-                            Text(
-                                text = day.temp,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = TextPrimary
-                            )
+                val noticeText = when (notice) {
+                    WeatherCardNotice.None -> null
+                    WeatherCardNotice.CityMissing -> stringResource(R.string.trip_details_weather_city_missing)
+                    WeatherCardNotice.NoData -> stringResource(R.string.trip_details_weather_no_data)
+                    WeatherCardNotice.Partial -> stringResource(R.string.trip_details_weather_partial)
+                    WeatherCardNotice.Unavailable -> stringResource(R.string.trip_details_weather_unavailable)
+                }
+
+                if (noticeText != null) {
+                    Text(
+                        text = noticeText,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextSecondary
+                    )
+                }
+
+                if (days.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        days.take(5).forEach { day ->
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = day.label,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = TextSecondary
+                                )
+                                Spacer(Modifier.height(CoTripTokens.spacing.x0_5))
+                                Icon(
+                                    imageVector = day.icon,
+                                    contentDescription = null,
+                                    tint = day.tint
+                                )
+                                Spacer(Modifier.height(CoTripTokens.spacing.x0_5))
+                                Text(
+                                    text = day.temp,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = TextPrimary
+                                )
+                            }
                         }
                     }
                 }

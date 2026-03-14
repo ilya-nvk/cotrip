@@ -44,6 +44,7 @@ class OutOfRangeDaysViewModel @Inject constructor(
         OutOfRangeDaysState(
             tripId = tripId,
             dateRangeText = "",
+            proposedEndDateText = "",
             days = emptyList(),
         )
     )
@@ -59,8 +60,8 @@ class OutOfRangeDaysViewModel @Inject constructor(
     fun onEvent(event: OutOfRangeDaysEvent) {
         when (event) {
             OutOfRangeDaysEvent.OnBackClick -> appNavigator.popBackStack()
-            OutOfRangeDaysEvent.OnKeepClick -> {
-                trimOutOfRange(action = "keep")
+            OutOfRangeDaysEvent.OnExtendEndClick -> {
+                trimOutOfRange(action = "extend_end")
             }
 
             OutOfRangeDaysEvent.OnRemoveClick -> {
@@ -91,9 +92,11 @@ class OutOfRangeDaysViewModel @Inject constructor(
                     }
 
                     val rangeText = formatRange(loaded.tripStart, loaded.tripEnd)
+                    val proposedEnd = loaded.tripEnd.plusDays(outOfRange.size.toLong())
                     _state.value = OutOfRangeDaysState(
                         tripId = tripId,
                         dateRangeText = rangeText,
+                        proposedEndDateText = formatDate(proposedEnd),
                         days = outOfRange.map { it.toUi() }
                     )
                 }
@@ -126,10 +129,10 @@ class OutOfRangeDaysViewModel @Inject constructor(
                 }
             }) {
                 is ApiResult.Success -> {
-                    val toast = if (action == "keep") {
-                        R.string.out_of_range_days_kept_toast
-                    } else {
-                        R.string.out_of_range_days_removed_toast
+                    val toast = when (action) {
+                        "extend_end" -> R.string.out_of_range_days_extended_toast
+                        "remove" -> R.string.out_of_range_days_removed_toast
+                        else -> R.string.out_of_range_days_kept_toast
                     }
                     emitToast(toast)
                     appNavigator.popBackStack()
@@ -174,4 +177,8 @@ private fun formatRange(start: LocalDate, end: LocalDate): String {
     val startText = start.format(DateTimeFormatter.ofPattern("MMM d, yyyy", locale))
     val endText = end.format(DateTimeFormatter.ofPattern("MMM d, yyyy", locale))
     return "$startText – $endText"
+}
+
+private fun formatDate(date: LocalDate): String {
+    return date.format(DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.getDefault()))
 }
