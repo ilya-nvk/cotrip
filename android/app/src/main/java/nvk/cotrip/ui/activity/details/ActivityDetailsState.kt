@@ -8,6 +8,7 @@ sealed interface ActivityDetailsState {
     data class Content(
         val dayId: String,
         val activityId: String,
+        val isPastTrip: Boolean,
         val dayNumber: Int,
         val city: String?,
         val title: String,

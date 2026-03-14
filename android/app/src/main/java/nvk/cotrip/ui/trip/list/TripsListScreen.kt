@@ -4,6 +4,7 @@ import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -211,19 +212,32 @@ fun TripsListScreen(
                                 }
                             }
 
-                            item(key = KEY_UPCOMING_HEADER) {
-                                SectionHeader(text = stringResource(R.string.section_upcoming))
-                            }
+                            val showUpcomingEmptyCard =
+                                currentState.activeTrips.isEmpty() && currentState.upcomingTrips.isEmpty()
+                            val showUpcomingSection =
+                                currentState.upcomingTrips.isNotEmpty() || showUpcomingEmptyCard
 
-                            if (currentState.activeTrips.isEmpty() && currentState.upcomingTrips.isEmpty()) {
-                                item(key = KEY_UPCOMING_EMPTY_CARD) {
-                                    UpcomingEmptyCard()
+                            if (showUpcomingSection) {
+                                item(key = KEY_UPCOMING_HEADER) {
+                                    SectionHeader(text = stringResource(R.string.section_upcoming))
                                 }
-                            } else {
-                                items(currentState.upcomingTrips, key = { it.id }) { trip ->
-                                    TripCard(
-                                        trip = trip,
-                                        onClick = { viewModel.onEvent(TripsListEvent.OnTripClick(trip.id)) })
+
+                                if (showUpcomingEmptyCard) {
+                                    item(key = KEY_UPCOMING_EMPTY_CARD) {
+                                        UpcomingEmptyCard()
+                                    }
+                                } else {
+                                    items(currentState.upcomingTrips, key = { it.id }) { trip ->
+                                        TripCard(
+                                            trip = trip,
+                                            onClick = {
+                                                viewModel.onEvent(
+                                                    TripsListEvent.OnTripClick(
+                                                        trip.id
+                                                    )
+                                                )
+                                            })
+                                    }
                                 }
                             }
 
@@ -282,6 +296,7 @@ private fun PastHeader(
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .clickable(onClick = onToggle)
             .padding(horizontal = CoTripTokens.spacing.x0_5),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -291,11 +306,13 @@ private fun PastHeader(
             color = TextSecondary
         )
         Spacer(Modifier.weight(1f))
-        CoTripIconButton(
-            icon = CoTripIcons.ExpandMore,
+        Icon(
+            imageVector = CoTripIcons.ExpandMore,
             contentDescription = stringResource(R.string.toggle_past),
-            onClick = onToggle,
-            modifier = Modifier.rotate(if (expanded) 180f else 0f)
+            tint = TextSecondary,
+            modifier = Modifier
+                .size(24.dp)
+                .rotate(if (expanded) 180f else 0f)
         )
     }
 }

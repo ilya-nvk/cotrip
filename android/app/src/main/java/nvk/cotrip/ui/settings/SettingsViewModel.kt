@@ -1,8 +1,10 @@
 package nvk.cotrip.ui.settings
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,6 +29,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     private val appNavigator: AppNavigator,
     private val userRepository: UserRepository,
     private val imageUploadRepository: ImageUploadRepository,
@@ -48,36 +51,36 @@ class SettingsViewModel @Inject constructor(
             ),
             notificationSections = listOf(
                 SettingsNotificationSectionUi(
-                    title = "DISCUSSIONS",
+                    title = appContext.getString(R.string.settings_notifications_discussions),
                     items = listOf(
                         SettingsToggleUi(
                             key = "discussions_comments",
-                            title = "New comments in ideas",
+                            title = appContext.getString(R.string.settings_notification_new_comments),
                             enabled = true
                         )
                     )
                 ),
                 SettingsNotificationSectionUi(
-                    title = "EXPENSES",
+                    title = appContext.getString(R.string.settings_notifications_expenses),
                     items = listOf(
                         SettingsToggleUi(
                             key = "expenses_new",
-                            title = "New expenses",
+                            title = appContext.getString(R.string.settings_notification_new_expenses),
                             enabled = true
                         ),
                         SettingsToggleUi(
                             key = "expenses_settlements",
-                            title = "Expense settlements",
+                            title = appContext.getString(R.string.settings_notification_expense_settlements),
                             enabled = true
                         )
                     )
                 ),
                 SettingsNotificationSectionUi(
-                    title = "TRIPS",
+                    title = appContext.getString(R.string.settings_notifications_trips),
                     items = listOf(
                         SettingsToggleUi(
                             key = "trips_added",
-                            title = "Added to a trip",
+                            title = appContext.getString(R.string.settings_notification_added_to_trip),
                             enabled = true
                         )
                     )

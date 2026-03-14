@@ -1,9 +1,11 @@
 package nvk.cotrip.ui.expense.list
 
+import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -11,9 +13,9 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import nvk.cotrip.R
 import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.network.dto.ExpenseDto
@@ -33,6 +35,7 @@ import kotlin.math.abs
 @HiltViewModel
 class TripExpensesViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
+    @ApplicationContext private val appContext: Context,
     private val appNavigator: AppNavigator,
     private val tripRepository: TripRepository,
     private val expenseRepository: ExpenseRepository,
@@ -44,20 +47,7 @@ class TripExpensesViewModel @Inject constructor(
     private val tripId: String =
         checkNotNull(savedStateHandle[Destination.Expenses.ARG_TRIP_ID])
 
-    private val _state = MutableStateFlow(
-        TripExpensesState(
-            tripId = tripId,
-            summary = ExpenseSummaryUi(
-                totalSpent = "€0",
-                balanceLabel = "Settled",
-                balanceAmount = "€0",
-                totalPlanned = "€0"
-            ),
-            spent = emptyList(),
-            planned = emptyList(),
-            isRefreshing = false,
-        )
-    )
+    private val _state = MutableStateFlow<TripExpensesState>(TripExpensesState.Loading)
     val state = _state.asStateFlow()
 
     private val _effects = MutableSharedFlow<TripExpensesEffect>()
@@ -65,6 +55,7 @@ class TripExpensesViewModel @Inject constructor(
 
     private val membersState = MutableStateFlow<List<MemberDto>>(emptyList())
     private val meIdState = MutableStateFlow<String?>(null)
+    private val isRefreshing = MutableStateFlow(false)
 
     init {
         observeData()
@@ -95,8 +86,9 @@ class TripExpensesViewModel @Inject constructor(
                 expenseRepository.observeExpenses(tripId),
                 tripRepository.getTrip(tripId),
                 membersState,
-                meIdState
-            ) { expenses, trip, members, meId ->
+                meIdState,
+                isRefreshing,
+            ) { expenses, trip, members, meId, refreshing ->
                 if (meId == null) {
                     null
                 } else {
@@ -104,7 +96,8 @@ class TripExpensesViewModel @Inject constructor(
                         trip = trip,
                         expenses = expenses,
                         members = members,
-                        meId = meId
+                        meId = meId,
+                        refreshing = refreshing,
                     )
                 }
             }.collect { payload ->
@@ -137,7 +130,8 @@ class TripExpensesViewModel @Inject constructor(
                         currencySymbol = currencySymbol,
                         memberById = memberById,
                         meId = payload.meId,
-                        shares = shares
+                        shares = shares,
+                        context = appContext,
                     )
                     if (expense.status == "paid") {
                         spentItems.add(listItem)
@@ -147,23 +141,23 @@ class TripExpensesViewModel @Inject constructor(
                 }
 
                 val balanceLabel = when {
-                    abs(netBalance) < 0.01 -> "Settled"
-                    netBalance > 0 -> "Owed"
-                    else -> "You owe"
+                    abs(netBalance) < 0.01 -> appContext.getString(R.string.trip_expenses_balance_settled)
+                    netBalance > 0 -> appContext.getString(R.string.trip_expenses_balance_owed)
+                    else -> appContext.getString(R.string.trip_expenses_balance_you_owe)
                 }
 
-                _state.update {
-                    it.copy(
-                        summary = ExpenseSummaryUi(
-                            totalSpent = formatMoney(totalSpent, currencySymbol),
-                            balanceLabel = balanceLabel,
-                            balanceAmount = formatMoney(abs(netBalance), currencySymbol),
-                            totalPlanned = formatMoney(totalPlanned, currencySymbol)
-                        ),
-                        spent = spentItems,
-                        planned = plannedItems
-                    )
-                }
+                _state.value = TripExpensesState.Content(
+                    tripId = tripId,
+                    summary = ExpenseSummaryUi(
+                        totalSpent = formatMoney(totalSpent, currencySymbol),
+                        balanceLabel = balanceLabel,
+                        balanceAmount = formatMoney(abs(netBalance), currencySymbol),
+                        totalPlanned = formatMoney(totalPlanned, currencySymbol)
+                    ),
+                    spent = spentItems,
+                    planned = plannedItems,
+                    isRefreshing = payload.refreshing,
+                )
             }
         }
     }
@@ -171,7 +165,11 @@ class TripExpensesViewModel @Inject constructor(
     private fun refreshExpenses(isUserRefresh: Boolean) {
         viewModelScope.launch {
             if (isUserRefresh) {
-                _state.update { it.copy(isRefreshing = true) }
+                val current = _state.value as? TripExpensesState.Content
+                if (current != null) {
+                    _state.value = current.copy(isRefreshing = true)
+                }
+                isRefreshing.value = true
             }
             when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
@@ -188,7 +186,7 @@ class TripExpensesViewModel @Inject constructor(
                     _effects.emit(TripExpensesEffect.ShowToastRes(uiErrorMapper.messageRes(result)))
                 }
             }
-            _state.update { it.copy(isRefreshing = false) }
+            isRefreshing.value = false
         }
     }
 
@@ -197,6 +195,7 @@ class TripExpensesViewModel @Inject constructor(
         val expenses: List<ExpenseDto>,
         val members: List<MemberDto>,
         val meId: String,
+        val refreshing: Boolean,
     )
 }
 
@@ -205,14 +204,22 @@ private fun ExpenseDto.toListItem(
     memberById: Map<String, MemberDto>,
     meId: String,
     shares: Map<String, Double>,
+    context: Context,
 ): ExpenseListItemUi {
     val paidByText = when {
-        status != "paid" -> "Planned"
-        paidById == null -> "Paid"
-        paidById == meId -> "Paid by You"
-        else -> "Paid by ${memberById[paidById]?.name ?: "Member"}"
+        status != "paid" -> context.getString(R.string.trip_expenses_paid_status_planned)
+        paidById == null -> context.getString(R.string.trip_expenses_paid_status_paid)
+        paidById == meId -> context.getString(R.string.trip_expenses_paid_by_you)
+        else -> context.getString(
+            R.string.trip_expenses_paid_by_member,
+            memberById[paidById]?.name ?: context.getString(R.string.common_member)
+        )
     }
-    val splitTypeText = if (splitType == "equally") "Split equally" else "Custom amounts"
+    val splitTypeText = if (splitType == "equally") {
+        context.getString(R.string.expense_form_split_equally)
+    } else {
+        context.getString(R.string.expense_form_custom_amounts)
+    }
     val settlement = when {
         status != "paid" -> ExpenseSettlementUi.Planned
         paidById == meId -> {

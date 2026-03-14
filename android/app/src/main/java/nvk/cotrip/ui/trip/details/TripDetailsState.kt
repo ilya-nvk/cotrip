@@ -7,6 +7,7 @@ sealed interface TripDetailsState {
 
     data class Content(
         val isEmpty: Boolean,
+        val isPast: Boolean,
         val isOwner: Boolean,
         val header: TripHeaderUi,
         val travelers: List<AvatarStackItem>,

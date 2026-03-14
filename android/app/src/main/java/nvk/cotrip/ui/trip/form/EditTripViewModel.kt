@@ -74,11 +74,50 @@ class EditTripViewModel @Inject constructor(
             }
 
             is TripFormEvent.OnStartDateSelected -> {
-                _state.update { it.copy(startDate = event.date) }
+                if (!isStartDateAllowedForEdit(event.date)) {
+                    emitToastRes(R.string.trip_form_start_date_range_toast)
+                    return
+                }
+                val previousStart = _state.value.startDate
+                val previousEnd = _state.value.endDate
+                _state.update { current ->
+                    val adjustedEnd = if (previousStart != null && previousEnd != null) {
+                        adjustEndDateForStartShift(
+                            previousStart = previousStart,
+                            newStart = event.date,
+                            currentEnd = previousEnd,
+                        )
+                    } else {
+                        current.endDate
+                    }
+                    current.copy(
+                        startDate = event.date,
+                        endDate = adjustedEnd,
+                    )
+                }
+
+                val selectedEnd = _state.value.endDate
+                if (selectedEnd != null && !TripDateRules.isEndDateAllowed(
+                        event.date,
+                        selectedEnd
+                    )
+                ) {
+                    if (!isOriginalDatesPair(event.date, selectedEnd)) {
+                        emitToastRes(R.string.trip_form_end_date_range_toast)
+                    }
+                }
                 recomputeCanSubmit()
             }
 
             is TripFormEvent.OnEndDateSelected -> {
+                val selectedStart = _state.value.startDate
+                val start = selectedStart ?: LocalDate.now()
+                if (!TripDateRules.isEndDateAllowed(startDate = start, endDate = event.date) &&
+                    !isOriginalDatesPair(start, event.date)
+                ) {
+                    emitToastRes(R.string.trip_form_end_date_range_toast)
+                    return
+                }
                 _state.update { it.copy(endDate = event.date) }
                 recomputeCanSubmit()
             }
@@ -158,7 +197,15 @@ class EditTripViewModel @Inject constructor(
         _state.update { s ->
             val hasName = s.name.isNotBlank()
             val hasDates = s.startDate != null && s.endDate != null
-            val datesOk = if (hasDates) !s.endDate!!.isBefore(s.startDate) else false
+            val datesOk = if (hasDates) {
+                val start = s.startDate!!
+                val end = s.endDate!!
+                val strictDatesOk = isStartDateAllowedForEdit(start) &&
+                        TripDateRules.isEndDateAllowed(startDate = start, endDate = end)
+                strictDatesOk || isOriginalDatesPair(start, end)
+            } else {
+                false
+            }
             s.copy(canSubmit = hasName && hasDates && datesOk)
         }
     }
@@ -176,6 +223,16 @@ class EditTripViewModel @Inject constructor(
             val s = state.value
             val startDate = s.startDate ?: return@launch
             val endDate = s.endDate ?: return@launch
+            val strictDatesOk = isStartDateAllowedForEdit(startDate) &&
+                    TripDateRules.isEndDateAllowed(startDate = startDate, endDate = endDate)
+            if (!strictDatesOk && !isOriginalDatesPair(startDate, endDate)) {
+                if (!isStartDateAllowedForEdit(startDate)) {
+                    emitToastRes(R.string.trip_form_start_date_range_toast)
+                } else {
+                    emitToastRes(R.string.trip_form_end_date_range_toast)
+                }
+                return@launch
+            }
             _state.update { it.copy(isLoading = true) }
 
             val result = apiCaller.call {
@@ -269,7 +326,10 @@ class EditTripViewModel @Inject constructor(
             when (result) {
                 is ApiResult.Success -> {
                     emitToastRes(R.string.edit_trip_deleted_toast)
-                    closeScreen()
+                    appNavigator.navigate(Destination.Trips) {
+                        popUpTo(Destination.Trips.route) { inclusive = false }
+                        launchSingleTop = true
+                    }
                 }
 
                 is ApiResult.Failure -> {
@@ -304,6 +364,33 @@ class EditTripViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    private fun isStartDateAllowedForEdit(startDate: LocalDate): Boolean {
+        return TripDateRules.isStartDateAllowed(startDate, LocalDate.now()) ||
+                startDate == originalStartDate
+    }
+
+    private fun isOriginalDatesPair(startDate: LocalDate, endDate: LocalDate): Boolean {
+        return originalStartDate == startDate && originalEndDate == endDate
+    }
+
+    private fun adjustEndDateForStartShift(
+        previousStart: LocalDate,
+        newStart: LocalDate,
+        currentEnd: LocalDate,
+    ): LocalDate {
+        val maxAllowedEnd = TripDateRules.maxEndDateFor(newStart)
+        val dayShift = ChronoUnit.DAYS.between(previousStart, newStart)
+
+        val shiftedEnd = when {
+            dayShift > 0 -> currentEnd.plusDays(dayShift)
+            dayShift < 0 && currentEnd.isAfter(maxAllowedEnd) -> maxAllowedEnd
+            else -> currentEnd
+        }
+
+        val boundedByRange = if (shiftedEnd.isAfter(maxAllowedEnd)) maxAllowedEnd else shiftedEnd
+        return if (boundedByRange.isBefore(newStart)) newStart else boundedByRange
     }
 }
 

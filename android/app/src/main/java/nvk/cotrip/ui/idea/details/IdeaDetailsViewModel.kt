@@ -1,9 +1,11 @@
 package nvk.cotrip.ui.idea.details
 
+import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -59,6 +61,7 @@ import javax.inject.Inject
 @HiltViewModel
 class IdeaDetailsViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
+    @ApplicationContext private val appContext: Context,
     private val appNavigator: AppNavigator,
     private val tripRepository: TripRepository,
     private val ideaRepository: IdeaRepository,
@@ -87,6 +90,8 @@ class IdeaDetailsViewModel @Inject constructor(
     private var membersById: Map<String, MemberDto> = emptyMap()
     private var meId: String? = null
     private var currencySymbol: String = "€"
+    private val unknownMemberName = appContext.getString(R.string.common_unknown)
+    private val youName = appContext.getString(R.string.common_you)
 
     private val _state = MutableStateFlow(
         IdeaDetailsState(
@@ -204,12 +209,13 @@ class IdeaDetailsViewModel @Inject constructor(
                 dayOptions = payload.itinerary.filter { !it.isOutOfRange }.map { it.toDayOption() }
                 val serverDiscussion = payload.comments
                     .sortedByDescending { parseTimestamp(it.createdAt)?.toEpochMilli() ?: 0L }
-                    .map { it.toDiscussion(meId, membersById) }
+                    .map { it.toDiscussion(meId, membersById, unknownMemberName) }
                 val discussion = mergeDiscussionWithPending(
                     serverDiscussion = serverDiscussion,
                     pending = pendingComments.values.toList(),
                     meId = meId,
-                    membersById = membersById
+                    membersById = membersById,
+                    youFallback = youName,
                 )
                 _state.update { current ->
                     current.copy(
@@ -312,7 +318,7 @@ class IdeaDetailsViewModel @Inject constructor(
         _state.update { current ->
             val exists = current.discussion.any { item -> item.id == payload.id }
             if (exists) return@update current
-            val message = payload.toDiscussionItem(meId, membersById)
+            val message = payload.toDiscussionItem(meId, membersById, unknownMemberName)
             val increment = if (message is IdeaDiscussionItemUi.Message) 1 else 0
             val withoutLocal = if (resolvedLocalId != null) {
                 current.discussion.filterNot { item ->
@@ -435,7 +441,8 @@ class IdeaDetailsViewModel @Inject constructor(
             val pendingMessage = pendingToMessage(
                 pending = pendingComments.getValue(localId),
                 meId = meId,
-                membersById = membersById
+                membersById = membersById,
+                youFallback = youName,
             )
             current.copy(discussion = listOf(pendingMessage) + current.discussion)
         }
@@ -611,6 +618,7 @@ class IdeaDetailsViewModel @Inject constructor(
 private fun CommentDto.toDiscussion(
     meId: String?,
     membersById: Map<String, MemberDto>,
+    unknownNameFallback: String,
 ): IdeaDiscussionItemUi {
     if (type.equals("system", ignoreCase = true)) {
         return IdeaDiscussionItemUi.System(
@@ -620,7 +628,7 @@ private fun CommentDto.toDiscussion(
         )
     }
     val member = membersById[authorId]
-    val name = member?.name ?: "Unknown"
+    val name = member?.name ?: unknownNameFallback
     val initials = member?.initials ?: initialsFromName(name)
     return IdeaDiscussionItemUi.Message(
         id = id,
@@ -636,9 +644,10 @@ private fun CommentDto.toDiscussion(
 private fun CommentCreatedPayload.toDiscussion(
     meId: String?,
     membersById: Map<String, MemberDto>,
+    unknownNameFallback: String,
 ): IdeaDiscussionItemUi.Message {
     val member = membersById[authorId]
-    val name = member?.name ?: "Unknown"
+    val name = member?.name ?: unknownNameFallback
     val initials = member?.initials ?: initialsFromName(name)
     return IdeaDiscussionItemUi.Message(
         id = id,
@@ -655,6 +664,7 @@ private fun CommentCreatedPayload.toDiscussion(
 private fun CommentCreatedPayload.toDiscussionItem(
     meId: String?,
     membersById: Map<String, MemberDto>,
+    unknownNameFallback: String,
 ): IdeaDiscussionItemUi {
     return if (type.equals("system", ignoreCase = true)) {
         IdeaDiscussionItemUi.System(
@@ -663,7 +673,7 @@ private fun CommentCreatedPayload.toDiscussionItem(
             time = formatTimestamp(createdAt),
         )
     } else {
-        toDiscussion(meId, membersById)
+        toDiscussion(meId, membersById, unknownNameFallback)
     }
 }
 
@@ -703,9 +713,10 @@ private fun pendingToMessage(
     pending: PendingComment,
     meId: String?,
     membersById: Map<String, MemberDto>,
+    youFallback: String,
 ): IdeaDiscussionItemUi.Message {
     val me = meId?.let { membersById[it] }
-    val name = me?.name ?: "You"
+    val name = me?.name ?: youFallback
     val initials = me?.initials ?: initialsFromName(name)
     val deliveryState = when (pending.status) {
         PendingStatus.Sending -> IdeaDiscussionItemUi.DeliveryState.Sending
@@ -729,6 +740,7 @@ private fun mergeDiscussionWithPending(
     pending: List<PendingComment>,
     meId: String?,
     membersById: Map<String, MemberDto>,
+    youFallback: String,
 ): List<IdeaDiscussionItemUi> {
     if (pending.isEmpty()) return serverDiscussion
     val pendingMessages = mutableListOf<IdeaDiscussionItemUi>()
@@ -736,7 +748,7 @@ private fun mergeDiscussionWithPending(
     pending.sortedByDescending { it.createdAtMillis }.forEach { item ->
         val localId = localMessageId(item.localId)
         if (localId in existingIds) return@forEach
-        pendingMessages += pendingToMessage(item, meId, membersById)
+        pendingMessages += pendingToMessage(item, meId, membersById, youFallback)
     }
     return pendingMessages + serverDiscussion
 }

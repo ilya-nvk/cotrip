@@ -11,10 +11,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -25,6 +27,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
@@ -94,10 +97,12 @@ fun OutOfRangeDaysScreen(
             )
         },
         bottomBar = {
+            val uiState = state as? OutOfRangeDaysState.Content ?: return@Scaffold
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(MaterialTheme.colorScheme.background)
+                    .navigationBarsPadding()
                     .padding(
                         horizontal = CoTripTokens.spacing.x2,
                         vertical = CoTripTokens.spacing.x2
@@ -109,7 +114,7 @@ fun OutOfRangeDaysScreen(
                     PrimaryButton(
                         text = stringResource(
                             R.string.out_of_range_days_extend_end,
-                            state.proposedEndDateText
+                            uiState.proposedEndDateText
                         ),
                         onClick = { viewModel.onEvent(OutOfRangeDaysEvent.OnExtendEndClick) },
                         modifier = Modifier.fillMaxWidth()
@@ -117,7 +122,7 @@ fun OutOfRangeDaysScreen(
                     DestructiveOutlinedButton(
                         text = stringResource(
                             R.string.out_of_range_days_remove,
-                            state.days.size
+                            uiState.days.size
                         ),
                         onClick = { viewModel.onEvent(OutOfRangeDaysEvent.OnRemoveClick) },
                         modifier = Modifier.fillMaxWidth()
@@ -126,30 +131,45 @@ fun OutOfRangeDaysScreen(
             }
         }
     ) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-            contentPadding = PaddingValues(bottom = CoTripTokens.spacing.x2),
-            verticalArrangement = Arrangement.spacedBy(0.dp)
-        ) {
-            item(key = KEY_WARNING) {
-                WarningBanner(
-                    text = stringResource(
-                        R.string.out_of_range_days_banner,
-                        state.dateRangeText,
-                        state.proposedEndDateText
-                    )
-                )
+        when (val uiState = state) {
+            OutOfRangeDaysState.Loading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
             }
 
-            items(state.days, key = { it.id }) { day ->
-                DayItem(day = day)
-                Divider()
-            }
+            is OutOfRangeDaysState.Content -> {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    contentPadding = PaddingValues(bottom = CoTripTokens.spacing.x2),
+                    verticalArrangement = Arrangement.spacedBy(0.dp)
+                ) {
+                    item(key = KEY_WARNING) {
+                        WarningBanner(
+                            text = stringResource(
+                                R.string.out_of_range_days_banner,
+                                uiState.dateRangeText,
+                                uiState.proposedEndDateText
+                            )
+                        )
+                    }
 
-            item(key = KEY_CTA) {
-                Spacer(Modifier.height(120.dp))
+                    items(uiState.days, key = { it.id }) { day ->
+                        DayItem(day = day)
+                        Divider()
+                    }
+
+                    item(key = KEY_CTA) {
+                        Spacer(Modifier.height(120.dp))
+                    }
+                }
             }
         }
     }

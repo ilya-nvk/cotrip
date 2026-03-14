@@ -34,13 +34,7 @@ class InvitePeopleViewModel @Inject constructor(
     private val tripId: String =
         checkNotNull(savedStateHandle[Destination.InviteTravelers.ARG_TRIP_ID])
 
-    private val _state = MutableStateFlow(
-        InvitePeopleState(
-            tripId = tripId,
-            inviteLink = "",
-            expiresInHours = 12,
-        )
-    )
+    private val _state = MutableStateFlow<InvitePeopleState>(InvitePeopleState.Loading)
     val state = _state.asStateFlow()
 
     private val _effects = MutableSharedFlow<InvitePeopleEffect>()
@@ -55,7 +49,7 @@ class InvitePeopleViewModel @Inject constructor(
             InvitePeopleEvent.OnCloseClick -> appNavigator.popBackStack()
 
             InvitePeopleEvent.OnCopyClick -> {
-                val link = _state.value.inviteLink
+                val link = (_state.value as? InvitePeopleState.Content)?.inviteLink.orEmpty()
                 if (link.isNotBlank()) {
                     emit(InvitePeopleEffect.CopyToClipboard(link))
                     emitToast(R.string.invite_people_copied_toast)
@@ -63,7 +57,7 @@ class InvitePeopleViewModel @Inject constructor(
             }
 
             InvitePeopleEvent.OnShareClick -> {
-                val link = _state.value.inviteLink
+                val link = (_state.value as? InvitePeopleState.Content)?.inviteLink.orEmpty()
                 if (link.isNotBlank()) {
                     emit(InvitePeopleEffect.ShareText(link))
                 }
@@ -89,7 +83,7 @@ class InvitePeopleViewModel @Inject constructor(
                         diff.coerceAtLeast(0)
                     } ?: 12
 
-                    _state.value = InvitePeopleState(
+                    _state.value = InvitePeopleState.Content(
                         tripId = tripId,
                         inviteLink = invite.url,
                         expiresInHours = hoursLeft.toInt(),

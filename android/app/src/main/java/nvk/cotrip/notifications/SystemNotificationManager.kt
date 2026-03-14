@@ -127,11 +127,11 @@ class SystemNotificationManager @Inject constructor(
 
     private fun buildTitle(item: NotificationDto): String {
         return when (item.type) {
-            "idea_comment" -> "New comment"
-            "idea_created" -> "New idea"
-            "expense_created" -> "New expense"
-            "expense_settlement" -> "Expense settled"
-            else -> "Update"
+            "idea_comment" -> context.getString(R.string.notification_title_new_comment)
+            "idea_created" -> context.getString(R.string.notification_title_new_idea)
+            "expense_created" -> context.getString(R.string.notification_title_new_expense)
+            "expense_settlement" -> context.getString(R.string.notification_title_expense_settled)
+            else -> context.getString(R.string.notification_title_update)
         }
     }
 
@@ -141,15 +141,30 @@ class SystemNotificationManager @Inject constructor(
         val ideaTitle = payloadValue(item, "ideaTitle").orEmpty()
         val expenseTitle = payloadValue(item, "title").orEmpty()
         return when (item.type) {
-            "idea_comment" -> listOf(actor, commentBody).filter { it.isNotBlank() }.joinToString(": ")
-                .ifBlank { "Someone commented in idea discussion" }
-            "idea_created" -> listOf(actor, ideaTitle).filter { it.isNotBlank() }.joinToString(": ")
-                .ifBlank { "New idea in your trip" }
-            "expense_created" -> listOf(actor, expenseTitle).filter { it.isNotBlank() }.joinToString(": ")
-                .ifBlank { "New expense in your trip" }
-            "expense_settlement" -> listOf(actor, expenseTitle).filter { it.isNotBlank() }.joinToString(": ")
-                .ifBlank { "An expense was settled" }
-            else -> "You have a new update"
+            "idea_comment" -> formatActorValue(actor, commentBody)
+                .ifBlank { context.getString(R.string.notification_body_commented_fallback) }
+
+            "idea_created" -> formatActorValue(actor, ideaTitle)
+                .ifBlank { context.getString(R.string.notification_body_new_idea_fallback) }
+
+            "expense_created" -> formatActorValue(actor, expenseTitle)
+                .ifBlank { context.getString(R.string.notification_body_new_expense_fallback) }
+
+            "expense_settlement" -> formatActorValue(actor, expenseTitle)
+                .ifBlank { context.getString(R.string.notification_body_expense_settled_fallback) }
+
+            else -> context.getString(R.string.notification_body_update_fallback)
+        }
+    }
+
+    private fun formatActorValue(actor: String, value: String): String {
+        return when {
+            actor.isNotBlank() && value.isNotBlank() ->
+                context.getString(R.string.notification_body_actor_value, actor, value)
+
+            actor.isNotBlank() -> actor
+            value.isNotBlank() -> value
+            else -> ""
         }
     }
 
@@ -246,7 +261,7 @@ class SystemNotificationManager @Inject constructor(
         if (manager.getNotificationChannel(CHANNEL_ID) != null) return
         val channel = NotificationChannel(
             CHANNEL_ID,
-            "CoTrip updates",
+            context.getString(R.string.notification_channel_updates),
             NotificationManager.IMPORTANCE_HIGH
         )
         manager.createNotificationChannel(channel)

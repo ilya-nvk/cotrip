@@ -1,19 +1,21 @@
 package nvk.cotrip.ui.expense.details
 
+import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import nvk.cotrip.R
 import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.network.dto.ExpenseDto
@@ -37,6 +39,7 @@ import javax.inject.Inject
 @HiltViewModel
 class ExpenseDetailsViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
+    @ApplicationContext private val appContext: Context,
     private val appNavigator: AppNavigator,
     private val tripRepository: TripRepository,
     private val expenseRepository: ExpenseRepository,
@@ -55,22 +58,7 @@ class ExpenseDetailsViewModel @Inject constructor(
     private var meId: String? = null
     private var currencySymbol: String = "€"
 
-    private val _state = MutableStateFlow(
-        ExpenseDetailsState(
-            tripId = tripId,
-            expenseId = expenseId,
-            isLoading = true,
-            title = "",
-            amount = "",
-            status = ExpenseDetailsStatus.Planned,
-            paidBy = null,
-            date = null,
-            splitType = "",
-            note = null,
-            splitRows = emptyList(),
-            total = ""
-        )
-    )
+    private val _state = MutableStateFlow<ExpenseDetailsState>(ExpenseDetailsState.Loading)
     val state = _state.asStateFlow()
 
     private val _effects = MutableSharedFlow<ExpenseDetailsEffect>()
@@ -120,20 +108,18 @@ class ExpenseDetailsViewModel @Inject constructor(
                 currencySymbol = currencySymbolFor(payload.trip.currencyCode)
                 membersById = payload.members.associateBy { it.userId }
                 meId = payload.meId
-                _state.update {
-                    payload.expense.toState(
-                        meId = payload.meId.orEmpty(),
-                        membersById = membersById,
-                        currencySymbol = currencySymbol,
-                    ).copy(isLoading = false)
-                }
+                _state.value = payload.expense.toState(
+                    meId = payload.meId.orEmpty(),
+                    membersById = membersById,
+                    currencySymbol = currencySymbol,
+                    context = appContext,
+                )
             }
         }
     }
 
     private fun refreshExpense(showErrorToast: Boolean) {
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true) }
             when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
                     tripRepository.refreshTrips().getOrThrow()
@@ -143,7 +129,6 @@ class ExpenseDetailsViewModel @Inject constructor(
             }) {
                 is ApiResult.Success -> Unit
                 is ApiResult.Failure -> {
-                    _state.update { it.copy(isLoading = false) }
                     if (showErrorToast) {
                         _effects.emit(
                             ExpenseDetailsEffect.ShowToastRes(
@@ -226,7 +211,8 @@ private fun ExpenseDto.toState(
     meId: String,
     membersById: Map<String, MemberDto>,
     currencySymbol: String,
-): ExpenseDetailsState {
+    context: Context,
+): ExpenseDetailsState.Content {
     val statusUi = when {
         status == "planned" -> ExpenseDetailsStatus.Planned
         participants.filter { it.isIncluded }.all { it.isPaid } -> ExpenseDetailsStatus.Settled
@@ -234,17 +220,21 @@ private fun ExpenseDto.toState(
     }
 
     val paidByName = paidById?.let { payerId ->
-        if (payerId == meId) "You" else membersById[payerId]?.name
+        if (payerId == meId) context.getString(R.string.common_you) else membersById[payerId]?.name
     }
 
-    val splitTypeLabel = if (splitType == "equally") "Split equally" else "Custom amounts"
+    val splitTypeLabel = if (splitType == "equally") {
+        context.getString(R.string.expense_form_split_equally)
+    } else {
+        context.getString(R.string.expense_form_custom_amounts)
+    }
     val shares = computeShares(this)
     val splitRows = participants.filter { it.isIncluded }.map { participant ->
         val member = membersById[participant.userId]
         ExpenseSplitRowUi(
             id = participant.userId,
             initials = member?.initials ?: "?",
-            name = member?.name ?: "Unknown",
+            name = member?.name ?: context.getString(R.string.common_unknown),
             amount = formatMoney(shares[participant.userId] ?: 0.0, currencySymbol),
             isPaid = participant.isPaid
         )
@@ -253,10 +243,9 @@ private fun ExpenseDto.toState(
     val dateText = date?.let { LocalDate.parse(it) }
         ?.format(DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.getDefault()))
 
-    return ExpenseDetailsState(
+    return ExpenseDetailsState.Content(
         tripId = tripId,
         expenseId = id,
-        isLoading = false,
         title = title,
         amount = formatMoney(amount, currencySymbol),
         status = statusUi,

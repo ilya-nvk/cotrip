@@ -1,7 +1,11 @@
 package nvk.cotrip.ui.invitation
 
-data class InvitePeopleState(
-    val tripId: String,
-    val inviteLink: String,
-    val expiresInHours: Int,
-)
+sealed interface InvitePeopleState {
+    data object Loading : InvitePeopleState
+
+    data class Content(
+        val tripId: String,
+        val inviteLink: String,
+        val expiresInHours: Int,
+    ) : InvitePeopleState
+}

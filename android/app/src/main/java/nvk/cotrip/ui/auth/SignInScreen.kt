@@ -45,6 +45,7 @@ fun SignInScreen(
     val state by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     val serverClientId = BuildConfig.GOOGLE_SERVER_CLIENT_ID
+    val missingClientIdMessage = stringResource(R.string.sign_in_error_missing_google_client_id)
 
     val signInClient = remember(serverClientId) {
         val options = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
@@ -111,7 +112,7 @@ fun SignInScreen(
                     onClick = {
                         if (serverClientId.isBlank()) {
                             viewModel.onEvent(
-                                SignInEvent.OnGoogleSignInFailed("Missing Google client id.")
+                                SignInEvent.OnGoogleSignInFailed(missingClientIdMessage)
                             )
                             return@PrimaryButton
                         }

@@ -4,6 +4,7 @@ import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -25,9 +27,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
@@ -105,65 +108,80 @@ fun InvitePeopleScreen(
             )
         }
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = CoTripTokens.spacing.x2),
-            verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x2)
-        ) {
-            Text(
-                text = stringResource(R.string.invite_people_description),
-                style = MaterialTheme.typography.bodyLarge,
-                color = TextMedium
-            )
-
-            CoTripCard(
-                modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(
-                    horizontal = CoTripTokens.spacing.x2,
-                    vertical = CoTripTokens.spacing.x2
-                ),
-                border = BorderStroke(1.dp, Border),
-            ) {
-                Text(
-                    text = stringResource(R.string.invite_people_link_label),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = TextSecondary
-                )
-
-                Spacer(Modifier.height(CoTripTokens.spacing.x1))
-
-                Text(
-                    text = state.inviteLink,
-                    fontFamily = FontFamily.Monospace,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.primary
-                )
+        when (val uiState = state) {
+            InvitePeopleState.Loading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
             }
 
-            Text(
-                text = stringResource(
-                    R.string.invite_people_expires_hint,
-                    state.expiresInHours
-                ),
-                style = MaterialTheme.typography.bodySmall,
-                color = TextSecondary
-            )
+            is InvitePeopleState.Content -> {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .padding(horizontal = CoTripTokens.spacing.x2),
+                    verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x2)
+                ) {
+                    Text(
+                        text = stringResource(R.string.invite_people_description),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = TextMedium
+                    )
 
-            PrimaryButton(
-                text = stringResource(R.string.invite_people_copy_link),
-                leadingIcon = { Icon(CoTripIcons.Copy, contentDescription = null) },
-                onClick = { viewModel.onEvent(InvitePeopleEvent.OnCopyClick) },
-                modifier = Modifier.fillMaxWidth()
-            )
+                    CoTripCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(
+                            horizontal = CoTripTokens.spacing.x2,
+                            vertical = CoTripTokens.spacing.x2
+                        ),
+                        border = BorderStroke(1.dp, Border),
+                    ) {
+                        Text(
+                            text = stringResource(R.string.invite_people_link_label),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = TextSecondary
+                        )
 
-            SecondaryButton(
-                text = stringResource(R.string.invite_people_share_link),
-                leadingIcon = { Icon(CoTripIcons.Share, contentDescription = null) },
-                onClick = { viewModel.onEvent(InvitePeopleEvent.OnShareClick) },
-                modifier = Modifier.fillMaxWidth()
-            )
+                        Spacer(Modifier.height(CoTripTokens.spacing.x1))
+
+                        Text(
+                            text = uiState.inviteLink,
+                            fontFamily = FontFamily.Monospace,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+
+                    Text(
+                        text = stringResource(
+                            R.string.invite_people_expires_hint,
+                            uiState.expiresInHours
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextSecondary
+                    )
+
+                    PrimaryButton(
+                        text = stringResource(R.string.invite_people_copy_link),
+                        leadingIcon = { Icon(CoTripIcons.Copy, contentDescription = null) },
+                        onClick = { viewModel.onEvent(InvitePeopleEvent.OnCopyClick) },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    SecondaryButton(
+                        text = stringResource(R.string.invite_people_share_link),
+                        leadingIcon = { Icon(CoTripIcons.Share, contentDescription = null) },
+                        onClick = { viewModel.onEvent(InvitePeopleEvent.OnShareClick) },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
         }
     }
 }

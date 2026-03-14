@@ -1,9 +1,11 @@
 package nvk.cotrip.ui.trip.details
 
+import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,10 +17,14 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+import nvk.cotrip.R
 import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
+import nvk.cotrip.data.network.dto.ActivityDto
 import nvk.cotrip.data.network.dto.ExpenseDto
 import nvk.cotrip.data.network.dto.IdeaDto
+import nvk.cotrip.data.network.dto.ItineraryDayDto
 import nvk.cotrip.data.network.dto.MemberDto
 import nvk.cotrip.data.network.dto.TripDto
 import nvk.cotrip.data.repository.ExpenseRepository
@@ -37,11 +43,11 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import javax.inject.Inject
-import kotlinx.coroutines.withTimeoutOrNull
 
 @HiltViewModel
 class TripDetailsViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
+    @ApplicationContext private val appContext: Context,
     private val appNavigator: AppNavigator,
     private val tripRepository: TripRepository,
     private val userRepository: UserRepository,
@@ -76,29 +82,46 @@ class TripDetailsViewModel @Inject constructor(
             TripDetailsEvent.OnUserRefresh -> refreshTripData(isUserRefresh = true)
             TripDetailsEvent.OnEditClick -> {
                 val content = _state.value as? TripDetailsState.Content
-                if (content?.isOwner == true) {
+                if (content?.isOwner == true && !content.isPast) {
                     appNavigator.navigate(Destination.EditTrip(tripId))
                 }
             }
-            TripDetailsEvent.OnInviteTravelersClick -> appNavigator.navigate(
-                Destination.InviteTravelers(
-                    tripId
-                )
-            )
+
+            TripDetailsEvent.OnInviteTravelersClick -> {
+                val content = _state.value as? TripDetailsState.Content ?: return
+                if (!content.isPast && content.isOwner) {
+                    appNavigator.navigate(
+                        Destination.InviteTravelers(
+                            tripId
+                        )
+                    )
+                }
+            }
             TripDetailsEvent.OnMembersClick -> appNavigator.navigate(
                 Destination.TripMembers(tripId)
             )
 
-            TripDetailsEvent.OnWeatherCityClick -> appNavigator.navigate(
-                Destination.TripForecast(
-                    tripId
-                )
-            )
-            TripDetailsEvent.OnViewForecastClick -> appNavigator.navigate(
-                Destination.TripForecast(
-                    tripId
-                )
-            )
+            TripDetailsEvent.OnWeatherCityClick -> {
+                val content = _state.value as? TripDetailsState.Content ?: return
+                if (!content.isPast) {
+                    appNavigator.navigate(
+                        Destination.TripForecast(
+                            tripId
+                        )
+                    )
+                }
+            }
+
+            TripDetailsEvent.OnViewForecastClick -> {
+                val content = _state.value as? TripDetailsState.Content ?: return
+                if (!content.isPast) {
+                    appNavigator.navigate(
+                        Destination.TripForecast(
+                            tripId
+                        )
+                    )
+                }
+            }
 
             TripDetailsEvent.OnViewItineraryClick -> appNavigator.navigate(
                 Destination.TripItinerary(
@@ -106,18 +129,30 @@ class TripDetailsViewModel @Inject constructor(
                 )
             )
 
-            TripDetailsEvent.OnBrowseIdeasClick -> appNavigator.navigate(
-                Destination.TripIdeas(
-                    tripId
-                )
-            )
+            TripDetailsEvent.OnBrowseIdeasClick -> {
+                val content = _state.value as? TripDetailsState.Content ?: return
+                if (!content.isPast) {
+                    appNavigator.navigate(
+                        Destination.TripIdeas(
+                            tripId
+                        )
+                    )
+                }
+            }
 
-            TripDetailsEvent.OnIdeasClick -> appNavigator.navigate(Destination.TripIdeas(tripId))
+            TripDetailsEvent.OnIdeasClick -> {
+                val content = _state.value as? TripDetailsState.Content ?: return
+                if (!content.isPast) {
+                    appNavigator.navigate(Destination.TripIdeas(tripId))
+                }
+            }
             TripDetailsEvent.OnExpensesClick -> appNavigator.navigate(Destination.Expenses(tripId))
             TripDetailsEvent.OnPrimaryCtaClick -> {
                 val content = _state.value as? TripDetailsState.Content ?: return
-                if (content.isEmpty) appNavigator.navigate(Destination.BuildRoute(tripId))
-                else appNavigator.navigate(Destination.BuildRoute(tripId))
+                if (!content.isPast) {
+                    if (content.isEmpty) appNavigator.navigate(Destination.BuildRoute(tripId))
+                    else appNavigator.navigate(Destination.BuildRoute(tripId))
+                }
             }
         }
     }
@@ -138,23 +173,36 @@ class TripDetailsViewModel @Inject constructor(
                 membersFlow,
                 ideaRepository.observeIdeas(tripId),
                 expenseRepository.observeExpenses(tripId),
-                userRepository.me,
-            ) { trip, members, ideas, expenses, me ->
+                itineraryRepository.observeItinerary(tripId),
+            ) { trip, members, ideas, expenses, itinerary ->
                 if (trip == null) {
                     null
                 } else {
-                    LoadedTrip(
+                    LoadedTripBase(
                         trip = trip,
                         members = members,
                         ideas = ideas,
                         expenses = expenses,
-                        isOwner = me?.id == trip.ownerId,
+                        itinerary = itinerary,
+                    )
+                }
+            }.combine(userRepository.me) { base, me ->
+                if (base == null) {
+                    null
+                } else {
+                    LoadedTrip(
+                        trip = base.trip,
+                        members = base.members,
+                        ideas = base.ideas,
+                        expenses = base.expenses,
+                        itinerary = base.itinerary,
+                        isOwner = me?.id == base.trip.ownerId,
                     )
                 }
             }.collect { loaded ->
                 if (loaded == null) return@collect
                 val current = _state.value as? TripDetailsState.Content
-                _state.value = buildState(loaded, latestWeather)
+                _state.value = buildState(loaded, latestWeather, appContext)
                     .copy(isRefreshing = current?.isRefreshing ?: false)
                 AppLogger.i(TAG, "trip details state updated for tripId=$tripId")
             }
@@ -260,9 +308,25 @@ class TripDetailsViewModel @Inject constructor(
     }
 
     private suspend fun loadWeatherCard(trip: TripDto): WeatherCardUi {
+        val today = LocalDate.now()
+        val tripEnd = runCatching { LocalDate.parse(trip.endDate) }.getOrNull()
+        if (tripEnd != null && tripEnd.isBefore(today)) {
+            return TripDetailsWeatherMapper.cityMissingCard()
+        }
+
         val itinerary = itineraryRepository.getItinerary(trip.id).first()
+        val selectableCitiesCount = itinerary
+            .sortedBy { it.dayNumber }
+            .mapNotNull { day ->
+                val city = day.city?.trim()?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                if (day.cityLat == null || day.cityLon == null) return@mapNotNull null
+                city
+            }
+            .distinct()
+            .size
+        val isCitySelectable = selectableCitiesCount > 1
         val selectedCity = TripDetailsWeatherMapper.pickCity(itinerary)
-            ?: return TripDetailsWeatherMapper.cityMissingCard()
+            ?: return TripDetailsWeatherMapper.cityMissingCard(isCitySelectable = false)
 
         val start = trip.startDate
         val end = trip.endDate
@@ -283,29 +347,48 @@ class TripDetailsViewModel @Inject constructor(
                 start = start,
                 end = end,
             ).first()
-        } ?: return TripDetailsWeatherMapper.unavailableCard(selectedCity)
+        } ?: return TripDetailsWeatherMapper.unavailableCard(
+            city = selectedCity,
+            isCitySelectable = isCitySelectable,
+        )
 
         return TripDetailsWeatherMapper.mapResponse(
             city = selectedCity,
             response = response,
+            isCitySelectable = isCitySelectable,
         )
     }
 }
 
 private const val TAG = "TripDetailsVM"
 
+private data class LoadedTripBase(
+    val trip: TripDto,
+    val members: List<MemberDto>,
+    val ideas: List<IdeaDto>,
+    val expenses: List<ExpenseDto>,
+    val itinerary: List<ItineraryDayDto>,
+)
+
 private data class LoadedTrip(
     val trip: TripDto,
     val members: List<MemberDto>,
     val ideas: List<IdeaDto>,
     val expenses: List<ExpenseDto>,
+    val itinerary: List<ItineraryDayDto>,
     val isOwner: Boolean,
 )
 
-private fun buildState(loaded: LoadedTrip, weather: WeatherCardUi): TripDetailsState.Content {
+private fun buildState(
+    loaded: LoadedTrip,
+    weather: WeatherCardUi,
+    context: Context,
+): TripDetailsState.Content {
     val trip = loaded.trip
+    val today = LocalDate.now()
     val start = LocalDate.parse(trip.startDate)
     val end = LocalDate.parse(trip.endDate)
+    val isPast = end.isBefore(today)
     val dateRange = formatRange(start, end)
     val peopleCount = loaded.members.size
     val avatars = loaded.members.map { member ->
@@ -320,13 +403,32 @@ private fun buildState(loaded: LoadedTrip, weather: WeatherCardUi): TripDetailsS
     val expensesAmount = if (totalExpenses == 0.0) "${currencySymbol}0" else "$currencySymbol${"%.2f".format(totalExpenses)}"
 
     val isEmpty = ideasCount == 0 && totalExpenses == 0.0
-    val ideasSubtitle = if (ideasCount == 0) "Add your first idea" else ""
-    val expensesSubtitle = if (totalExpenses == 0.0) "Track shared expenses" else ""
+    val ideasSubtitle = if (ideasCount == 0) {
+        context.getString(R.string.trip_details_ideas_subtitle_empty)
+    } else {
+        ""
+    }
+    val expensesSubtitle = if (totalExpenses == 0.0) {
+        context.getString(R.string.trip_details_expenses_subtitle_empty)
+    } else {
+        ""
+    }
+    val nextInTrip = buildNextInTrip(
+        itinerary = loaded.itinerary,
+        tripStart = start,
+        tripEnd = end,
+        today = today,
+    )
 
-    val peopleText = if (peopleCount == 1) "1 person" else "$peopleCount people"
+    val peopleText = context.resources.getQuantityString(
+        R.plurals.people_count,
+        peopleCount,
+        peopleCount
+    )
 
     return TripDetailsState.Content(
         isEmpty = isEmpty,
+        isPast = isPast,
         isOwner = loaded.isOwner,
         header = TripHeaderUi(
             tripId = trip.id,
@@ -341,11 +443,9 @@ private fun buildState(loaded: LoadedTrip, weather: WeatherCardUi): TripDetailsS
             city = weather.city,
             days = weather.days,
             notice = weather.notice,
+            isCitySelectable = weather.isCitySelectable,
         ),
-        nextInTrip = NextInTripUi(
-            subtitle = "",
-            lines = emptyList(),
-        ),
+        nextInTrip = nextInTrip,
         overview = TripOverviewUi(
             ideasCount = ideasCount,
             ideasSubtitle = ideasSubtitle,
@@ -363,6 +463,68 @@ private fun formatRange(start: LocalDate, end: LocalDate): String {
     val startText = start.format(DateTimeFormatter.ofPattern(startFormat, locale))
     val endText = end.format(DateTimeFormatter.ofPattern(endFormat, locale))
     return "$startText – $endText"
+}
+
+private fun buildNextInTrip(
+    itinerary: List<ItineraryDayDto>,
+    tripStart: LocalDate,
+    tripEnd: LocalDate,
+    today: LocalDate,
+): NextInTripUi {
+    val days = itinerary
+        .filter { !it.isOutOfRange }
+        .sortedWith(compareBy<ItineraryDayDto>({ it.dayNumber }, { it.date }))
+        .ifEmpty {
+            itinerary.sortedWith(compareBy<ItineraryDayDto>({ it.dayNumber }, { it.date }))
+        }
+    if (days.isEmpty()) {
+        return NextInTripUi(
+            subtitle = "",
+            lines = emptyList(),
+        )
+    }
+
+    val isInProgress = !today.isBefore(tripStart) && !today.isAfter(tripEnd)
+    val targetDay = if (isInProgress) {
+        days.firstOrNull { parseLocalDateOrNull(it.date) == today } ?: days.first()
+    } else {
+        days.first()
+    }
+
+    val subtitle = targetDay.city
+        ?.toCityLabel()
+        ?.takeIf { it.isNotBlank() }
+        .orEmpty()
+
+    val lines = targetDay.activities
+        .sortedBy { it.orderIndex }
+        .take(3)
+        .map { activity -> activity.toNextInTripLine() }
+
+    return NextInTripUi(
+        subtitle = subtitle,
+        lines = lines,
+    )
+}
+
+private fun ActivityDto.toNextInTripLine(): NextInTripLineUi {
+    val cleanTitle = title.trim()
+    val cleanTime = timeText?.trim()?.takeIf { it.isNotBlank() }
+    return NextInTripLineUi(
+        time = cleanTime,
+        title = cleanTitle,
+    )
+}
+
+private fun parseLocalDateOrNull(value: String?): LocalDate? {
+    if (value.isNullOrBlank()) return null
+    return runCatching { LocalDate.parse(value) }.getOrNull()
+}
+
+private fun String.toCityLabel(): String {
+    val trimmed = trim()
+    if (trimmed.isEmpty()) return ""
+    return trimmed.substringBefore(',').trim().ifBlank { trimmed }
 }
 
 private fun String.toCurrency(): TripCurrency {

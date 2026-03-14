@@ -1,25 +1,28 @@
 package nvk.cotrip.ui.forecast
 
-import java.time.LocalDate
-import java.time.OffsetDateTime
-import java.time.format.DateTimeFormatter
-import java.util.Locale
+import android.content.Context
+import nvk.cotrip.R
 import nvk.cotrip.data.network.dto.WeatherForecastDto
 import nvk.cotrip.data.network.dto.WeatherForecastResponseDto
 import nvk.cotrip.ui.theme.CoTripIcons
 import nvk.cotrip.ui.theme.Info
 import nvk.cotrip.ui.theme.TextSecondary
 import nvk.cotrip.ui.theme.Warning
+import java.time.LocalDate
+import java.time.OffsetDateTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 object TripForecastUiMapper {
-    fun mapDays(response: WeatherForecastResponseDto): List<ForecastDayUi> {
+    fun mapDays(context: Context, response: WeatherForecastResponseDto): List<ForecastDayUi> {
         return response.items
             .sortedBy { it.date }
-            .map { it.toUi() }
+            .map { it.toUi(context) }
     }
 
-    fun source(response: WeatherForecastResponseDto): String {
-        return response.items.firstOrNull()?.source ?: "OpenWeather"
+    fun source(context: Context, response: WeatherForecastResponseDto): String {
+        return response.items.firstOrNull()?.source
+            ?: context.getString(R.string.trip_forecast_source_default)
     }
 
     fun lastUpdated(response: WeatherForecastResponseDto): String {
@@ -29,13 +32,17 @@ object TripForecastUiMapper {
             .orEmpty()
     }
 
-    fun coverageMessage(hasSelectedCity: Boolean, response: WeatherForecastResponseDto): String? {
+    fun coverageMessage(
+        context: Context,
+        hasSelectedCity: Boolean,
+        response: WeatherForecastResponseDto,
+    ): String? {
         if (!hasSelectedCity) {
-            return "Select a city in itinerary first to get weather."
+            return context.getString(R.string.trip_forecast_coverage_city_missing)
         }
         if (response.missingDates.isEmpty()) return null
         if (response.items.isEmpty()) {
-            return "Forecast is not available for these dates yet. OpenWeather provides up to 8 upcoming days."
+            return context.getString(R.string.trip_forecast_coverage_unavailable)
         }
         val availableTo = response.availableTo?.let { date ->
             runCatching {
@@ -45,25 +52,25 @@ object TripForecastUiMapper {
             }.getOrDefault(date)
         }
         return if (availableTo != null) {
-            "Forecast is available through $availableTo. Remaining dates will appear later."
+            context.getString(R.string.trip_forecast_coverage_available_through, availableTo)
         } else {
-            "Forecast is partially available. Remaining dates will appear later."
+            context.getString(R.string.trip_forecast_coverage_partial)
         }
     }
 
-    private fun WeatherForecastDto.toUi(): ForecastDayUi {
+    private fun WeatherForecastDto.toUi(context: Context): ForecastDayUi {
         val parsedDate = runCatching { LocalDate.parse(date) }.getOrNull()
         val today = LocalDate.now()
         val title = when (parsedDate) {
             null -> date
-            today -> "Today"
-            today.plusDays(1) -> "Tomorrow"
+            today -> context.getString(R.string.trip_forecast_day_today)
+            today.plusDays(1) -> context.getString(R.string.trip_forecast_day_tomorrow)
             else -> parsedDate.format(
                 DateTimeFormatter.ofPattern("EEE, MMM d", Locale.getDefault())
             )
         }
         val subtitle = parsedDate
-            ?.takeUnless { it == today || it == today.plusDays(1) }
+            ?.takeIf { it == today || it == today.plusDays(1) }
             ?.format(DateTimeFormatter.ofPattern("EEE, MMM d", Locale.getDefault()))
         val icon = when {
             iconCode?.startsWith("01") == true -> CoTripIcons.WeatherSunny
@@ -79,7 +86,7 @@ object TripForecastUiMapper {
             tempMin != null && tempMax != null -> "${tempMin.roundTemp()}° / ${tempMax.roundTemp()}°"
             tempMax != null -> "${tempMax.roundTemp()}°"
             tempMin != null -> "${tempMin.roundTemp()}°"
-            else -> "—"
+            else -> context.getString(R.string.common_empty_placeholder)
         }
 
         return ForecastDayUi(
@@ -90,7 +97,7 @@ object TripForecastUiMapper {
             temp = tempText,
             description = description?.replaceFirstChar { char ->
                 if (char.isLowerCase()) char.titlecase(Locale.getDefault()) else char.toString()
-            } ?: "No description",
+            } ?: context.getString(R.string.trip_forecast_description_missing),
         )
     }
 

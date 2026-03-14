@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
@@ -21,8 +22,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -125,99 +126,102 @@ fun ExpenseDetailsScreen(
             )
         },
         bottomBar = {
-            if (!state.isLoading) {
-                when (state.status) {
-                    ExpenseDetailsStatus.Planned -> BottomPrimaryAction(
-                        text = stringResource(R.string.expense_details_mark_as_paid),
-                        onClick = { viewModel.onEvent(ExpenseDetailsEvent.OnMarkAsPaidClick) }
-                    )
+            val uiState = state as? ExpenseDetailsState.Content ?: return@Scaffold
+            when (uiState.status) {
+                ExpenseDetailsStatus.Planned -> BottomPrimaryAction(
+                    text = stringResource(R.string.expense_details_mark_as_paid),
+                    onClick = { viewModel.onEvent(ExpenseDetailsEvent.OnMarkAsPaidClick) }
+                )
 
-                    ExpenseDetailsStatus.Unsettled -> BottomPrimaryAction(
-                        text = stringResource(R.string.expense_details_mark_all_settled),
-                        onClick = { viewModel.onEvent(ExpenseDetailsEvent.OnMarkAllSettledClick) }
-                    )
+                ExpenseDetailsStatus.Unsettled -> BottomPrimaryAction(
+                    text = stringResource(R.string.expense_details_mark_all_settled),
+                    onClick = { viewModel.onEvent(ExpenseDetailsEvent.OnMarkAllSettledClick) }
+                )
 
-                    ExpenseDetailsStatus.Settled -> Unit
-                }
+                ExpenseDetailsStatus.Settled -> Unit
             }
         }
     ) { padding ->
-        if (state.isLoading) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
-        } else {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = CoTripTokens.spacing.x2),
-                verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x2)
-            ) {
-                Spacer(Modifier.height(CoTripTokens.spacing.x1))
-
-                HeaderCard(state = state)
-
-                SectionTitle(text = stringResource(R.string.expense_details_split_section))
-
-                SplitDetailsCard(
-                    state = state,
-                    onMarkPaid = {
-                        viewModel.onEvent(
-                            ExpenseDetailsEvent.OnMarkParticipantPaidClick(
-                                it
-                            )
-                        )
-                    }
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
+        when (val uiState = state) {
+            ExpenseDetailsState.Loading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = state.splitType,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = TextSecondary
-                    )
-                    Spacer(Modifier.weight(1f))
-                    Text(
-                        text = stringResource(R.string.expense_details_total, state.total),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = TextSecondary
-                    )
+                    CircularProgressIndicator()
                 }
+            }
 
-                val note = state.note
-                if (!note.isNullOrBlank()) {
-                    SectionTitle(text = stringResource(R.string.expense_details_note_section))
-                    CoTripCard(
+            is ExpenseDetailsState.Content -> {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = CoTripTokens.spacing.x2),
+                    verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x2)
+                ) {
+                    Spacer(Modifier.height(CoTripTokens.spacing.x1))
+
+                    HeaderCard(state = uiState)
+
+                    SectionTitle(text = stringResource(R.string.expense_details_split_section))
+
+                    SplitDetailsCard(
+                        state = uiState,
+                        onMarkPaid = {
+                            viewModel.onEvent(
+                                ExpenseDetailsEvent.OnMarkParticipantPaidClick(
+                                    it
+                                )
+                            )
+                        }
+                    )
+
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
-                        border = BorderStroke(1.dp, Border),
-                        contentPadding = PaddingValues(CoTripTokens.spacing.x2)
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = note,
+                            text = uiState.splitType,
                             style = MaterialTheme.typography.bodyLarge,
-                            color = TextPrimary
+                            color = TextSecondary
+                        )
+                        Spacer(Modifier.weight(1f))
+                        Text(
+                            text = stringResource(R.string.expense_details_total, uiState.total),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = TextSecondary
                         )
                     }
-                }
 
-                Spacer(Modifier.height(96.dp))
+                    val note = uiState.note
+                    if (!note.isNullOrBlank()) {
+                        SectionTitle(text = stringResource(R.string.expense_details_note_section))
+                        CoTripCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            border = BorderStroke(1.dp, Border),
+                            contentPadding = PaddingValues(CoTripTokens.spacing.x2)
+                        ) {
+                            Text(
+                                text = note,
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = TextPrimary
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.height(96.dp))
+                }
             }
         }
     }
 }
 
 @Composable
-private fun HeaderCard(state: ExpenseDetailsState) {
+private fun HeaderCard(state: ExpenseDetailsState.Content) {
     CoTripCard(
         modifier = Modifier.fillMaxWidth(),
         border = BorderStroke(1.dp, Border),
@@ -333,7 +337,7 @@ private fun SectionTitle(text: String) {
 
 @Composable
 private fun SplitDetailsCard(
-    state: ExpenseDetailsState,
+    state: ExpenseDetailsState.Content,
     onMarkPaid: (String) -> Unit,
 ) {
     CoTripCard(
@@ -430,6 +434,7 @@ private fun BottomPrimaryAction(
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.background)
+            .navigationBarsPadding()
             .padding(
                 horizontal = CoTripTokens.spacing.x2,
                 vertical = CoTripTokens.spacing.x2

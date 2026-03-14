@@ -25,6 +25,7 @@ import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -65,6 +66,7 @@ import nvk.cotrip.ui.theme.WarningText
 private const val KEY_SUMMARY = "summary"
 private const val KEY_SPENT_HEADER = "spent_header"
 private const val KEY_PLANNED_HEADER = "planned_header"
+private const val KEY_EMPTY_STATE = "empty_state"
 private const val KEY_BOTTOM_SPACER = "bottom_spacer"
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
@@ -128,60 +130,110 @@ fun TripExpensesScreen(
             CoTripFab(onClick = { viewModel.onEvent(TripExpensesEvent.OnAddExpenseClick) })
         }
     ) { padding ->
-        val pullRefreshState = rememberPullRefreshState(
-            refreshing = state.isRefreshing,
-            onRefresh = { viewModel.onEvent(TripExpensesEvent.OnUserRefresh) }
-        )
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .pullRefresh(pullRefreshState)
-        ) {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(
-                    horizontal = CoTripTokens.spacing.x2,
-                    vertical = CoTripTokens.spacing.x2
-                ),
-                verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x2)
-            ) {
-                item(key = KEY_SUMMARY) {
-                    SummaryBlock(summary = state.summary)
-                }
-
-                item(key = KEY_SPENT_HEADER) {
-                    SectionTitle(text = stringResource(R.string.expenses_spent_section))
-                }
-
-                items(state.spent, key = { it.id }) { expense ->
-                    ExpenseCard(
-                        expense = expense,
-                        onClick = { viewModel.onEvent(TripExpensesEvent.OnExpenseClick(expense.id)) }
-                    )
-                }
-
-                item(key = KEY_PLANNED_HEADER) {
-                    SectionTitle(text = stringResource(R.string.expenses_planned_section))
-                }
-
-                items(state.planned, key = { it.id }) { expense ->
-                    ExpenseCard(
-                        expense = expense,
-                        onClick = { viewModel.onEvent(TripExpensesEvent.OnExpenseClick(expense.id)) }
-                    )
-                }
-
-                item(key = KEY_BOTTOM_SPACER) {
-                    Spacer(Modifier.height(96.dp))
+        when (val uiState = state) {
+            TripExpensesState.Loading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
                 }
             }
-            PullRefreshIndicator(
-                refreshing = state.isRefreshing,
-                state = pullRefreshState,
-                modifier = Modifier.align(Alignment.TopCenter)
-            )
+
+            is TripExpensesState.Content -> {
+                val pullRefreshState = rememberPullRefreshState(
+                    refreshing = uiState.isRefreshing,
+                    onRefresh = { viewModel.onEvent(TripExpensesEvent.OnUserRefresh) }
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .pullRefresh(pullRefreshState)
+                ) {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(
+                            horizontal = CoTripTokens.spacing.x2,
+                            vertical = CoTripTokens.spacing.x2
+                        ),
+                        verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x2)
+                    ) {
+                        item(key = KEY_SUMMARY) {
+                            SummaryBlock(summary = uiState.summary)
+                        }
+
+                        val hasAnyExpenses =
+                            uiState.spent.isNotEmpty() || uiState.planned.isNotEmpty()
+                        if (hasAnyExpenses) {
+                            item(key = KEY_SPENT_HEADER) {
+                                SectionTitle(text = stringResource(R.string.expenses_spent_section))
+                            }
+
+                            items(uiState.spent, key = { it.id }) { expense ->
+                                ExpenseCard(
+                                    expense = expense,
+                                    onClick = {
+                                        viewModel.onEvent(
+                                            TripExpensesEvent.OnExpenseClick(
+                                                expense.id
+                                            )
+                                        )
+                                    }
+                                )
+                            }
+
+                            item(key = KEY_PLANNED_HEADER) {
+                                SectionTitle(text = stringResource(R.string.expenses_planned_section))
+                            }
+
+                            items(uiState.planned, key = { it.id }) { expense ->
+                                ExpenseCard(
+                                    expense = expense,
+                                    onClick = {
+                                        viewModel.onEvent(
+                                            TripExpensesEvent.OnExpenseClick(
+                                                expense.id
+                                            )
+                                        )
+                                    }
+                                )
+                            }
+                        } else {
+                            item(key = KEY_EMPTY_STATE) {
+                                EmptyExpensesState()
+                            }
+                        }
+
+                        item(key = KEY_BOTTOM_SPACER) {
+                            Spacer(Modifier.height(96.dp))
+                        }
+                    }
+                    PullRefreshIndicator(
+                        refreshing = uiState.isRefreshing,
+                        state = pullRefreshState,
+                        modifier = Modifier.align(Alignment.TopCenter)
+                    )
+                }
+            }
         }
+    }
+}
+
+@Composable
+private fun EmptyExpensesState() {
+    CoTripCard(
+        modifier = Modifier.fillMaxWidth(),
+        border = BorderStroke(1.dp, Border),
+        contentPadding = PaddingValues(CoTripTokens.spacing.x2)
+    ) {
+        Text(
+            text = stringResource(R.string.expenses_empty_placeholder),
+            style = MaterialTheme.typography.bodyLarge,
+            color = TextSecondary
+        )
     }
 }
 

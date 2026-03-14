@@ -4,6 +4,7 @@ data class WeatherCardUi(
     val city: String,
     val days: List<WeatherDayUi>,
     val notice: WeatherCardNotice = WeatherCardNotice.None,
+    val isCitySelectable: Boolean = false,
 )
 
 enum class WeatherCardNotice {

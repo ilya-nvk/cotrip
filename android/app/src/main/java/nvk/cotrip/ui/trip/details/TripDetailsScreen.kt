@@ -46,8 +46,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -60,11 +63,11 @@ import nvk.cotrip.ui.components.AvatarStackItem
 import nvk.cotrip.ui.components.AvatarsStack
 import nvk.cotrip.ui.components.CoTripIconButton
 import nvk.cotrip.ui.components.PrimaryButton
-import nvk.cotrip.ui.components.TertiaryTextButton
 import nvk.cotrip.ui.components.tripGradientFromId
 import nvk.cotrip.ui.theme.Border
 import nvk.cotrip.ui.theme.CoTripIcons
 import nvk.cotrip.ui.theme.CoTripTokens
+import nvk.cotrip.ui.theme.PrimaryBlue
 import nvk.cotrip.ui.theme.PrimaryLight
 import nvk.cotrip.ui.theme.TextMedium
 import nvk.cotrip.ui.theme.TextPrimary
@@ -150,7 +153,7 @@ fun TripDetailsScreen(
                         locationLine = content.header.locationLine,
                         coverUrl = content.header.coverUrl,
                         statusBarTopInset = statusBarTopInset,
-                        canEdit = content.isOwner,
+                        canEdit = content.isOwner && !content.isPast,
                         onBack = { viewModel.onEvent(TripDetailsEvent.OnBackClick) },
                         onEdit = { viewModel.onEvent(TripDetailsEvent.OnEditClick) }
                     )
@@ -161,35 +164,33 @@ fun TripDetailsScreen(
                         title = stringResource(R.string.trip_details_travelers),
                         travelers = content.travelers,
                         peopleCountText = content.peopleCountText,
-                        isEmpty = content.isEmpty,
-                        canInvite = content.isOwner,
+                        canInvite = content.isOwner && !content.isPast,
                         onInvite = { viewModel.onEvent(TripDetailsEvent.OnInviteTravelersClick) },
                         onMembers = { viewModel.onEvent(TripDetailsEvent.OnMembersClick) }
                     )
                 }
 
-                if (content.weather.days.isNotEmpty()) {
+                if (!content.isPast && content.weather.days.isNotEmpty()) {
                     item(key = KEY_WEATHER) {
                         WeatherCard(
                             city = content.weather.city,
                             days = content.weather.days,
                             notice = content.weather.notice,
-                            onCityClick = { viewModel.onEvent(TripDetailsEvent.OnWeatherCityClick) },
                             onViewForecast = { viewModel.onEvent(TripDetailsEvent.OnViewForecastClick) }
                         )
                     }
                 }
 
-                if (!content.isEmpty) {
-                    item(key = KEY_NEXT) {
-                        NextInTripCard(
-                            title = stringResource(R.string.trip_details_next_in_trip),
-                            subtitle = content.nextInTrip.subtitle,
-                            lines = content.nextInTrip.lines,
-                            onViewItinerary = { viewModel.onEvent(TripDetailsEvent.OnViewItineraryClick) }
-                        )
-                    }
-                } else {
+                item(key = KEY_NEXT) {
+                    NextInTripCard(
+                        title = stringResource(R.string.trip_details_next_in_trip),
+                        subtitle = content.nextInTrip.subtitle,
+                        lines = content.nextInTrip.lines,
+                        onViewItinerary = { viewModel.onEvent(TripDetailsEvent.OnViewItineraryClick) }
+                    )
+                }
+
+                if (!content.isPast && content.isEmpty) {
                     item(key = KEY_START_PLANNING) {
                         StartPlanningCard(
                             title = stringResource(R.string.trip_details_start_planning),
@@ -203,6 +204,8 @@ fun TripDetailsScreen(
                 item(key = KEY_OVERVIEW) {
                     OverviewSection(
                         title = stringResource(R.string.trip_details_overview),
+                        isPastTrip = content.isPast,
+                        showIdeas = !content.isPast,
                         ideasCount = content.overview.ideasCount,
                         ideasSubtitle = content.overview.ideasSubtitle,
                         expensesAmount = content.overview.expensesAmount,
@@ -212,18 +215,20 @@ fun TripDetailsScreen(
                     )
                 }
 
-                item(key = KEY_CTA) {
-                    PrimaryButton(
-                        text = if (content.isEmpty)
-                            stringResource(R.string.trip_details_build_route)
-                        else
-                            stringResource(R.string.trip_details_get_route_suggestions),
-                        onClick = { viewModel.onEvent(TripDetailsEvent.OnPrimaryCtaClick) },
-                        enabled = true,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = CoTripTokens.spacing.x2)
-                    )
+                if (!content.isPast) {
+                    item(key = KEY_CTA) {
+                        PrimaryButton(
+                            text = if (content.isEmpty)
+                                stringResource(R.string.trip_details_build_route)
+                            else
+                                stringResource(R.string.trip_details_get_route_suggestions),
+                            onClick = { viewModel.onEvent(TripDetailsEvent.OnPrimaryCtaClick) },
+                            enabled = true,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = CoTripTokens.spacing.x2)
+                        )
+                    }
                 }
 
                 item(key = KEY_SPACER) {
@@ -357,7 +362,6 @@ private fun TravelersSection(
     title: String,
     travelers: List<AvatarStackItem>,
     peopleCountText: String,
-    isEmpty: Boolean,
     canInvite: Boolean,
     onInvite: () -> Unit,
     onMembers: () -> Unit,
@@ -424,14 +428,6 @@ private fun TravelersSection(
                 contentDescription = stringResource(R.string.trip_details_members),
                 onClick = onMembers
             )
-
-            if (isEmpty) {
-                Text(
-                    text = stringResource(R.string.trip_details_invite_travelers),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = TextSecondary
-                )
-            }
         }
 
         Surface(
@@ -450,9 +446,13 @@ private fun WeatherCard(
     city: String,
     days: List<WeatherDayUi>,
     notice: WeatherCardNotice,
-    onCityClick: () -> Unit,
     onViewForecast: () -> Unit,
 ) {
+    val cityLabel = city
+        .substringBefore(',')
+        .trim()
+        .ifBlank { stringResource(R.string.weather_forecast_city_missing) }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -468,38 +468,30 @@ private fun WeatherCard(
                 style = MaterialTheme.typography.labelMedium,
                 color = TextSecondary
             )
-
-            Spacer(Modifier.weight(1f))
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                TertiaryTextButton(
-                    text = city.ifBlank { stringResource(R.string.weather_forecast_city_missing) },
-                    onClick = onCityClick,
-                    enabled = true
-                )
-                Icon(
-                    imageVector = CoTripIcons.ExpandMore,
-                    contentDescription = null,
-                    tint = TextSecondary
-                )
-            }
         }
 
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(CoTripTokens.radius.large),
             color = MaterialTheme.colorScheme.surface,
-            shadowElevation = CoTripTokens.elevation.cardHover
+            shadowElevation = CoTripTokens.elevation.cardHover,
+            onClick = onViewForecast
         ) {
             Column(
                 modifier = Modifier.padding(CoTripTokens.spacing.x2),
                 verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x2)
             ) {
+                Text(
+                    text = cityLabel,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = TextSecondary
+                )
+
                 val noticeText = when (notice) {
                     WeatherCardNotice.None -> null
                     WeatherCardNotice.CityMissing -> stringResource(R.string.trip_details_weather_city_missing)
                     WeatherCardNotice.NoData -> stringResource(R.string.trip_details_weather_no_data)
-                    WeatherCardNotice.Partial -> stringResource(R.string.trip_details_weather_partial)
+                    WeatherCardNotice.Partial -> null
                     WeatherCardNotice.Unavailable -> stringResource(R.string.trip_details_weather_unavailable)
                 }
 
@@ -512,11 +504,16 @@ private fun WeatherCard(
                 }
 
                 if (days.isNotEmpty()) {
+                    val daysToDisplay = days.take(5)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = if (daysToDisplay.size < 4) {
+                            Arrangement.spacedBy(CoTripTokens.spacing.x2, Alignment.Start)
+                        } else {
+                            Arrangement.SpaceBetween
+                        }
                     ) {
-                        days.take(5).forEach { day ->
+                        daysToDisplay.forEach { day ->
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(
                                     text = day.label,
@@ -540,10 +537,10 @@ private fun WeatherCard(
                     }
                 }
 
-                TertiaryTextButton(
+                Text(
                     text = stringResource(R.string.trip_details_view_full_forecast),
-                    onClick = onViewForecast,
-                    enabled = true
+                    style = MaterialTheme.typography.labelLarge,
+                    color = PrimaryBlue
                 )
             }
         }
@@ -554,7 +551,7 @@ private fun WeatherCard(
 private fun NextInTripCard(
     title: String,
     subtitle: String,
-    lines: List<String>,
+    lines: List<NextInTripLineUi>,
     onViewItinerary: () -> Unit,
 ) {
     Column(
@@ -573,34 +570,48 @@ private fun NextInTripCard(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(CoTripTokens.radius.large),
             color = MaterialTheme.colorScheme.surface,
-            shadowElevation = CoTripTokens.elevation.cardHover
+            shadowElevation = CoTripTokens.elevation.cardHover,
+            onClick = onViewItinerary
         ) {
             Column(
                 modifier = Modifier.padding(CoTripTokens.spacing.x2),
                 verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x1)
             ) {
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = TextSecondary
-                )
+                if (subtitle.isNotBlank()) {
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = TextSecondary
+                    )
+                }
 
-                Column(verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x0_5)) {
-                    lines.take(3).forEach {
-                        Text(
-                            text = it,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = TextPrimary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                if (lines.isNotEmpty()) {
+                    Column(verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x0_5)) {
+                        lines.take(3).forEach { line ->
+                            Text(
+                                text = buildAnnotatedString {
+                                    append("• ")
+                                    if (!line.time.isNullOrBlank()) {
+                                        withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) {
+                                            append(line.time)
+                                        }
+                                        append(" ")
+                                    }
+                                    append(line.title)
+                                },
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = TextPrimary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
                 }
 
-                TertiaryTextButton(
+                Text(
                     text = stringResource(R.string.trip_details_view_full_itinerary),
-                    onClick = onViewItinerary,
-                    enabled = true
+                    style = MaterialTheme.typography.labelLarge,
+                    color = PrimaryBlue
                 )
             }
         }
@@ -630,7 +641,8 @@ private fun StartPlanningCard(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(CoTripTokens.radius.large),
             color = MaterialTheme.colorScheme.surface,
-            shadowElevation = CoTripTokens.elevation.cardHover
+            shadowElevation = CoTripTokens.elevation.cardHover,
+            onClick = onClick
         ) {
             Column(
                 modifier = Modifier.padding(CoTripTokens.spacing.x2),
@@ -642,10 +654,10 @@ private fun StartPlanningCard(
                     color = TextMedium
                 )
 
-                TertiaryTextButton(
+                Text(
                     text = actionText,
-                    onClick = onClick,
-                    enabled = true
+                    style = MaterialTheme.typography.labelLarge,
+                    color = PrimaryBlue
                 )
             }
         }
@@ -655,6 +667,8 @@ private fun StartPlanningCard(
 @Composable
 private fun OverviewSection(
     title: String,
+    isPastTrip: Boolean,
+    showIdeas: Boolean,
     ideasCount: Int,
     ideasSubtitle: String,
     expensesAmount: String,
@@ -662,6 +676,9 @@ private fun OverviewSection(
     onIdeasClick: () -> Unit,
     onExpensesClick: () -> Unit,
 ) {
+    val isIdeasEmpty = ideasCount == 0
+    val isExpensesEmpty = !isPastTrip && expensesSubtitle.isNotBlank()
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -674,47 +691,63 @@ private fun OverviewSection(
             color = TextSecondary
         )
 
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(CoTripTokens.radius.large),
-            color = MaterialTheme.colorScheme.surface,
-            shadowElevation = CoTripTokens.elevation.cardHover,
-            onClick = onIdeasClick
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(CoTripTokens.spacing.x2),
-                verticalAlignment = Alignment.CenterVertically
+        if (showIdeas) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(CoTripTokens.radius.large),
+                color = MaterialTheme.colorScheme.surface,
+                shadowElevation = CoTripTokens.elevation.cardHover,
+                onClick = onIdeasClick
             ) {
-                Column(
-                    Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x0_5)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(CoTripTokens.spacing.x2),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = stringResource(R.string.trip_details_ideas),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = TextSecondary
-                    )
-                    Text(
-                        text = ideasCount.toString(),
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = TextPrimary,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    if (ideasSubtitle.isNotBlank()) {
+                    Column(
+                        Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(
+                            if (isIdeasEmpty) CoTripTokens.spacing.x1 else CoTripTokens.spacing.x0_5
+                        )
+                    ) {
                         Text(
-                            text = ideasSubtitle,
-                            style = MaterialTheme.typography.bodySmall,
+                            text = stringResource(R.string.trip_details_ideas),
+                            style = MaterialTheme.typography.bodyMedium,
                             color = TextSecondary
+                        )
+                        if (isIdeasEmpty) {
+                            Text(
+                                text = ideasSubtitle.ifBlank {
+                                    stringResource(R.string.trip_details_ideas_subtitle_empty)
+                                },
+                                style = MaterialTheme.typography.labelLarge,
+                                color = PrimaryBlue
+                            )
+                        } else {
+                            Text(
+                                text = ideasCount.toString(),
+                                style = MaterialTheme.typography.headlineMedium,
+                                color = TextPrimary,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            if (ideasSubtitle.isNotBlank()) {
+                                Text(
+                                    text = ideasSubtitle,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = TextSecondary
+                                )
+                            }
+                        }
+                    }
+                    if (!isIdeasEmpty) {
+                        Icon(
+                            imageVector = CoTripIcons.ChevronRight,
+                            contentDescription = null,
+                            tint = TextSecondary
                         )
                     }
                 }
-                Icon(
-                    imageVector = CoTripIcons.ChevronRight,
-                    contentDescription = null,
-                    tint = TextSecondary
-                )
             }
         }
 
@@ -733,32 +766,46 @@ private fun OverviewSection(
             ) {
                 Column(
                     Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x0_5)
+                    verticalArrangement = Arrangement.spacedBy(
+                        if (isExpensesEmpty) CoTripTokens.spacing.x1 else CoTripTokens.spacing.x0_5
+                    )
                 ) {
                     Text(
                         text = stringResource(R.string.trip_details_total_expenses),
                         style = MaterialTheme.typography.bodyMedium,
                         color = TextSecondary
                     )
-                    Text(
-                        text = expensesAmount,
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = TextPrimary,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    if (expensesSubtitle.isNotBlank()) {
+                    if (isExpensesEmpty) {
                         Text(
-                            text = expensesSubtitle,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = TextSecondary
+                            text = expensesSubtitle.ifBlank {
+                                stringResource(R.string.trip_details_expenses_subtitle_empty)
+                            },
+                            style = MaterialTheme.typography.labelLarge,
+                            color = PrimaryBlue
                         )
+                    } else {
+                        Text(
+                            text = expensesAmount,
+                            style = MaterialTheme.typography.headlineMedium,
+                            color = TextPrimary,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        if (!isPastTrip && expensesSubtitle.isNotBlank()) {
+                            Text(
+                                text = expensesSubtitle,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = TextSecondary
+                            )
+                        }
                     }
                 }
-                Icon(
-                    imageVector = CoTripIcons.ChevronRight,
-                    contentDescription = null,
-                    tint = TextSecondary
-                )
+                if (!isExpensesEmpty) {
+                    Icon(
+                        imageVector = CoTripIcons.ChevronRight,
+                        contentDescription = null,
+                        tint = TextSecondary
+                    )
+                }
             }
         }
     }

@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -99,27 +100,42 @@ fun TripMembersScreen(
             )
         }
     ) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-            contentPadding = PaddingValues(
-                horizontal = CoTripTokens.spacing.x2,
-                vertical = CoTripTokens.spacing.x2
-            ),
-            verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x1_5)
-        ) {
-            items(state.members, key = { it.userId }) { member ->
-                MemberRow(
-                    member = member,
-                    isOwner = state.isOwner,
-                    meId = state.meId,
-                    onRemove = { viewModel.onEvent(TripMembersEvent.OnRemoveClick(member.userId)) }
-                )
+        when (val uiState = state) {
+            TripMembersState.Loading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
             }
 
-            item {
-                Spacer(Modifier.height(32.dp))
+            is TripMembersState.Content -> {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    contentPadding = PaddingValues(
+                        horizontal = CoTripTokens.spacing.x2,
+                        vertical = CoTripTokens.spacing.x2
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x1_5)
+                ) {
+                    items(uiState.members, key = { it.userId }) { member ->
+                        MemberRow(
+                            member = member,
+                            isOwner = uiState.isOwner,
+                            meId = uiState.meId,
+                            onRemove = { viewModel.onEvent(TripMembersEvent.OnRemoveClick(member.userId)) }
+                        )
+                    }
+
+                    item {
+                        Spacer(Modifier.height(32.dp))
+                    }
+                }
             }
         }
     }

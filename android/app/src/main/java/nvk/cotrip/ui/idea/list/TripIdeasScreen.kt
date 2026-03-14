@@ -22,6 +22,7 @@ import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -53,6 +54,7 @@ import nvk.cotrip.R
 import nvk.cotrip.ui.components.CoTripCard
 import nvk.cotrip.ui.components.CoTripFab
 import nvk.cotrip.ui.components.CoTripIconButton
+import nvk.cotrip.ui.components.PrimaryButton
 import nvk.cotrip.ui.idea.common.IdeaDayPickerSheet
 import nvk.cotrip.ui.theme.Border
 import nvk.cotrip.ui.theme.BorderStrong
@@ -63,6 +65,8 @@ import nvk.cotrip.ui.theme.TextPrimary
 import nvk.cotrip.ui.theme.TextSecondary
 
 private const val KEY_BOTTOM_SPACER = "bottom_spacer"
+private const val KEY_EMPTY_STATE = "empty_state"
+private const val KEY_AI_BUTTON = "ai_button"
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
 @Composable
@@ -94,7 +98,7 @@ fun TripIdeasScreen(
         }
     }
 
-    val dayPicker = state.dayPicker
+    val dayPicker = (state as? TripIdeasState.Content)?.dayPicker
     if (dayPicker != null) {
         ModalBottomSheet(
             onDismissRequest = { viewModel.onEvent(TripIdeasEvent.OnDismissDayPicker) },
@@ -140,44 +144,101 @@ fun TripIdeasScreen(
             CoTripFab(onClick = { viewModel.onEvent(TripIdeasEvent.OnAddIdeaClick) })
         }
     ) { padding ->
-        val pullRefreshState = rememberPullRefreshState(
-            refreshing = state.isRefreshing,
-            onRefresh = { viewModel.onEvent(TripIdeasEvent.OnUserRefresh) },
-        )
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .pullRefresh(pullRefreshState)
-        ) {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(
-                    horizontal = CoTripTokens.spacing.x2,
-                    vertical = CoTripTokens.spacing.x2
-                ),
-                verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x2)
-            ) {
-                items(state.ideas, key = { it.id }) { idea ->
-                    IdeaCard(
-                        idea = idea,
-                        onClick = { viewModel.onEvent(TripIdeasEvent.OnIdeaClick(idea.id)) },
-                        onAddToItinerary = {
-                            viewModel.onEvent(TripIdeasEvent.OnAddToItineraryClick(idea.id))
-                        }
-                    )
-                }
-
-                item(key = KEY_BOTTOM_SPACER) {
-                    Spacer(Modifier.height(96.dp))
+        when (val uiState = state) {
+            TripIdeasState.Loading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
                 }
             }
-            PullRefreshIndicator(
-                refreshing = state.isRefreshing,
-                state = pullRefreshState,
-                modifier = Modifier.align(Alignment.TopCenter)
-            )
+
+            is TripIdeasState.Content -> {
+                val pullRefreshState = rememberPullRefreshState(
+                    refreshing = uiState.isRefreshing,
+                    onRefresh = { viewModel.onEvent(TripIdeasEvent.OnUserRefresh) },
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .pullRefresh(pullRefreshState)
+                ) {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(
+                            horizontal = CoTripTokens.spacing.x2,
+                            vertical = CoTripTokens.spacing.x2
+                        ),
+                        verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x2)
+                    ) {
+                        if (uiState.ideas.isEmpty()) {
+                            item(key = KEY_EMPTY_STATE) {
+                                EmptyIdeasState(
+                                    onGetAiSuggestions = {
+                                        viewModel.onEvent(TripIdeasEvent.OnGetAiSuggestionsClick)
+                                    }
+                                )
+                            }
+                        } else {
+                            items(uiState.ideas, key = { it.id }) { idea ->
+                                IdeaCard(
+                                    idea = idea,
+                                    onClick = { viewModel.onEvent(TripIdeasEvent.OnIdeaClick(idea.id)) },
+                                    onAddToItinerary = {
+                                        viewModel.onEvent(TripIdeasEvent.OnAddToItineraryClick(idea.id))
+                                    }
+                                )
+                            }
+                            item(key = KEY_AI_BUTTON) {
+                                PrimaryButton(
+                                    text = stringResource(R.string.ideas_get_ai_suggestions),
+                                    onClick = { viewModel.onEvent(TripIdeasEvent.OnGetAiSuggestionsClick) },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        }
+
+                        item(key = KEY_BOTTOM_SPACER) {
+                            Spacer(Modifier.height(96.dp))
+                        }
+                    }
+                    PullRefreshIndicator(
+                        refreshing = uiState.isRefreshing,
+                        state = pullRefreshState,
+                        modifier = Modifier.align(Alignment.TopCenter)
+                    )
+                }
+            }
         }
+    }
+}
+
+@Composable
+private fun EmptyIdeasState(
+    onGetAiSuggestions: () -> Unit,
+) {
+    CoTripCard(
+        modifier = Modifier.fillMaxWidth(),
+        border = BorderStroke(1.dp, Border),
+        contentPadding = PaddingValues(CoTripTokens.spacing.x2)
+    ) {
+        Text(
+            text = stringResource(R.string.ideas_empty_placeholder),
+            style = MaterialTheme.typography.bodyLarge,
+            color = TextSecondary
+        )
+
+        Spacer(Modifier.height(CoTripTokens.spacing.x2))
+
+        PrimaryButton(
+            text = stringResource(R.string.ideas_get_ai_suggestions),
+            onClick = onGetAiSuggestions,
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
 
