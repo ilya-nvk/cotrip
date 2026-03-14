@@ -1,9 +1,16 @@
 package nvk.cotrip.ui.aisuggestions
 
-data class RouteSuggestionsState(
-    val tripId: String,
-    val city: String,
-    val subtitle: String,
-    val isLoading: Boolean,
-    val suggestions: List<AiSuggestionItemUi>,
-)
+sealed interface RouteSuggestionsState {
+    data class Loading(
+        val tripId: String,
+        val city: String,
+        val subtitle: String,
+    ) : RouteSuggestionsState
+
+    data class Content(
+        val tripId: String,
+        val city: String,
+        val subtitle: String,
+        val suggestions: List<AiSuggestionItemUi>,
+    ) : RouteSuggestionsState
+}

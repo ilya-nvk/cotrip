@@ -39,19 +39,7 @@ class TripForecastViewModel @Inject constructor(
     private val tripId: String =
         checkNotNull(savedStateHandle[Destination.TripForecast.ARG_TRIP_ID])
 
-    private val _state = MutableStateFlow(
-        TripForecastState(
-            city = "",
-            cityOptions = emptyList(),
-            isCityPickerVisible = false,
-            days = emptyList(),
-            source = "OpenWeather",
-            lastUpdated = "",
-            coverageMessage = null,
-            isLoading = true,
-            isRefreshing = false,
-        )
-    )
+    private val _state = MutableStateFlow<TripForecastState>(TripForecastState.Loading)
     val state = _state.asStateFlow()
 
     private val _effects = MutableSharedFlow<TripForecastEffect>()
@@ -67,16 +55,21 @@ class TripForecastViewModel @Inject constructor(
             TripForecastEvent.OnAutoRefresh -> refreshForecast(isUserRefresh = false)
             TripForecastEvent.OnUserRefresh -> refreshForecast(isUserRefresh = true)
             TripForecastEvent.OnCityClick -> {
-                if (_state.value.cityOptions.isEmpty()) {
+                val current = _state.value as? TripForecastState.Content ?: return
+                if (current.cityOptions.isEmpty()) {
                     emitToast(R.string.weather_forecast_city_missing)
                 } else {
-                    _state.value = _state.value.copy(isCityPickerVisible = true)
+                    _state.value = current.copy(isCityPickerVisible = true)
                 }
             }
-            TripForecastEvent.OnDismissCityPicker ->
-                _state.value = _state.value.copy(isCityPickerVisible = false)
+
+            TripForecastEvent.OnDismissCityPicker -> {
+                val current = _state.value as? TripForecastState.Content ?: return
+                _state.value = current.copy(isCityPickerVisible = false)
+            }
             is TripForecastEvent.OnCitySelected -> {
-                _state.value = _state.value.copy(
+                val current = _state.value as? TripForecastState.Content ?: return
+                _state.value = current.copy(
                     city = event.city,
                     isCityPickerVisible = false,
                 )
@@ -87,10 +80,11 @@ class TripForecastViewModel @Inject constructor(
 
     private fun refreshForecast(isUserRefresh: Boolean) {
         viewModelScope.launch {
+            val current = _state.value as? TripForecastState.Content
             if (isUserRefresh) {
-                _state.value = _state.value.copy(isRefreshing = true)
-            } else if (_state.value.days.isEmpty()) {
-                _state.value = _state.value.copy(isLoading = true)
+                if (current != null) {
+                    _state.value = current.copy(isRefreshing = true)
+                }
             }
 
             val result = apiCaller.call {
@@ -99,7 +93,7 @@ class TripForecastViewModel @Inject constructor(
                     itineraryRepository.refreshItinerary(tripId).getOrThrow()
                     val itinerary = itineraryRepository.getItinerary(tripId).first()
                     val cityOptions = collectCityOptions(itinerary)
-                    val selectedCity = selectCity(itinerary, _state.value.city)
+                    val selectedCity = selectCity(itinerary, current?.city)
                     if (selectedCity == null) {
                         WeatherLoadResult(
                             city = "",
@@ -110,8 +104,9 @@ class TripForecastViewModel @Inject constructor(
                     } else {
                         val shouldRefresh =
                             isUserRefresh ||
-                                _state.value.days.isEmpty() ||
-                                !_state.value.city.equals(selectedCity.city, ignoreCase = true)
+                                    current == null ||
+                                    current.days.isEmpty() ||
+                                    !current.city.equals(selectedCity.city, ignoreCase = true)
                         if (shouldRefresh) {
                             weatherRepository.refreshWeather(
                                 tripId = tripId,
@@ -143,7 +138,7 @@ class TripForecastViewModel @Inject constructor(
                     val source = TripForecastUiMapper.source(loaded.response)
                     val lastUpdated = TripForecastUiMapper.lastUpdated(loaded.response)
 
-                    _state.value = _state.value.copy(
+                    _state.value = TripForecastState.Content(
                         city = loaded.city,
                         cityOptions = loaded.cityOptions,
                         isCityPickerVisible = false,
@@ -154,13 +149,15 @@ class TripForecastViewModel @Inject constructor(
                             hasSelectedCity = loaded.hasSelectedCity,
                             response = loaded.response,
                         ),
-                        isLoading = false,
                         isRefreshing = false,
                     )
                 }
 
                 is ApiResult.Failure -> {
-                    _state.value = _state.value.copy(isLoading = false, isRefreshing = false)
+                    val latest = _state.value as? TripForecastState.Content
+                    if (latest != null) {
+                        _state.value = latest.copy(isRefreshing = false)
+                    }
                     emitToast(uiErrorMapper.messageRes(result))
                 }
             }

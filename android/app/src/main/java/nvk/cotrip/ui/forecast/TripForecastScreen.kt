@@ -20,6 +20,7 @@ import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -28,6 +29,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -54,7 +56,6 @@ import nvk.cotrip.ui.theme.Border
 import nvk.cotrip.ui.theme.CoTripIcons
 import nvk.cotrip.ui.theme.CoTripTokens
 import nvk.cotrip.ui.theme.TextSecondary
-import androidx.compose.material3.rememberModalBottomSheetState
 
 private const val KEY_CARD = "forecast_card"
 private const val KEY_FOOTER = "footer"
@@ -89,14 +90,15 @@ fun TripForecastScreen(
         }
     }
 
-    if (state.isCityPickerVisible) {
+    val contentState = state as? TripForecastState.Content
+    if (contentState?.isCityPickerVisible == true) {
         ModalBottomSheet(
             onDismissRequest = { viewModel.onEvent(TripForecastEvent.OnDismissCityPicker) },
             sheetState = citySheetState,
             containerColor = MaterialTheme.colorScheme.surface,
         ) {
             CityPickerSheet(
-                cities = state.cityOptions,
+                cities = contentState.cityOptions,
                 onSelect = { viewModel.onEvent(TripForecastEvent.OnCitySelected(it)) }
             )
         }
@@ -129,97 +131,118 @@ fun TripForecastScreen(
             )
         }
     ) { padding ->
-        val pullRefreshState = rememberPullRefreshState(
-            refreshing = state.isRefreshing,
-            onRefresh = { viewModel.onEvent(TripForecastEvent.OnUserRefresh) },
-        )
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .pullRefresh(pullRefreshState)
-        ) {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(
-                    horizontal = CoTripTokens.spacing.x2,
-                    vertical = CoTripTokens.spacing.x2
-                ),
-                verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x2)
-            ) {
-                item {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = CoTripTokens.spacing.x0_5),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        TertiaryTextButton(
-                            text = state.city.ifBlank { stringResource(R.string.weather_forecast_city_missing) },
-                            onClick = { viewModel.onEvent(TripForecastEvent.OnCityClick) }
-                        )
-                        Icon(
-                            imageVector = CoTripIcons.ExpandMore,
-                            contentDescription = null,
-                            tint = TextSecondary
-                        )
-                    }
-                }
-
-                state.coverageMessage?.let { message ->
-                    item {
-                        Text(
-                            text = message,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = TextSecondary,
-                            modifier = Modifier.padding(horizontal = CoTripTokens.spacing.x0_5)
-                        )
-                    }
-                }
-
-                item(key = KEY_CARD) {
-                    if (state.days.isEmpty()) {
-                        CoTripCard(
-                            modifier = Modifier.fillMaxWidth(),
-                            contentPadding = PaddingValues(CoTripTokens.spacing.x2)
-                        ) {
-                            Text(
-                                text = stringResource(R.string.weather_forecast_empty),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = TextSecondary
-                            )
-                        }
-                    } else {
-                        CoTripCard(
-                            modifier = Modifier.fillMaxWidth(),
-                            contentPadding = PaddingValues(0.dp)
-                        ) {
-                            state.days.forEachIndexed { index, day ->
-                                ForecastRow(
-                                    day = day,
-                                    showDivider = index != state.days.lastIndex
-                                )
-                            }
-                        }
-                    }
-                }
-
-                item(key = KEY_FOOTER) {
-                    Footer(
-                        disclaimer = stringResource(R.string.weather_forecast_disclaimer),
-                        source = stringResource(R.string.weather_forecast_source, state.source),
-                        updated = state.lastUpdated.takeIf { it.isNotBlank() }?.let { value ->
-                            stringResource(R.string.weather_forecast_updated, value)
-                        }
-                    )
+        when (val uiState = state) {
+            TripForecastState.Loading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
                 }
             }
 
-            PullRefreshIndicator(
-                refreshing = state.isRefreshing,
-                state = pullRefreshState,
-                modifier = Modifier.align(Alignment.TopCenter)
-            )
+            is TripForecastState.Content -> {
+                val pullRefreshState = rememberPullRefreshState(
+                    refreshing = uiState.isRefreshing,
+                    onRefresh = { viewModel.onEvent(TripForecastEvent.OnUserRefresh) },
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .pullRefresh(pullRefreshState)
+                ) {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(
+                            horizontal = CoTripTokens.spacing.x2,
+                            vertical = CoTripTokens.spacing.x2
+                        ),
+                        verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x2)
+                    ) {
+                        item {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = CoTripTokens.spacing.x0_5),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                TertiaryTextButton(
+                                    text = uiState.city.ifBlank {
+                                        stringResource(R.string.weather_forecast_city_missing)
+                                    },
+                                    onClick = { viewModel.onEvent(TripForecastEvent.OnCityClick) }
+                                )
+                                Icon(
+                                    imageVector = CoTripIcons.ExpandMore,
+                                    contentDescription = null,
+                                    tint = TextSecondary
+                                )
+                            }
+                        }
+
+                        uiState.coverageMessage?.let { message ->
+                            item {
+                                Text(
+                                    text = message,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = TextSecondary,
+                                    modifier = Modifier.padding(horizontal = CoTripTokens.spacing.x0_5)
+                                )
+                            }
+                        }
+
+                        item(key = KEY_CARD) {
+                            if (uiState.days.isEmpty()) {
+                                CoTripCard(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    contentPadding = PaddingValues(CoTripTokens.spacing.x2)
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.weather_forecast_empty),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = TextSecondary
+                                    )
+                                }
+                            } else {
+                                CoTripCard(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    contentPadding = PaddingValues(0.dp)
+                                ) {
+                                    uiState.days.forEachIndexed { index, day ->
+                                        ForecastRow(
+                                            day = day,
+                                            showDivider = index != uiState.days.lastIndex
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        item(key = KEY_FOOTER) {
+                            Footer(
+                                disclaimer = stringResource(R.string.weather_forecast_disclaimer),
+                                source = stringResource(
+                                    R.string.weather_forecast_source,
+                                    uiState.source
+                                ),
+                                updated = uiState.lastUpdated.takeIf { it.isNotBlank() }
+                                    ?.let { value ->
+                                        stringResource(R.string.weather_forecast_updated, value)
+                                    }
+                            )
+                        }
+                    }
+
+                    PullRefreshIndicator(
+                        refreshing = uiState.isRefreshing,
+                        state = pullRefreshState,
+                        modifier = Modifier.align(Alignment.TopCenter)
+                    )
+                }
+            }
         }
     }
 }

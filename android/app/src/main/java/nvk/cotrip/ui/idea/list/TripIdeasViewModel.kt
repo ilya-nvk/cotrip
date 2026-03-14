@@ -13,7 +13,6 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -67,14 +66,7 @@ class TripIdeasViewModel @Inject constructor(
     private val commentsSocket = CommentsWebSocket(okHttpClient, json)
     private var reconnectJob: Job? = null
 
-    private val _state = MutableStateFlow(
-        TripIdeasState(
-            tripId = tripId,
-            ideas = emptyList(),
-            dayPicker = null,
-            isRefreshing = false,
-        )
-    )
+    private val _state = MutableStateFlow<TripIdeasState>(TripIdeasState.Loading)
     val state = _state.asStateFlow()
 
     private val _effects = MutableSharedFlow<TripIdeasEffect>()
@@ -129,16 +121,16 @@ class TripIdeasViewModel @Inject constructor(
                     .map { it.toDayOption() }
                 val addedDaysByIdea = collectAddedDays(itinerary)
 
-                _state.update { current ->
-                    val updatedPicker = current.dayPicker?.copy(days = dayOptions)
-                    current.copy(
-                        ideas = ideas.map { idea ->
-                            idea.toUi(currencySymbol, addedDaysByIdea[idea.id])
-                        },
-                        dayPicker = updatedPicker,
-                        isRefreshing = refreshing,
-                    )
-                }
+                val updatedPicker =
+                    (_state.value as? TripIdeasState.Content)?.dayPicker?.copy(days = dayOptions)
+                _state.value = TripIdeasState.Content(
+                    tripId = tripId,
+                    ideas = ideas.map { idea ->
+                        idea.toUi(currencySymbol, addedDaysByIdea[idea.id])
+                    },
+                    dayPicker = updatedPicker,
+                    isRefreshing = refreshing,
+                )
             }
         }
     }
@@ -146,6 +138,10 @@ class TripIdeasViewModel @Inject constructor(
     private fun refreshIdeas(isUserRefresh: Boolean) {
         viewModelScope.launch {
             if (isUserRefresh) {
+                val current = _state.value as? TripIdeasState.Content
+                if (current != null) {
+                    _state.value = current.copy(isRefreshing = true)
+                }
                 isRefreshing.value = true
             }
             when (val result = apiCaller.call {
@@ -169,22 +165,24 @@ class TripIdeasViewModel @Inject constructor(
     }
 
     private fun openDayPicker(ideaId: String) {
+        val current = _state.value as? TripIdeasState.Content ?: return
         if (dayOptions.isEmpty()) {
             emit(TripIdeasEffect.ShowToastRes(R.string.common_error_message))
             return
         }
-        _state.update { current ->
+        _state.value =
             current.copy(dayPicker = IdeaDayPickerState(ideaId = ideaId, days = dayOptions))
-        }
     }
 
     private fun dismissDayPicker() {
-        _state.update { it.copy(dayPicker = null) }
+        val current = _state.value as? TripIdeasState.Content ?: return
+        _state.value = current.copy(dayPicker = null)
     }
 
     private fun selectDay(day: IdeaDayOptionUi) {
-        val ideaId = _state.value.dayPicker?.ideaId ?: return
-        _state.update { it.copy(dayPicker = null) }
+        val current = _state.value as? TripIdeasState.Content ?: return
+        val ideaId = current.dayPicker?.ideaId ?: return
+        _state.value = current.copy(dayPicker = null)
         viewModelScope.launch {
             when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
@@ -195,13 +193,12 @@ class TripIdeasViewModel @Inject constructor(
                 }
             }) {
                 is ApiResult.Success -> {
-                    _state.update { current ->
-                        current.copy(
-                            ideas = current.ideas.map { idea ->
-                                if (idea.id == ideaId) idea.copy(addedDay = day.dayNumber) else idea
-                            }
-                        )
-                    }
+                    val latest = _state.value as? TripIdeasState.Content ?: return@launch
+                    _state.value = latest.copy(
+                        ideas = latest.ideas.map { idea ->
+                            if (idea.id == ideaId) idea.copy(addedDay = day.dayNumber) else idea
+                        }
+                    )
                     withContext(Dispatchers.IO) {
                         itineraryRepository.refreshItinerary(tripId).getOrThrow()
                     }
@@ -254,32 +251,34 @@ class TripIdeasViewModel @Inject constructor(
 
     private fun handleCommentCreated(payload: CommentCreatedPayload) {
         if (payload.type.equals("system", ignoreCase = true)) return
-        _state.update { current ->
-            var changed = false
-            val updated = current.ideas.map { idea ->
-                if (idea.id == payload.ideaId) {
-                    changed = true
-                    idea.copy(commentsCount = idea.commentsCount + 1)
-                } else {
-                    idea
-                }
+        val current = _state.value as? TripIdeasState.Content ?: return
+        var changed = false
+        val updated = current.ideas.map { idea ->
+            if (idea.id == payload.ideaId) {
+                changed = true
+                idea.copy(commentsCount = idea.commentsCount + 1)
+            } else {
+                idea
             }
-            if (!changed) current else current.copy(ideas = updated)
+        }
+        if (changed) {
+            _state.value = current.copy(ideas = updated)
         }
     }
 
     private fun handleCommentDeleted(payload: CommentDeletedPayload) {
-        _state.update { current ->
-            var changed = false
-            val updated = current.ideas.map { idea ->
-                if (idea.id == payload.ideaId) {
-                    changed = true
-                    idea.copy(commentsCount = (idea.commentsCount - 1).coerceAtLeast(0))
-                } else {
-                    idea
-                }
+        val current = _state.value as? TripIdeasState.Content ?: return
+        var changed = false
+        val updated = current.ideas.map { idea ->
+            if (idea.id == payload.ideaId) {
+                changed = true
+                idea.copy(commentsCount = (idea.commentsCount - 1).coerceAtLeast(0))
+            } else {
+                idea
             }
-            if (!changed) current else current.copy(ideas = updated)
+        }
+        if (changed) {
+            _state.value = current.copy(ideas = updated)
         }
     }
 

@@ -5,13 +5,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nvk.cotrip.R
@@ -37,16 +36,7 @@ class TripMembersViewModel @Inject constructor(
     private val tripId: String =
         checkNotNull(savedStateHandle[Destination.TripMembers.ARG_TRIP_ID])
 
-    private val _state = MutableStateFlow(
-        TripMembersState(
-            tripId = tripId,
-            title = "",
-            members = emptyList(),
-            meId = null,
-            isOwner = false,
-            isLoading = true,
-        )
-    )
+    private val _state = MutableStateFlow<TripMembersState>(TripMembersState.Loading)
     val state = _state.asStateFlow()
 
     private val _effects = MutableSharedFlow<TripMembersEffect>()
@@ -91,22 +81,26 @@ class TripMembersViewModel @Inject constructor(
                     isOwner = myId != null && trip.ownerId == myId,
                 )
             }.collect { payload ->
-                _state.update {
-                    it.copy(
-                        title = payload.title,
-                        members = payload.members,
-                        meId = payload.meId,
-                        isOwner = payload.isOwner,
-                        isLoading = false,
-                    )
-                }
+                val isLoadingAction = (_state.value as? TripMembersState.Content)?.isLoadingAction
+                    ?: false
+                _state.value = TripMembersState.Content(
+                    tripId = tripId,
+                    title = payload.title,
+                    members = payload.members,
+                    meId = payload.meId,
+                    isOwner = payload.isOwner,
+                    isLoadingAction = isLoadingAction,
+                )
             }
         }
     }
 
     private fun refreshMembers(showErrorToast: Boolean) {
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true) }
+            val current = _state.value as? TripMembersState.Content
+            if (current != null) {
+                _state.value = current.copy(isLoadingAction = true)
+            }
             when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
                     tripRepository.refreshTrips().getOrThrow()
@@ -115,7 +109,10 @@ class TripMembersViewModel @Inject constructor(
             }) {
                 is ApiResult.Success -> Unit
                 is ApiResult.Failure -> {
-                    _state.update { it.copy(isLoading = false) }
+                    val latest = _state.value as? TripMembersState.Content
+                    if (latest != null) {
+                        _state.value = latest.copy(isLoadingAction = false)
+                    }
                     if (showErrorToast) {
                         emit(TripMembersEffect.ShowToastRes(uiErrorMapper.messageRes(result)))
                     }
@@ -125,10 +122,10 @@ class TripMembersViewModel @Inject constructor(
     }
 
     private fun removeMember(memberId: String) {
-        val snapshot = _state.value
-        if (snapshot.isLoading) return
+        val snapshot = _state.value as? TripMembersState.Content ?: return
+        if (snapshot.isLoadingAction) return
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true) }
+            _state.value = snapshot.copy(isLoadingAction = true)
             val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
                     tripRepository.removeMember(tripId, memberId)
@@ -137,7 +134,10 @@ class TripMembersViewModel @Inject constructor(
             when (result) {
                 is ApiResult.Success -> {
                     val isSelf = memberId == snapshot.meId
-                    _state.update { it.copy(isLoading = false) }
+                    val latest = _state.value as? TripMembersState.Content
+                    if (latest != null) {
+                        _state.value = latest.copy(isLoadingAction = false)
+                    }
                     if (isSelf) {
                         emit(TripMembersEffect.ShowToastRes(R.string.trip_members_left_toast))
                         appNavigator.navigate(Destination.Trips) {
@@ -149,7 +149,10 @@ class TripMembersViewModel @Inject constructor(
                     }
                 }
                 is ApiResult.Failure -> {
-                    _state.update { it.copy(isLoading = false) }
+                    val latest = _state.value as? TripMembersState.Content
+                    if (latest != null) {
+                        _state.value = latest.copy(isLoadingAction = false)
+                    }
                     emit(TripMembersEffect.ShowToastRes(uiErrorMapper.messageRes(result)))
                 }
             }

@@ -11,7 +11,6 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nvk.cotrip.data.network.ApiCaller
@@ -44,20 +43,7 @@ class TripExpensesViewModel @Inject constructor(
     private val tripId: String =
         checkNotNull(savedStateHandle[Destination.Expenses.ARG_TRIP_ID])
 
-    private val _state = MutableStateFlow(
-        TripExpensesState(
-            tripId = tripId,
-            summary = ExpenseSummaryUi(
-                totalSpent = "€0",
-                balanceLabel = "Settled",
-                balanceAmount = "€0",
-                totalPlanned = "€0"
-            ),
-            spent = emptyList(),
-            planned = emptyList(),
-            isRefreshing = false,
-        )
-    )
+    private val _state = MutableStateFlow<TripExpensesState>(TripExpensesState.Loading)
     val state = _state.asStateFlow()
 
     private val _effects = MutableSharedFlow<TripExpensesEffect>()
@@ -65,6 +51,7 @@ class TripExpensesViewModel @Inject constructor(
 
     private val membersState = MutableStateFlow<List<MemberDto>>(emptyList())
     private val meIdState = MutableStateFlow<String?>(null)
+    private val isRefreshing = MutableStateFlow(false)
 
     init {
         observeData()
@@ -95,8 +82,9 @@ class TripExpensesViewModel @Inject constructor(
                 expenseRepository.observeExpenses(tripId),
                 tripRepository.getTrip(tripId),
                 membersState,
-                meIdState
-            ) { expenses, trip, members, meId ->
+                meIdState,
+                isRefreshing,
+            ) { expenses, trip, members, meId, refreshing ->
                 if (meId == null) {
                     null
                 } else {
@@ -104,7 +92,8 @@ class TripExpensesViewModel @Inject constructor(
                         trip = trip,
                         expenses = expenses,
                         members = members,
-                        meId = meId
+                        meId = meId,
+                        refreshing = refreshing,
                     )
                 }
             }.collect { payload ->
@@ -152,18 +141,18 @@ class TripExpensesViewModel @Inject constructor(
                     else -> "You owe"
                 }
 
-                _state.update {
-                    it.copy(
-                        summary = ExpenseSummaryUi(
-                            totalSpent = formatMoney(totalSpent, currencySymbol),
-                            balanceLabel = balanceLabel,
-                            balanceAmount = formatMoney(abs(netBalance), currencySymbol),
-                            totalPlanned = formatMoney(totalPlanned, currencySymbol)
-                        ),
-                        spent = spentItems,
-                        planned = plannedItems
-                    )
-                }
+                _state.value = TripExpensesState.Content(
+                    tripId = tripId,
+                    summary = ExpenseSummaryUi(
+                        totalSpent = formatMoney(totalSpent, currencySymbol),
+                        balanceLabel = balanceLabel,
+                        balanceAmount = formatMoney(abs(netBalance), currencySymbol),
+                        totalPlanned = formatMoney(totalPlanned, currencySymbol)
+                    ),
+                    spent = spentItems,
+                    planned = plannedItems,
+                    isRefreshing = payload.refreshing,
+                )
             }
         }
     }
@@ -171,7 +160,11 @@ class TripExpensesViewModel @Inject constructor(
     private fun refreshExpenses(isUserRefresh: Boolean) {
         viewModelScope.launch {
             if (isUserRefresh) {
-                _state.update { it.copy(isRefreshing = true) }
+                val current = _state.value as? TripExpensesState.Content
+                if (current != null) {
+                    _state.value = current.copy(isRefreshing = true)
+                }
+                isRefreshing.value = true
             }
             when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
@@ -188,7 +181,7 @@ class TripExpensesViewModel @Inject constructor(
                     _effects.emit(TripExpensesEffect.ShowToastRes(uiErrorMapper.messageRes(result)))
                 }
             }
-            _state.update { it.copy(isRefreshing = false) }
+            isRefreshing.value = false
         }
     }
 
@@ -197,6 +190,7 @@ class TripExpensesViewModel @Inject constructor(
         val expenses: List<ExpenseDto>,
         val members: List<MemberDto>,
         val meId: String,
+        val refreshing: Boolean,
     )
 }
 

@@ -9,7 +9,6 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import nvk.cotrip.R
 import nvk.cotrip.data.network.ApiCaller
@@ -49,13 +48,11 @@ class RouteSuggestionsViewModel @Inject constructor(
     private val _effects = MutableSharedFlow<RouteSuggestionsEffect>()
     val effects = _effects.asSharedFlow()
 
-    private val _state = MutableStateFlow(
-        RouteSuggestionsState(
+    private val _state = MutableStateFlow<RouteSuggestionsState>(
+        RouteSuggestionsState.Loading(
             tripId = tripId,
             city = selectedCity,
             subtitle = buildSubtitle(selectedTypes, selectedTimes, selectedBudgets),
-            isLoading = true,
-            suggestions = emptyList()
         )
     )
     val state = _state.asStateFlow()
@@ -80,7 +77,11 @@ class RouteSuggestionsViewModel @Inject constructor(
 
     private fun regenerateSuggestions() {
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true) }
+            _state.value = RouteSuggestionsState.Loading(
+                tripId = tripId,
+                city = selectedCity,
+                subtitle = buildSubtitle(selectedTypes, selectedTimes, selectedBudgets),
+            )
             val result = apiCaller.call {
                 aiSuggestionsRepository.generateSuggestions(
                     tripId = tripId,
@@ -98,27 +99,27 @@ class RouteSuggestionsViewModel @Inject constructor(
 
             when (result) {
                 is ApiResult.Success -> {
-                    _state.update { current ->
-                        current.copy(
-                            isLoading = false,
-                            suggestions = result.data.map { suggestion ->
-                                AiSuggestionItemUi(
-                                    id = suggestion.id,
-                                    title = suggestion.title,
-                                    description = suggestion.description.orEmpty(),
-                                    typeLabel = suggestion.typeLabel.orEmpty().ifBlank { "Activity" },
-                                    durationLabel = suggestion.durationLabel.orEmpty().ifBlank { "2-3h" },
-                                    budgetLabel = suggestion.budgetLabel.orEmpty().ifBlank { "Any" },
-                                    estimatedCost = formatEstimatedCost(suggestion.estimatedCost),
-                                    isSaved = suggestion.isSaved,
-                                )
-                            },
-                        )
-                    }
+                    _state.value = RouteSuggestionsState.Content(
+                        tripId = tripId,
+                        city = selectedCity,
+                        subtitle = buildSubtitle(selectedTypes, selectedTimes, selectedBudgets),
+                        suggestions = result.data.map { suggestion ->
+                            AiSuggestionItemUi(
+                                id = suggestion.id,
+                                title = suggestion.title,
+                                description = suggestion.description.orEmpty(),
+                                typeLabel = suggestion.typeLabel.orEmpty().ifBlank { "Activity" },
+                                durationLabel = suggestion.durationLabel.orEmpty()
+                                    .ifBlank { "2-3h" },
+                                budgetLabel = suggestion.budgetLabel.orEmpty().ifBlank { "Any" },
+                                estimatedCost = formatEstimatedCost(suggestion.estimatedCost),
+                                isSaved = suggestion.isSaved,
+                            )
+                        }
+                    )
                 }
 
                 is ApiResult.Failure -> {
-                    _state.update { it.copy(isLoading = false) }
                     emit(RouteSuggestionsEffect.ShowToastRes(uiErrorMapper.messageRes(result)))
                 }
             }
@@ -126,8 +127,8 @@ class RouteSuggestionsViewModel @Inject constructor(
     }
 
     private fun saveSuggestion(suggestionId: String) {
-        if (_state.value.isLoading) return
-        val currentItem = _state.value.suggestions.firstOrNull { it.id == suggestionId } ?: return
+        val current = _state.value as? RouteSuggestionsState.Content ?: return
+        val currentItem = current.suggestions.firstOrNull { it.id == suggestionId } ?: return
         if (currentItem.isSaved) return
 
         viewModelScope.launch {
@@ -136,17 +137,16 @@ class RouteSuggestionsViewModel @Inject constructor(
             }
             when (result) {
                 is ApiResult.Success -> {
-                    _state.update { current ->
-                        current.copy(
-                            suggestions = current.suggestions.map { suggestion ->
-                                if (suggestion.id == suggestionId) {
-                                    suggestion.copy(isSaved = true)
-                                } else {
-                                    suggestion
-                                }
+                    val latest = _state.value as? RouteSuggestionsState.Content ?: return@launch
+                    _state.value = latest.copy(
+                        suggestions = latest.suggestions.map { suggestion ->
+                            if (suggestion.id == suggestionId) {
+                                suggestion.copy(isSaved = true)
+                            } else {
+                                suggestion
                             }
-                        )
-                    }
+                        }
+                    )
                     emit(RouteSuggestionsEffect.ShowToastRes(R.string.ai_suggestions_saved))
                 }
 

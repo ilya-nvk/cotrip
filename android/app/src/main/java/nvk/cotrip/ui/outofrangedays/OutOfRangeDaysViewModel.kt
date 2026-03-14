@@ -40,14 +40,7 @@ class OutOfRangeDaysViewModel @Inject constructor(
     private val tripId: String =
         checkNotNull(savedStateHandle[Destination.OutOfRangeDays.ARG_TRIP_ID])
 
-    private val _state = MutableStateFlow(
-        OutOfRangeDaysState(
-            tripId = tripId,
-            dateRangeText = "",
-            proposedEndDateText = "",
-            days = emptyList(),
-        )
-    )
+    private val _state = MutableStateFlow<OutOfRangeDaysState>(OutOfRangeDaysState.Loading)
     val state = _state.asStateFlow()
 
     private val _effects = MutableSharedFlow<OutOfRangeDaysEffect>()
@@ -93,7 +86,7 @@ class OutOfRangeDaysViewModel @Inject constructor(
 
                     val rangeText = formatRange(loaded.tripStart, loaded.tripEnd)
                     val proposedEnd = loaded.tripEnd.plusDays(outOfRange.size.toLong())
-                    _state.value = OutOfRangeDaysState(
+                    _state.value = OutOfRangeDaysState.Content(
                         tripId = tripId,
                         dateRangeText = rangeText,
                         proposedEndDateText = formatDate(proposedEnd),
@@ -110,7 +103,8 @@ class OutOfRangeDaysViewModel @Inject constructor(
     }
 
     private fun trimOutOfRange(action: String) {
-        val ids = state.value.days.map { it.id }
+        val content = state.value as? OutOfRangeDaysState.Content ?: return
+        val ids = content.days.map { it.id }
         if (ids.isEmpty()) {
             appNavigator.popBackStack()
             return

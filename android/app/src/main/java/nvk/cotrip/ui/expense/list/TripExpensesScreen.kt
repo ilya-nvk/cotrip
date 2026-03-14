@@ -25,6 +25,7 @@ import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -128,59 +129,86 @@ fun TripExpensesScreen(
             CoTripFab(onClick = { viewModel.onEvent(TripExpensesEvent.OnAddExpenseClick) })
         }
     ) { padding ->
-        val pullRefreshState = rememberPullRefreshState(
-            refreshing = state.isRefreshing,
-            onRefresh = { viewModel.onEvent(TripExpensesEvent.OnUserRefresh) }
-        )
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .pullRefresh(pullRefreshState)
-        ) {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(
-                    horizontal = CoTripTokens.spacing.x2,
-                    vertical = CoTripTokens.spacing.x2
-                ),
-                verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x2)
-            ) {
-                item(key = KEY_SUMMARY) {
-                    SummaryBlock(summary = state.summary)
-                }
-
-                item(key = KEY_SPENT_HEADER) {
-                    SectionTitle(text = stringResource(R.string.expenses_spent_section))
-                }
-
-                items(state.spent, key = { it.id }) { expense ->
-                    ExpenseCard(
-                        expense = expense,
-                        onClick = { viewModel.onEvent(TripExpensesEvent.OnExpenseClick(expense.id)) }
-                    )
-                }
-
-                item(key = KEY_PLANNED_HEADER) {
-                    SectionTitle(text = stringResource(R.string.expenses_planned_section))
-                }
-
-                items(state.planned, key = { it.id }) { expense ->
-                    ExpenseCard(
-                        expense = expense,
-                        onClick = { viewModel.onEvent(TripExpensesEvent.OnExpenseClick(expense.id)) }
-                    )
-                }
-
-                item(key = KEY_BOTTOM_SPACER) {
-                    Spacer(Modifier.height(96.dp))
+        when (val uiState = state) {
+            TripExpensesState.Loading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
                 }
             }
-            PullRefreshIndicator(
-                refreshing = state.isRefreshing,
-                state = pullRefreshState,
-                modifier = Modifier.align(Alignment.TopCenter)
-            )
+
+            is TripExpensesState.Content -> {
+                val pullRefreshState = rememberPullRefreshState(
+                    refreshing = uiState.isRefreshing,
+                    onRefresh = { viewModel.onEvent(TripExpensesEvent.OnUserRefresh) }
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .pullRefresh(pullRefreshState)
+                ) {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(
+                            horizontal = CoTripTokens.spacing.x2,
+                            vertical = CoTripTokens.spacing.x2
+                        ),
+                        verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x2)
+                    ) {
+                        item(key = KEY_SUMMARY) {
+                            SummaryBlock(summary = uiState.summary)
+                        }
+
+                        item(key = KEY_SPENT_HEADER) {
+                            SectionTitle(text = stringResource(R.string.expenses_spent_section))
+                        }
+
+                        items(uiState.spent, key = { it.id }) { expense ->
+                            ExpenseCard(
+                                expense = expense,
+                                onClick = {
+                                    viewModel.onEvent(
+                                        TripExpensesEvent.OnExpenseClick(
+                                            expense.id
+                                        )
+                                    )
+                                }
+                            )
+                        }
+
+                        item(key = KEY_PLANNED_HEADER) {
+                            SectionTitle(text = stringResource(R.string.expenses_planned_section))
+                        }
+
+                        items(uiState.planned, key = { it.id }) { expense ->
+                            ExpenseCard(
+                                expense = expense,
+                                onClick = {
+                                    viewModel.onEvent(
+                                        TripExpensesEvent.OnExpenseClick(
+                                            expense.id
+                                        )
+                                    )
+                                }
+                            )
+                        }
+
+                        item(key = KEY_BOTTOM_SPACER) {
+                            Spacer(Modifier.height(96.dp))
+                        }
+                    }
+                    PullRefreshIndicator(
+                        refreshing = uiState.isRefreshing,
+                        state = pullRefreshState,
+                        modifier = Modifier.align(Alignment.TopCenter)
+                    )
+                }
+            }
         }
     }
 }
