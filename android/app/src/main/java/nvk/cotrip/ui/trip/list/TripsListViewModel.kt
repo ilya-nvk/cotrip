@@ -1,8 +1,10 @@
 package nvk.cotrip.ui.trip.list
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -13,6 +15,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import nvk.cotrip.R
 import nvk.cotrip.data.network.dto.TripDto
 import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.data.sync.SyncPullRepository
@@ -26,6 +29,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class TripsListViewModel @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     private val appNavigator: AppNavigator,
     private val tripRepository: TripRepository,
     private val syncPullRepository: SyncPullRepository,
@@ -68,9 +72,24 @@ class TripsListViewModel @Inject constructor(
             ) { trips, showPast, refreshing, members ->
                 val buckets = buildBuckets(trips)
                 TripsListUiState.Content(
-                    activeTrips = buckets.active.map { it.toCard(members[it.id].orEmpty()) },
-                    upcomingTrips = buckets.upcoming.map { it.toCard(members[it.id].orEmpty()) },
-                    pastTrips = buckets.past.map { it.toCard(members[it.id].orEmpty()) },
+                    activeTrips = buckets.active.map {
+                        it.toCard(
+                            members[it.id].orEmpty(),
+                            appContext
+                        )
+                    },
+                    upcomingTrips = buckets.upcoming.map {
+                        it.toCard(
+                            members[it.id].orEmpty(),
+                            appContext
+                        )
+                    },
+                    pastTrips = buckets.past.map {
+                        it.toCard(
+                            members[it.id].orEmpty(),
+                            appContext
+                        )
+                    },
                     showPastTrips = showPast,
                     isRefreshing = refreshing,
                 )
@@ -95,9 +114,13 @@ class TripsListViewModel @Inject constructor(
                 refreshTripMembers()
             }
             if (result.isFailure) {
-                _effects.tryEmit(TripsListEffect.ShowToast("Failed to load trips."))
+                _effects.tryEmit(
+                    TripsListEffect.ShowToast(appContext.getString(R.string.trips_list_load_failed))
+                )
             } else if (syncResult.isFailure) {
-                _effects.tryEmit(TripsListEffect.ShowToast("Failed to sync updates."))
+                _effects.tryEmit(
+                    TripsListEffect.ShowToast(appContext.getString(R.string.trips_list_sync_failed))
+                )
             }
             isRefreshing.value = false
         }
@@ -158,7 +181,7 @@ class TripsListViewModel @Inject constructor(
     }
 }
 
-private fun TripDto.toCard(avatars: List<AvatarStackItem>): TripCardUi {
+private fun TripDto.toCard(avatars: List<AvatarStackItem>, context: Context): TripCardUi {
     val start = LocalDate.parse(startDate)
     val end = LocalDate.parse(endDate)
     val dateRange = formatRange(start, end)
@@ -168,7 +191,11 @@ private fun TripDto.toCard(avatars: List<AvatarStackItem>): TripCardUi {
         title = title,
         dateRange = dateRange,
         locationLine = locationLine.orEmpty(),
-        peopleCountText = if (avatars.size == 1) "1 person" else "${avatars.size} people",
+        peopleCountText = context.resources.getQuantityString(
+            R.plurals.people_count,
+            avatars.size,
+            avatars.size
+        ),
         avatars = avatars,
         isInProgress = isInProgress,
         coverUrl = coverUrl,

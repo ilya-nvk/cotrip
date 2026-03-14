@@ -1,14 +1,18 @@
 package nvk.cotrip.ui.aisuggestions
 
+import android.content.Context
+import androidx.annotation.ArrayRes
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import nvk.cotrip.R
 import nvk.cotrip.data.repository.ItineraryRepository
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
@@ -17,44 +21,24 @@ import javax.inject.Inject
 @HiltViewModel
 class BuildRouteViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
+    @ApplicationContext private val appContext: Context,
     private val appNavigator: AppNavigator,
     private val itineraryRepository: ItineraryRepository,
 ) : ViewModel() {
 
     private val tripId: String = checkNotNull(savedStateHandle[Destination.BuildRoute.ARG_TRIP_ID])
 
-    private var citiesFromItinerary = listOf(
-        "Paris",
-        "Rome",
-        "Barcelona",
-        "Versailles",
-    )
+    private var citiesFromItinerary =
+        appContext.resources.getStringArray(R.array.ai_suggestions_default_cities).toList()
 
     private val _state = MutableStateFlow(
         BuildRouteState(
             tripId = tripId,
             city = null,
             description = "",
-            typeOptions = listOf(
-                AiOptionUi("Must-see", false),
-                AiOptionUi("Food", false),
-                AiOptionUi("Museums", false),
-                AiOptionUi("Night", false),
-                AiOptionUi("Nature", false),
-                AiOptionUi("Budget", false),
-                AiOptionUi("Random", false),
-            ),
-            timeOfDayOptions = listOf(
-                AiOptionUi("Morning", false),
-                AiOptionUi("Afternoon", false),
-                AiOptionUi("Evening", false),
-            ),
-            budgetOptions = listOf(
-                AiOptionUi("Free", false),
-                AiOptionUi("€", false),
-                AiOptionUi("€€", false),
-                AiOptionUi("€€€", false),
-            ),
+            typeOptions = createAiOptions(R.array.ai_suggestions_option_types),
+            timeOfDayOptions = createAiOptions(R.array.ai_suggestions_option_times),
+            budgetOptions = createAiOptions(R.array.ai_suggestions_option_budgets),
             cityPicker = null
         )
     )
@@ -112,9 +96,7 @@ class BuildRouteViewModel @Inject constructor(
     private fun selectTimeOfDay(label: String) {
         _state.update { current ->
             current.copy(
-                timeOfDayOptions = current.timeOfDayOptions.map { option ->
-                    option.copy(selected = option.label == label)
-                }
+                timeOfDayOptions = toggleSingleSelect(current.timeOfDayOptions, label)
             )
         }
     }
@@ -122,15 +104,27 @@ class BuildRouteViewModel @Inject constructor(
     private fun selectBudget(label: String) {
         _state.update { current ->
             current.copy(
-                budgetOptions = current.budgetOptions.map { option ->
-                    option.copy(selected = option.label == label)
-                }
+                budgetOptions = toggleSingleSelect(current.budgetOptions, label)
             )
+        }
+    }
+
+    private fun toggleSingleSelect(options: List<AiOptionUi>, label: String): List<AiOptionUi> {
+        val selectedOption = options.firstOrNull { it.label == label }
+        val shouldClearSelection = selectedOption?.selected == true
+        return options.map { option ->
+            option.copy(selected = if (shouldClearSelection) false else option.label == label)
         }
     }
 
     private fun selectedLabels(options: List<AiOptionUi>): List<String> {
         return options.filter { it.selected }.map { it.label }
+    }
+
+    private fun createAiOptions(@ArrayRes arrayResId: Int): List<AiOptionUi> {
+        return appContext.resources.getStringArray(arrayResId).map { label ->
+            AiOptionUi(label, false)
+        }
     }
 
     private fun loadCitiesFromItinerary() {

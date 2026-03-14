@@ -7,6 +7,7 @@ sealed interface TripIdeasEvent {
     data object OnAutoRefresh : TripIdeasEvent
     data object OnUserRefresh : TripIdeasEvent
     data object OnAddIdeaClick : TripIdeasEvent
+    data object OnGetAiSuggestionsClick : TripIdeasEvent
     data class OnIdeaClick(val ideaId: String) : TripIdeasEvent
     data class OnAddToItineraryClick(val ideaId: String) : TripIdeasEvent
     data object OnDismissDayPicker : TripIdeasEvent

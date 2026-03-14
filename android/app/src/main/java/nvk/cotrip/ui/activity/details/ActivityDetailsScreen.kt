@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
@@ -63,6 +64,7 @@ fun ActivityDetailsScreen(
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    val canEdit = (state as? ActivityDetailsState.Content)?.isPastTrip == false
 
     DisposableEffect(lifecycleOwner, viewModel) {
         val observer = LifecycleEventObserver { _, event ->
@@ -120,11 +122,13 @@ fun ActivityDetailsScreen(
                     )
                 },
                 actions = {
-                    CoTripIconButton(
-                        icon = CoTripIcons.Edit,
-                        contentDescription = null,
-                        onClick = { viewModel.onEvent(ActivityDetailsEvent.OnEditClick) }
-                    )
+                    if (canEdit) {
+                        CoTripIconButton(
+                            icon = CoTripIcons.Edit,
+                            contentDescription = null,
+                            onClick = { viewModel.onEvent(ActivityDetailsEvent.OnEditClick) }
+                        )
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors().copy(
                     containerColor = MaterialTheme.colorScheme.background,
@@ -133,26 +137,29 @@ fun ActivityDetailsScreen(
             )
         },
         bottomBar = {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.background)
-                    .padding(
-                        horizontal = CoTripTokens.spacing.x2,
-                        vertical = CoTripTokens.spacing.x2
-                    )
-            ) {
-                DestructiveOutlinedButton(
-                    text = stringResource(R.string.activity_details_delete),
-                    onClick = { viewModel.onEvent(ActivityDetailsEvent.OnDeleteClick) },
-                    modifier = Modifier.fillMaxWidth(),
-                    leadingIcon = {
-                        Icon(
-                            imageVector = CoTripIcons.Delete,
-                            contentDescription = null
+            if (canEdit) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.background)
+                        .navigationBarsPadding()
+                        .padding(
+                            horizontal = CoTripTokens.spacing.x2,
+                            vertical = CoTripTokens.spacing.x2
                         )
-                    }
-                )
+                ) {
+                    DestructiveOutlinedButton(
+                        text = stringResource(R.string.activity_details_delete),
+                        onClick = { viewModel.onEvent(ActivityDetailsEvent.OnDeleteClick) },
+                        modifier = Modifier.fillMaxWidth(),
+                        leadingIcon = {
+                            Icon(
+                                imageVector = CoTripIcons.Delete,
+                                contentDescription = null
+                            )
+                        }
+                    )
+                }
             }
         }
     ) { padding ->

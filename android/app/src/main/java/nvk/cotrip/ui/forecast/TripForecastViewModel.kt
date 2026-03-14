@@ -1,9 +1,11 @@
 package nvk.cotrip.ui.forecast
 
+import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -12,7 +14,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import nvk.cotrip.R
 import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.network.dto.ItineraryDayDto
@@ -28,6 +29,7 @@ import javax.inject.Inject
 @HiltViewModel
 class TripForecastViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
+    @ApplicationContext private val appContext: Context,
     private val appNavigator: AppNavigator,
     private val tripRepository: TripRepository,
     private val itineraryRepository: ItineraryRepository,
@@ -56,9 +58,7 @@ class TripForecastViewModel @Inject constructor(
             TripForecastEvent.OnUserRefresh -> refreshForecast(isUserRefresh = true)
             TripForecastEvent.OnCityClick -> {
                 val current = _state.value as? TripForecastState.Content ?: return
-                if (current.cityOptions.isEmpty()) {
-                    emitToast(R.string.weather_forecast_city_missing)
-                } else {
+                if (current.cityOptions.size > 1) {
                     _state.value = current.copy(isCityPickerVisible = true)
                 }
             }
@@ -134,8 +134,8 @@ class TripForecastViewModel @Inject constructor(
             when (result) {
                 is ApiResult.Success -> {
                     val loaded = result.data
-                    val mappedDays = TripForecastUiMapper.mapDays(loaded.response)
-                    val source = TripForecastUiMapper.source(loaded.response)
+                    val mappedDays = TripForecastUiMapper.mapDays(appContext, loaded.response)
+                    val source = TripForecastUiMapper.source(appContext, loaded.response)
                     val lastUpdated = TripForecastUiMapper.lastUpdated(loaded.response)
 
                     _state.value = TripForecastState.Content(
@@ -146,6 +146,7 @@ class TripForecastViewModel @Inject constructor(
                         source = source,
                         lastUpdated = lastUpdated,
                         coverageMessage = TripForecastUiMapper.coverageMessage(
+                            context = appContext,
                             hasSelectedCity = loaded.hasSelectedCity,
                             response = loaded.response,
                         ),

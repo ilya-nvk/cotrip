@@ -66,6 +66,7 @@ import nvk.cotrip.ui.theme.WarningText
 private const val KEY_SUMMARY = "summary"
 private const val KEY_SPENT_HEADER = "spent_header"
 private const val KEY_PLANNED_HEADER = "planned_header"
+private const val KEY_EMPTY_STATE = "empty_state"
 private const val KEY_BOTTOM_SPACER = "bottom_spacer"
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
@@ -164,38 +165,46 @@ fun TripExpensesScreen(
                             SummaryBlock(summary = uiState.summary)
                         }
 
-                        item(key = KEY_SPENT_HEADER) {
-                            SectionTitle(text = stringResource(R.string.expenses_spent_section))
-                        }
+                        val hasAnyExpenses =
+                            uiState.spent.isNotEmpty() || uiState.planned.isNotEmpty()
+                        if (hasAnyExpenses) {
+                            item(key = KEY_SPENT_HEADER) {
+                                SectionTitle(text = stringResource(R.string.expenses_spent_section))
+                            }
 
-                        items(uiState.spent, key = { it.id }) { expense ->
-                            ExpenseCard(
-                                expense = expense,
-                                onClick = {
-                                    viewModel.onEvent(
-                                        TripExpensesEvent.OnExpenseClick(
-                                            expense.id
+                            items(uiState.spent, key = { it.id }) { expense ->
+                                ExpenseCard(
+                                    expense = expense,
+                                    onClick = {
+                                        viewModel.onEvent(
+                                            TripExpensesEvent.OnExpenseClick(
+                                                expense.id
+                                            )
                                         )
-                                    )
-                                }
-                            )
-                        }
+                                    }
+                                )
+                            }
 
-                        item(key = KEY_PLANNED_HEADER) {
-                            SectionTitle(text = stringResource(R.string.expenses_planned_section))
-                        }
+                            item(key = KEY_PLANNED_HEADER) {
+                                SectionTitle(text = stringResource(R.string.expenses_planned_section))
+                            }
 
-                        items(uiState.planned, key = { it.id }) { expense ->
-                            ExpenseCard(
-                                expense = expense,
-                                onClick = {
-                                    viewModel.onEvent(
-                                        TripExpensesEvent.OnExpenseClick(
-                                            expense.id
+                            items(uiState.planned, key = { it.id }) { expense ->
+                                ExpenseCard(
+                                    expense = expense,
+                                    onClick = {
+                                        viewModel.onEvent(
+                                            TripExpensesEvent.OnExpenseClick(
+                                                expense.id
+                                            )
                                         )
-                                    )
-                                }
-                            )
+                                    }
+                                )
+                            }
+                        } else {
+                            item(key = KEY_EMPTY_STATE) {
+                                EmptyExpensesState()
+                            }
                         }
 
                         item(key = KEY_BOTTOM_SPACER) {
@@ -210,6 +219,21 @@ fun TripExpensesScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun EmptyExpensesState() {
+    CoTripCard(
+        modifier = Modifier.fillMaxWidth(),
+        border = BorderStroke(1.dp, Border),
+        contentPadding = PaddingValues(CoTripTokens.spacing.x2)
+    ) {
+        Text(
+            text = stringResource(R.string.expenses_empty_placeholder),
+            style = MaterialTheme.typography.bodyLarge,
+            color = TextSecondary
+        )
     }
 }
 

@@ -213,7 +213,13 @@ private fun ProfileSection(
         ) {
             ActionText(
                 icon = CoTripIcons.PhotoCamera,
-                text = stringResource(R.string.settings_change_photo),
+                text = stringResource(
+                    if (profile.hasPhoto) {
+                        R.string.settings_change_photo
+                    } else {
+                        R.string.settings_add_photo
+                    }
+                ),
                 onClick = onChangePhoto,
                 color = PrimaryBlue
             )

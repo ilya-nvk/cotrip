@@ -79,10 +79,7 @@ class OutOfRangeDaysViewModel @Inject constructor(
             }) {
                 is ApiResult.Success -> {
                     val loaded = result.data
-                    val outOfRange = loaded.days.filter { day ->
-                        val date = LocalDate.parse(day.date)
-                        date.isBefore(loaded.tripStart) || date.isAfter(loaded.tripEnd)
-                    }
+                    val outOfRange = loaded.days.filter { day -> day.isOutOfRange }
 
                     val rangeText = formatRange(loaded.tripStart, loaded.tripEnd)
                     val proposedEnd = loaded.tripEnd.plusDays(outOfRange.size.toLong())

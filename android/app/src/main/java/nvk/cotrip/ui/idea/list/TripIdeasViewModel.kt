@@ -94,6 +94,9 @@ class TripIdeasViewModel @Inject constructor(
             TripIdeasEvent.OnAddIdeaClick -> appNavigator.navigate(
                 Destination.CreateIdea(tripId)
             )
+            TripIdeasEvent.OnGetAiSuggestionsClick -> appNavigator.navigate(
+                Destination.BuildRoute(tripId)
+            )
 
             is TripIdeasEvent.OnIdeaClick -> appNavigator.navigate(
                 Destination.IdeaDetails(tripId, event.ideaId)

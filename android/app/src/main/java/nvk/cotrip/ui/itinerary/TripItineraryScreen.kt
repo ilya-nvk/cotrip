@@ -15,10 +15,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -47,6 +49,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -57,13 +60,13 @@ import nvk.cotrip.R
 import nvk.cotrip.ui.components.CoTripCard
 import nvk.cotrip.ui.components.CoTripFab
 import nvk.cotrip.ui.components.CoTripIconButton
-import nvk.cotrip.ui.components.CoTripListItem
 import nvk.cotrip.ui.components.CoTripTextField
 import nvk.cotrip.ui.components.PrimaryButton
 import nvk.cotrip.ui.components.TertiaryTextButton
 import nvk.cotrip.ui.theme.Border
 import nvk.cotrip.ui.theme.CoTripIcons
 import nvk.cotrip.ui.theme.CoTripTokens
+import nvk.cotrip.ui.theme.PrimaryBlue
 import nvk.cotrip.ui.theme.TextPrimary
 import nvk.cotrip.ui.theme.TextSecondary
 
@@ -114,7 +117,10 @@ fun TripItineraryScreen(
                 cities = currentState.suggestions,
                 isSearching = currentState.isSearching,
                 onQueryChange = { viewModel.onEvent(TripItineraryEvent.OnCityQueryChange(it)) },
-                onSelect = { viewModel.onEvent(TripItineraryEvent.OnCitySelected(it)) }
+                onSelect = { viewModel.onEvent(TripItineraryEvent.OnCitySelected(it)) },
+                onApplyToFollowingDays = {
+                    viewModel.onEvent(TripItineraryEvent.OnCitySelectedForFollowingDays(it))
+                }
             )
         }
     }
@@ -159,6 +165,7 @@ fun TripItineraryScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .navigationBarsPadding()
                         .padding(
                             horizontal = CoTripTokens.spacing.x2,
                             vertical = CoTripTokens.spacing.x2
@@ -185,7 +192,7 @@ fun TripItineraryScreen(
             }
         },
         floatingActionButton = {
-            if (!state.isCitySelectionRequired && state.mode == ItineraryMode.Filled) {
+            if (!state.isPastTrip && !state.isCitySelectionRequired && state.mode == ItineraryMode.Filled) {
                 CoTripFab(onClick = { viewModel.onEvent(TripItineraryEvent.OnAddActivityClick) })
             }
         }
@@ -231,6 +238,7 @@ fun TripItineraryScreen(
                         items(state.days, key = { it.id }) { day ->
                             FilledDaySection(
                                 day = day,
+                                canEdit = !state.isPastTrip,
                                 onChooseCity = {
                                     viewModel.onEvent(
                                         TripItineraryEvent.OnChooseCityClick(day.id)
@@ -249,6 +257,7 @@ fun TripItineraryScreen(
                         items(state.days, key = { it.id }) { day ->
                             EmptyDayCard(
                                 day = day,
+                                canEdit = !state.isPastTrip,
                                 onChooseCity = {
                                     viewModel.onEvent(
                                         TripItineraryEvent.OnChooseCityClick(
@@ -277,6 +286,7 @@ fun TripItineraryScreen(
 @Composable
 private fun FilledDaySection(
     day: ItineraryDayUi,
+    canEdit: Boolean,
     onChooseCity: () -> Unit,
     onActivityClick: (String) -> Unit,
 ) {
@@ -287,42 +297,64 @@ private fun FilledDaySection(
                 .padding(horizontal = CoTripTokens.spacing.x0_5),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = stringResource(R.string.itinerary_day_title, day.dayNumber),
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = TextPrimary
-            )
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.itinerary_day_title, day.dayNumber),
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = TextPrimary
+                )
 
-            Text(
-                text = " · ",
-                style = MaterialTheme.typography.bodyLarge,
-                color = TextSecondary
-            )
+                Text(
+                    text = " · ",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = TextSecondary
+                )
 
-            if (day.city != null) {
-                TertiaryTextButton(
-                    text = day.city,
-                    onClick = onChooseCity
-                )
-                Icon(
-                    imageVector = CoTripIcons.ExpandMore,
-                    contentDescription = null,
-                    tint = TextSecondary
-                )
-            } else {
-                TertiaryTextButton(
-                    text = stringResource(R.string.itinerary_choose_city),
-                    onClick = onChooseCity
-                )
+                if (day.city != null) {
+                    Text(
+                        text = day.city.toCityLabel(),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = if (canEdit) PrimaryBlue else TextPrimary,
+                        modifier = Modifier
+                            .weight(1f)
+                            .let { base ->
+                                if (canEdit) base.clickable(onClick = onChooseCity) else base
+                            }
+                            .padding(vertical = 10.dp),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    if (canEdit) {
+                        Icon(
+                            imageVector = CoTripIcons.ExpandMore,
+                            contentDescription = null,
+                            tint = TextSecondary,
+                            modifier = Modifier.clickable(onClick = onChooseCity)
+                        )
+                    }
+                } else {
+                    TertiaryTextButton(
+                        text = stringResource(R.string.itinerary_choose_city),
+                        onClick = onChooseCity,
+                        enabled = canEdit
+                    )
+                }
             }
 
-            Spacer(Modifier.weight(1f))
+            Spacer(Modifier.width(CoTripTokens.spacing.x1))
 
             Text(
                 text = day.dateText,
                 style = MaterialTheme.typography.bodySmall,
-                color = TextSecondary
+                color = TextSecondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.End,
+                modifier = Modifier.widthIn(min = 84.dp)
             )
         }
 
@@ -346,6 +378,7 @@ private fun FilledDaySection(
 @Composable
 private fun EmptyDayCard(
     day: ItineraryDayUi,
+    canEdit: Boolean,
     onChooseCity: () -> Unit,
 ) {
     CoTripCard(
@@ -375,7 +408,8 @@ private fun EmptyDayCard(
 
             TertiaryTextButton(
                 text = stringResource(R.string.itinerary_choose_city),
-                onClick = onChooseCity
+                onClick = onChooseCity,
+                enabled = canEdit
             )
         }
 
@@ -482,6 +516,7 @@ private fun CityPickerSheet(
     isSearching: Boolean,
     onQueryChange: (String) -> Unit,
     onSelect: (CitySuggestionUi) -> Unit,
+    onApplyToFollowingDays: (CitySuggestionUi) -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -521,10 +556,31 @@ private fun CityPickerSheet(
             verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x0_5)
         ) {
             items(cities, key = { it.providerId ?: "${it.name}:${it.lat}:${it.lon}" }) { city ->
-                CoTripListItem(
-                    title = city.fullText ?: city.name,
-                    onClick = { onSelect(city) }
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = CoTripTokens.spacing.x0_5),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = city.fullText ?: city.name,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = TextPrimary,
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { onSelect(city) }
+                            .padding(
+                                horizontal = CoTripTokens.spacing.x1_5,
+                                vertical = CoTripTokens.spacing.x1_5
+                            ),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    TertiaryTextButton(
+                        text = stringResource(R.string.itinerary_choose_city_apply_following),
+                        onClick = { onApplyToFollowingDays(city) }
+                    )
+                }
             }
         }
     }
@@ -533,3 +589,9 @@ private fun CityPickerSheet(
 @Composable
 private fun BorderStrokeCompat() =
     androidx.compose.foundation.BorderStroke(1.dp, Border)
+
+private fun String.toCityLabel(): String {
+    val trimmed = trim()
+    if (trimmed.isEmpty()) return ""
+    return trimmed.substringBefore(',').trim().ifBlank { trimmed }
+}

@@ -1,14 +1,14 @@
 package nvk.cotrip.ui.trip.details
 
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 import nvk.cotrip.data.network.dto.ItineraryDayDto
 import nvk.cotrip.data.network.dto.WeatherForecastResponseDto
 import nvk.cotrip.ui.theme.CoTripIcons
 import nvk.cotrip.ui.theme.Info
 import nvk.cotrip.ui.theme.TextSecondary
 import nvk.cotrip.ui.theme.Warning
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 object TripDetailsWeatherMapper {
     fun pickCity(days: List<ItineraryDayDto>): String? {
@@ -20,23 +20,29 @@ object TripDetailsWeatherMapper {
             ?.takeIf { it.isNotEmpty() }
     }
 
-    fun cityMissingCard(): WeatherCardUi {
+    fun cityMissingCard(isCitySelectable: Boolean = false): WeatherCardUi {
         return WeatherCardUi(
             city = "",
             days = emptyList(),
             notice = WeatherCardNotice.CityMissing,
+            isCitySelectable = isCitySelectable,
         )
     }
 
-    fun unavailableCard(city: String): WeatherCardUi {
+    fun unavailableCard(city: String, isCitySelectable: Boolean = false): WeatherCardUi {
         return WeatherCardUi(
             city = city,
             days = emptyList(),
             notice = WeatherCardNotice.Unavailable,
+            isCitySelectable = isCitySelectable,
         )
     }
 
-    fun mapResponse(city: String, response: WeatherForecastResponseDto): WeatherCardUi {
+    fun mapResponse(
+        city: String,
+        response: WeatherForecastResponseDto,
+        isCitySelectable: Boolean = false,
+    ): WeatherCardUi {
         val days = response.items
             .sortedBy { it.date }
             .take(5)
@@ -69,6 +75,7 @@ object TripDetailsWeatherMapper {
             city = city,
             days = days,
             notice = notice,
+            isCitySelectable = isCitySelectable,
         )
     }
 

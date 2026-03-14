@@ -3,7 +3,6 @@ package nvk.cotrip.ui.aisuggestions
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -97,25 +96,13 @@ fun RouteSuggestionsScreen(
                     )
                 },
                 actions = {
-                    when (state) {
-                        is RouteSuggestionsState.Loading -> {
-                            CircularProgressIndicator(
-                                modifier = Modifier
-                                    .padding(end = CoTripTokens.spacing.x2)
-                                    .size(32.dp),
-                                strokeWidth = 3.dp,
-                                color = PrimaryBlue
+                    if (state is RouteSuggestionsState.Content) {
+                        IconButton(onClick = { viewModel.onEvent(RouteSuggestionsEvent.OnRefreshClick) }) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = null,
+                                tint = TextPrimary
                             )
-                        }
-
-                        is RouteSuggestionsState.Content -> {
-                            IconButton(onClick = { viewModel.onEvent(RouteSuggestionsEvent.OnRefreshClick) }) {
-                                Icon(
-                                    imageVector = Icons.Default.Refresh,
-                                    contentDescription = null,
-                                    tint = TextPrimary
-                                )
-                            }
                         }
                     }
                 },
@@ -142,8 +129,7 @@ fun RouteSuggestionsScreen(
                     item(key = KEY_HEADER) {
                         SummaryHeader(
                             city = uiState.city,
-                            subtitle = uiState.subtitle,
-                            onChangeClick = { viewModel.onEvent(RouteSuggestionsEvent.OnChangeFiltersClick) }
+                            subtitle = uiState.subtitle
                         )
                     }
 
@@ -195,7 +181,6 @@ private fun LoadingState(modifier: Modifier = Modifier) {
 private fun SummaryHeader(
     city: String,
     subtitle: String,
-    onChangeClick: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -213,14 +198,6 @@ private fun SummaryHeader(
                 style = MaterialTheme.typography.headlineMedium,
                 color = TextPrimary,
                 modifier = Modifier.weight(1f)
-            )
-            Text(
-                text = stringResource(R.string.ai_suggestions_change),
-                style = MaterialTheme.typography.labelLarge,
-                color = PrimaryBlue,
-                modifier = Modifier
-                    .clickable(onClick = onChangeClick)
-                    .padding(vertical = 6.dp)
             )
         }
 

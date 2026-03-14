@@ -1,9 +1,11 @@
 package nvk.cotrip.ui.expense.list
 
+import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -13,6 +15,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import nvk.cotrip.R
 import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.network.dto.ExpenseDto
@@ -32,6 +35,7 @@ import kotlin.math.abs
 @HiltViewModel
 class TripExpensesViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
+    @ApplicationContext private val appContext: Context,
     private val appNavigator: AppNavigator,
     private val tripRepository: TripRepository,
     private val expenseRepository: ExpenseRepository,
@@ -126,7 +130,8 @@ class TripExpensesViewModel @Inject constructor(
                         currencySymbol = currencySymbol,
                         memberById = memberById,
                         meId = payload.meId,
-                        shares = shares
+                        shares = shares,
+                        context = appContext,
                     )
                     if (expense.status == "paid") {
                         spentItems.add(listItem)
@@ -136,9 +141,9 @@ class TripExpensesViewModel @Inject constructor(
                 }
 
                 val balanceLabel = when {
-                    abs(netBalance) < 0.01 -> "Settled"
-                    netBalance > 0 -> "Owed"
-                    else -> "You owe"
+                    abs(netBalance) < 0.01 -> appContext.getString(R.string.trip_expenses_balance_settled)
+                    netBalance > 0 -> appContext.getString(R.string.trip_expenses_balance_owed)
+                    else -> appContext.getString(R.string.trip_expenses_balance_you_owe)
                 }
 
                 _state.value = TripExpensesState.Content(
@@ -199,14 +204,22 @@ private fun ExpenseDto.toListItem(
     memberById: Map<String, MemberDto>,
     meId: String,
     shares: Map<String, Double>,
+    context: Context,
 ): ExpenseListItemUi {
     val paidByText = when {
-        status != "paid" -> "Planned"
-        paidById == null -> "Paid"
-        paidById == meId -> "Paid by You"
-        else -> "Paid by ${memberById[paidById]?.name ?: "Member"}"
+        status != "paid" -> context.getString(R.string.trip_expenses_paid_status_planned)
+        paidById == null -> context.getString(R.string.trip_expenses_paid_status_paid)
+        paidById == meId -> context.getString(R.string.trip_expenses_paid_by_you)
+        else -> context.getString(
+            R.string.trip_expenses_paid_by_member,
+            memberById[paidById]?.name ?: context.getString(R.string.common_member)
+        )
     }
-    val splitTypeText = if (splitType == "equally") "Split equally" else "Custom amounts"
+    val splitTypeText = if (splitType == "equally") {
+        context.getString(R.string.expense_form_split_equally)
+    } else {
+        context.getString(R.string.expense_form_custom_amounts)
+    }
     val settlement = when {
         status != "paid" -> ExpenseSettlementUi.Planned
         paidById == meId -> {

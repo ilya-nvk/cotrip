@@ -11,4 +11,5 @@ sealed interface TripItineraryEvent {
     data class OnChooseCityClick(val dayId: String) : TripItineraryEvent
     data class OnCityQueryChange(val value: String) : TripItineraryEvent
     data class OnCitySelected(val city: CitySuggestionUi) : TripItineraryEvent
+    data class OnCitySelectedForFollowingDays(val city: CitySuggestionUi) : TripItineraryEvent
 }

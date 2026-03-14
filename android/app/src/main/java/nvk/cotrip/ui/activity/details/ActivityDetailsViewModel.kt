@@ -65,9 +65,14 @@ class ActivityDetailsViewModel @Inject constructor(
         when (event) {
             ActivityDetailsEvent.OnBackClick -> appNavigator.popBackStack()
             ActivityDetailsEvent.OnRefresh -> refreshActivity(showErrorToast = true)
-            ActivityDetailsEvent.OnEditClick -> appNavigator.navigate(
-                Destination.EditActivity(activityId)
-            )
+            ActivityDetailsEvent.OnEditClick -> {
+                val contentState = _state.value as? ActivityDetailsState.Content ?: return
+                if (!contentState.isPastTrip) {
+                    appNavigator.navigate(
+                        Destination.EditActivity(activityId)
+                    )
+                }
+            }
 
             ActivityDetailsEvent.OnOpenLinkClick -> {
                 val contentState = _state.value as? ActivityDetailsState.Content ?: return
@@ -121,6 +126,8 @@ class ActivityDetailsViewModel @Inject constructor(
     }
 
     private fun deleteActivity() {
+        val contentState = _state.value as? ActivityDetailsState.Content ?: return
+        if (contentState.isPastTrip) return
         if (currentTripId == null) return
         viewModelScope.launch {
             when (val result = apiCaller.call {
@@ -171,9 +178,13 @@ class ActivityDetailsViewModel @Inject constructor(
 
     private fun ActivityLookup.toUiState(): ActivityDetailsState.Content {
         val currencySymbol = currencySymbolFor(trip.currencyCode)
+        val isPastTrip = runCatching {
+            LocalDate.parse(trip.endDate).isBefore(LocalDate.now())
+        }.getOrDefault(false)
         return ActivityDetailsState.Content(
             dayId = day.id,
             activityId = activity.id,
+            isPastTrip = isPastTrip,
             dayNumber = day.dayNumber,
             city = day.city?.takeIf { it.isNotBlank() },
             title = activity.title,

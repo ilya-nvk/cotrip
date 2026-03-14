@@ -23,6 +23,7 @@ import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import nvk.cotrip.util.AppLogger
+import java.time.LocalDate
 import java.time.OffsetDateTime
 import javax.inject.Inject
 
@@ -67,11 +68,29 @@ class CreateTripViewModel @Inject constructor(
             }
 
             is TripFormEvent.OnStartDateSelected -> {
+                if (!TripDateRules.isStartDateAllowed(event.date, LocalDate.now())) {
+                    emitToastRes(R.string.trip_form_start_date_range_toast)
+                    return
+                }
                 _state.update { it.copy(startDate = event.date) }
+                val selectedEnd = _state.value.endDate
+                if (selectedEnd != null && !TripDateRules.isEndDateAllowed(
+                        event.date,
+                        selectedEnd
+                    )
+                ) {
+                    emitToastRes(R.string.trip_form_end_date_range_toast)
+                }
                 recomputeCanSubmit()
             }
 
             is TripFormEvent.OnEndDateSelected -> {
+                val selectedStart = _state.value.startDate
+                val start = selectedStart ?: LocalDate.now()
+                if (!TripDateRules.isEndDateAllowed(startDate = start, endDate = event.date)) {
+                    emitToastRes(R.string.trip_form_end_date_range_toast)
+                    return
+                }
                 _state.update { it.copy(endDate = event.date) }
                 recomputeCanSubmit()
             }
@@ -97,7 +116,14 @@ class CreateTripViewModel @Inject constructor(
         _state.update { s ->
             val hasName = s.name.isNotBlank()
             val hasDates = s.startDate != null && s.endDate != null
-            val datesOk = if (hasDates) !s.endDate!!.isBefore(s.startDate) else false
+            val datesOk = if (hasDates) {
+                val start = s.startDate!!
+                val end = s.endDate!!
+                TripDateRules.isStartDateAllowed(start, LocalDate.now()) &&
+                        TripDateRules.isEndDateAllowed(startDate = start, endDate = end)
+            } else {
+                false
+            }
             s.copy(canSubmit = hasName && hasDates && datesOk)
         }
     }
@@ -115,6 +141,14 @@ class CreateTripViewModel @Inject constructor(
             val s = state.value
             val startDate = s.startDate ?: return@launch
             val endDate = s.endDate ?: return@launch
+            if (!TripDateRules.isStartDateAllowed(startDate, LocalDate.now())) {
+                emitToastRes(R.string.trip_form_start_date_range_toast)
+                return@launch
+            }
+            if (!TripDateRules.isEndDateAllowed(startDate = startDate, endDate = endDate)) {
+                emitToastRes(R.string.trip_form_end_date_range_toast)
+                return@launch
+            }
             _state.update { it.copy(isLoading = true) }
             val request = CreateTripRequest(
                 title = s.name,

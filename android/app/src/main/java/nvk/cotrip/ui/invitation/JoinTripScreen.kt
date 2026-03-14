@@ -3,7 +3,6 @@ package nvk.cotrip.ui.invitation
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -25,7 +24,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.flow.collectLatest
 import nvk.cotrip.R
@@ -109,7 +107,6 @@ fun JoinTripScreen(
                 onValueChange = { viewModel.onEvent(JoinTripEvent.OnInviteInputChange(it)) },
                 label = stringResource(R.string.join_trip_invite_label),
                 placeholder = stringResource(R.string.join_trip_invite_placeholder),
-                helperText = if (inviteErrorText == null) stringResource(R.string.join_trip_hint) else null,
                 errorText = inviteErrorText,
                 singleLine = true
             )

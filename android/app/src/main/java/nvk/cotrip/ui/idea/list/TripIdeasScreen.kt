@@ -54,6 +54,7 @@ import nvk.cotrip.R
 import nvk.cotrip.ui.components.CoTripCard
 import nvk.cotrip.ui.components.CoTripFab
 import nvk.cotrip.ui.components.CoTripIconButton
+import nvk.cotrip.ui.components.PrimaryButton
 import nvk.cotrip.ui.idea.common.IdeaDayPickerSheet
 import nvk.cotrip.ui.theme.Border
 import nvk.cotrip.ui.theme.BorderStrong
@@ -64,6 +65,8 @@ import nvk.cotrip.ui.theme.TextPrimary
 import nvk.cotrip.ui.theme.TextSecondary
 
 private const val KEY_BOTTOM_SPACER = "bottom_spacer"
+private const val KEY_EMPTY_STATE = "empty_state"
+private const val KEY_AI_BUTTON = "ai_button"
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
 @Composable
@@ -172,14 +175,31 @@ fun TripIdeasScreen(
                         ),
                         verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x2)
                     ) {
-                        items(uiState.ideas, key = { it.id }) { idea ->
-                            IdeaCard(
-                                idea = idea,
-                                onClick = { viewModel.onEvent(TripIdeasEvent.OnIdeaClick(idea.id)) },
-                                onAddToItinerary = {
-                                    viewModel.onEvent(TripIdeasEvent.OnAddToItineraryClick(idea.id))
-                                }
-                            )
+                        if (uiState.ideas.isEmpty()) {
+                            item(key = KEY_EMPTY_STATE) {
+                                EmptyIdeasState(
+                                    onGetAiSuggestions = {
+                                        viewModel.onEvent(TripIdeasEvent.OnGetAiSuggestionsClick)
+                                    }
+                                )
+                            }
+                        } else {
+                            items(uiState.ideas, key = { it.id }) { idea ->
+                                IdeaCard(
+                                    idea = idea,
+                                    onClick = { viewModel.onEvent(TripIdeasEvent.OnIdeaClick(idea.id)) },
+                                    onAddToItinerary = {
+                                        viewModel.onEvent(TripIdeasEvent.OnAddToItineraryClick(idea.id))
+                                    }
+                                )
+                            }
+                            item(key = KEY_AI_BUTTON) {
+                                PrimaryButton(
+                                    text = stringResource(R.string.ideas_get_ai_suggestions),
+                                    onClick = { viewModel.onEvent(TripIdeasEvent.OnGetAiSuggestionsClick) },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
                         }
 
                         item(key = KEY_BOTTOM_SPACER) {
@@ -194,6 +214,31 @@ fun TripIdeasScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun EmptyIdeasState(
+    onGetAiSuggestions: () -> Unit,
+) {
+    CoTripCard(
+        modifier = Modifier.fillMaxWidth(),
+        border = BorderStroke(1.dp, Border),
+        contentPadding = PaddingValues(CoTripTokens.spacing.x2)
+    ) {
+        Text(
+            text = stringResource(R.string.ideas_empty_placeholder),
+            style = MaterialTheme.typography.bodyLarge,
+            color = TextSecondary
+        )
+
+        Spacer(Modifier.height(CoTripTokens.spacing.x2))
+
+        PrimaryButton(
+            text = stringResource(R.string.ideas_get_ai_suggestions),
+            onClick = onGetAiSuggestions,
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
 

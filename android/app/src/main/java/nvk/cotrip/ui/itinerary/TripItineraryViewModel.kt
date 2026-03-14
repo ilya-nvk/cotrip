@@ -63,6 +63,7 @@ class TripItineraryViewModel @Inject constructor(
         TripItineraryState(
             tripId = tripId,
             dateRange = "",
+            isPastTrip = false,
             mode = ItineraryMode.Empty,
             days = emptyList(),
             cityPicker = null,
@@ -103,9 +104,12 @@ class TripItineraryViewModel @Inject constructor(
             TripItineraryEvent.OnCompleteRequiredCitySelection -> completeRequiredCitySelection()
             TripItineraryEvent.OnAutoRefresh -> refreshItinerary(isUserRefresh = false)
             TripItineraryEvent.OnUserRefresh -> refreshItinerary(isUserRefresh = true)
-            TripItineraryEvent.OnAddActivityClick -> appNavigator.navigate(
-                Destination.CreateActivity(tripId)
-            )
+            TripItineraryEvent.OnAddActivityClick -> {
+                if (_state.value.isPastTrip) return
+                appNavigator.navigate(
+                    Destination.CreateActivity(tripId)
+                )
+            }
 
             TripItineraryEvent.OnDismissCityPicker -> {
                 citySearchJob?.cancel()
@@ -115,9 +119,25 @@ class TripItineraryViewModel @Inject constructor(
                 Destination.ActivityDetails(event.activityId)
             )
 
-            is TripItineraryEvent.OnChooseCityClick -> openCityPicker(event.dayId)
-            is TripItineraryEvent.OnCityQueryChange -> updateCityQuery(event.value)
-            is TripItineraryEvent.OnCitySelected -> selectCity(event.city)
+            is TripItineraryEvent.OnChooseCityClick -> {
+                if (_state.value.isPastTrip) return
+                openCityPicker(event.dayId)
+            }
+
+            is TripItineraryEvent.OnCityQueryChange -> {
+                if (_state.value.isPastTrip) return
+                updateCityQuery(event.value)
+            }
+
+            is TripItineraryEvent.OnCitySelected -> {
+                if (_state.value.isPastTrip) return
+                selectCity(event.city)
+            }
+
+            is TripItineraryEvent.OnCitySelectedForFollowingDays -> {
+                if (_state.value.isPastTrip) return
+                selectCityForFollowingDays(event.city)
+            }
         }
     }
 
@@ -166,6 +186,9 @@ class TripItineraryViewModel @Inject constructor(
                 .collect { (trip, itinerary) ->
                     currencySymbol = currencySymbolFor(trip.currencyCode)
                     allCities = collectTripCities(itinerary)
+                    val isPastTrip = runCatching {
+                        LocalDate.parse(trip.endDate).isBefore(LocalDate.now())
+                    }.getOrDefault(false)
                     val pendingCitySelectionCount = itinerary.count {
                         !it.isOutOfRange && it.city.isNullOrBlank()
                     }
@@ -185,10 +208,15 @@ class TripItineraryViewModel @Inject constructor(
                         }
                         it.copy(
                             dateRange = dateRange,
+                            isPastTrip = isPastTrip,
                             mode = if (dayUis.isEmpty()) ItineraryMode.Empty else ItineraryMode.Filled,
                             days = dayUis,
                             cityPicker = updatedPicker,
-                            pendingCitySelectionCount = if (requireCitySelection) pendingCitySelectionCount else 0,
+                            pendingCitySelectionCount = if (requireCitySelection && !isPastTrip) {
+                                pendingCitySelectionCount
+                            } else {
+                                0
+                            },
                         )
                     }
                 }
@@ -230,6 +258,7 @@ class TripItineraryViewModel @Inject constructor(
     }
 
     private fun openCityPicker(dayId: String) {
+        if (_state.value.isPastTrip) return
         val selectedDay = _state.value.days.firstOrNull { it.id == dayId } ?: return
         val cities = allCities
         _state.update { st ->
@@ -248,6 +277,7 @@ class TripItineraryViewModel @Inject constructor(
     }
 
     private fun updateCityQuery(value: String) {
+        if (_state.value.isPastTrip) return
         val query = value.trim()
         _state.value.cityPicker ?: return
         citySearchJob?.cancel()
@@ -330,6 +360,7 @@ class TripItineraryViewModel @Inject constructor(
     }
 
     private fun selectCity(city: CitySuggestionUi) {
+        if (_state.value.isPastTrip) return
         val picker = _state.value.cityPicker ?: return
         val selectedCityName = city.fullText?.trim().takeUnless { it.isNullOrBlank() } ?: city.name
         val request = UpdateDayRequest(
@@ -441,6 +472,72 @@ class TripItineraryViewModel @Inject constructor(
         }
     }
 
+    private fun selectCityForFollowingDays(city: CitySuggestionUi) {
+        if (_state.value.isPastTrip) return
+        val picker = _state.value.cityPicker ?: return
+        val selectedCityName = city.fullText?.trim().takeUnless { it.isNullOrBlank() } ?: city.name
+        val request = UpdateDayRequest(
+            city = selectedCityName,
+            cityProviderId = city.providerId,
+            cityLat = city.lat,
+            cityLon = city.lon,
+        )
+        citySearchJob?.cancel()
+        _state.update { it.copy(cityPicker = null) }
+        AppLogger.i(
+            TAG,
+            "selectCityForFollowingDays started tripId=$tripId fromDay=${picker.dayNumber} city=$selectedCityName"
+        )
+        viewModelScope.launch {
+            val latestDays = withContext(Dispatchers.IO) {
+                runCatching {
+                    itineraryRepository.refreshItinerary(tripId).getOrThrow()
+                    itineraryRepository.getItinerary(tripId).first()
+                        .filter { !it.isOutOfRange && it.dayNumber >= picker.dayNumber }
+                        .sortedBy { it.dayNumber }
+                }.getOrNull()
+            }.orEmpty()
+
+            if (latestDays.isEmpty()) {
+                emitToast(R.string.common_error_message)
+                return@launch
+            }
+
+            var successCount = 0
+            var firstFailure: ApiResult.Failure? = null
+            latestDays.forEach { day ->
+                when (val result = updateDayOnServer(dayId = day.id, request = request)) {
+                    is ApiResult.Success -> successCount += 1
+                    is ApiResult.Failure -> {
+                        if (firstFailure == null) {
+                            firstFailure = result
+                        }
+                        AppLogger.w(
+                            TAG,
+                            "selectCityForFollowingDays failed dayId=${day.id} code=${result.httpCode} apiCode=${result.error?.code.orEmpty()}",
+                            result.cause
+                        )
+                    }
+                }
+            }
+
+            if (successCount > 0) {
+                applySelectedCityForFollowingDaysLocally(
+                    fromDayNumber = picker.dayNumber,
+                    cityName = selectedCityName,
+                )
+                withContext(Dispatchers.IO) {
+                    runCatching { itineraryRepository.refreshItinerary(tripId).getOrThrow() }
+                }
+                emitToast(R.string.itinerary_choose_city_applied_following_toast)
+            } else if (firstFailure != null) {
+                emitToast(uiErrorMapper.messageRes(checkNotNull(firstFailure)))
+            } else {
+                emitToast(R.string.common_error_message)
+            }
+        }
+    }
+
     private suspend fun updateDayOnServer(
         dayId: String,
         request: UpdateDayRequest,
@@ -477,6 +574,29 @@ class TripItineraryViewModel @Inject constructor(
         }
         withContext(Dispatchers.IO) {
             runCatching { itineraryRepository.refreshItinerary(tripId).getOrThrow() }
+        }
+    }
+
+    private fun applySelectedCityForFollowingDaysLocally(
+        fromDayNumber: Int,
+        cityName: String,
+    ) {
+        _state.update { st ->
+            val days = st.days.map { d ->
+                if (d.dayNumber >= fromDayNumber) {
+                    d.copy(city = cityName)
+                } else {
+                    d
+                }
+            }
+            st.copy(
+                days = days,
+                pendingCitySelectionCount = if (st.isCitySelectionRequired) {
+                    days.count { it.city.isNullOrBlank() }
+                } else {
+                    st.pendingCitySelectionCount
+                }
+            )
         }
     }
 

@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
@@ -111,6 +112,7 @@ fun BuildRouteScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(MaterialTheme.colorScheme.background)
+                    .navigationBarsPadding()
                     .padding(
                         horizontal = CoTripTokens.spacing.x2,
                         vertical = CoTripTokens.spacing.x2
@@ -216,7 +218,7 @@ private fun HintCard() {
             horizontalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x1)
         ) {
             Text(
-                text = "✦",
+                text = stringResource(R.string.ai_suggestions_hint_symbol),
                 style = MaterialTheme.typography.headlineSmall,
                 color = HintPurpleText
             )

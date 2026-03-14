@@ -6,8 +6,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import nvk.cotrip.R
 import nvk.cotrip.ui.theme.CoTripIcons
 import nvk.cotrip.ui.theme.CoTripTheme
 import nvk.cotrip.ui.theme.Info
@@ -45,43 +47,65 @@ fun UiKitPreview() {
             }
 
             // Text fields
-            CoTripTextField(value = "", onValueChange = {}, label = "Label")
             CoTripTextField(
                 value = "",
                 onValueChange = {},
-                label = "With helper text",
-                helperText = "Helper text goes here"
+                label = stringResource(R.string.ui_kit_preview_label)
             )
             CoTripTextField(
-                value = "Disabled",
+                value = "",
                 onValueChange = {},
-                label = "Disabled",
+                label = stringResource(R.string.ui_kit_preview_with_helper),
+                helperText = stringResource(R.string.ui_kit_preview_helper_text)
+            )
+            CoTripTextField(
+                value = stringResource(R.string.ui_kit_preview_disabled_value),
+                onValueChange = {},
+                label = stringResource(R.string.ui_kit_preview_disabled_label),
                 enabled = false
             )
             CoTripTextField(
-                value = "Error state",
+                value = stringResource(R.string.ui_kit_preview_error_state),
                 onValueChange = {},
-                label = "Error",
-                errorText = "Error message here"
+                label = stringResource(R.string.ui_kit_preview_error_label),
+                errorText = stringResource(R.string.ui_kit_preview_error_message)
             )
             CoTripTextField(
-                value = "Multiline\nText",
+                value = stringResource(R.string.ui_kit_preview_multiline_value),
                 onValueChange = {},
-                label = "Multiline",
+                label = stringResource(R.string.ui_kit_preview_multiline_label),
                 singleLine = false,
                 maxLines = 5
             )
 
             // Chips
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                StatusChip("Planned", CoTripIcons.Schedule, Info)
-                StatusChip("Paid", CoTripIcons.CheckCircle, Success)
-                StatusChip("Settled", CoTripIcons.AccountBalance, TextSecondary)
+                StatusChip(
+                    stringResource(R.string.expense_form_status_planned),
+                    CoTripIcons.Schedule,
+                    Info
+                )
+                StatusChip(
+                    stringResource(R.string.expense_form_status_paid),
+                    CoTripIcons.CheckCircle,
+                    Success
+                )
+                StatusChip(
+                    stringResource(R.string.expenses_status_settled),
+                    CoTripIcons.AccountBalance,
+                    TextSecondary
+                )
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip("Active", selected = true, onClick = {})
-                FilterChip("All trips", selected = false, onClick = {})
-                FilterChip("Past", selected = false, onClick = {})
+                FilterChip(stringResource(R.string.section_active), selected = true, onClick = {})
+                FilterChip(
+                    stringResource(R.string.ui_kit_preview_all_trips),
+                    selected = false,
+                    onClick = {})
+                FilterChip(
+                    stringResource(R.string.ui_kit_preview_past),
+                    selected = false,
+                    onClick = {})
             }
 
             // Dividers

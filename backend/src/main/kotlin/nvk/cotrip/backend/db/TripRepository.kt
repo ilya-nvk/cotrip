@@ -204,16 +204,12 @@ object TripRepository {
             }
         }
 
-        val oldDurationDays = inclusiveDurationDays(existing.startDate, existing.endDate)
-        val newDurationDays = inclusiveDurationDays(updatedTrip.startDate, updatedTrip.endDate)
-        if (oldDurationDays == newDurationDays) {
-            val shiftDays = ChronoUnit.DAYS.between(existing.startDate, updatedTrip.startDate)
-            shiftItineraryDays(
-                conn = conn,
-                tripId = updatedTrip.id,
-                shiftDays = shiftDays,
-            )
-        }
+        val shiftDays = ChronoUnit.DAYS.between(existing.startDate, updatedTrip.startDate)
+        shiftItineraryDays(
+            conn = conn,
+            tripId = updatedTrip.id,
+            shiftDays = shiftDays,
+        )
 
         reconcileItineraryDays(
             conn = conn,
@@ -542,10 +538,6 @@ object TripRepository {
             updatedAt = rs.getObject("updated_at", OffsetDateTime::class.java),
         )
     }
-}
-
-private fun inclusiveDurationDays(start: LocalDate, end: LocalDate): Long {
-    return ChronoUnit.DAYS.between(start, end) + 1
 }
 
 data class TripUpdate(

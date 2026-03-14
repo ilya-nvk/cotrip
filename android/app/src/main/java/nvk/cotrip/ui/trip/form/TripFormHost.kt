@@ -1,11 +1,13 @@
 package nvk.cotrip.ui.trip.form
 
-import android.widget.Toast
 import android.app.DatePickerDialog
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,8 +17,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -38,16 +40,16 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.interaction.MutableInteractionSource
+import coil.compose.AsyncImage
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collectLatest
-import coil.compose.AsyncImage
 import nvk.cotrip.R
 import nvk.cotrip.ui.components.CoTripDashedDivider
 import nvk.cotrip.ui.components.CoTripDropdownField
 import nvk.cotrip.ui.components.CoTripIconButton
 import nvk.cotrip.ui.components.CoTripStrongDivider
 import nvk.cotrip.ui.components.CoTripTextField
+import nvk.cotrip.ui.components.DestructiveOutlinedButton
 import nvk.cotrip.ui.components.PrimaryButton
 import nvk.cotrip.ui.components.TertiaryTextButton
 import nvk.cotrip.ui.theme.BorderStrong
@@ -56,6 +58,7 @@ import nvk.cotrip.ui.theme.CoTripTokens
 import nvk.cotrip.ui.theme.TextPrimary
 import nvk.cotrip.ui.theme.TextSecondary
 import java.time.LocalDate
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -88,8 +91,13 @@ fun TripFormHost(
         }
     }
 
-    fun showDatePicker(initialDate: LocalDate, onSelected: (LocalDate) -> Unit) {
-        DatePickerDialog(
+    fun showDatePicker(
+        initialDate: LocalDate,
+        minDate: LocalDate? = null,
+        maxDate: LocalDate? = null,
+        onSelected: (LocalDate) -> Unit,
+    ) {
+        val dialog = DatePickerDialog(
             context,
             { _, year, month, dayOfMonth ->
                 onSelected(LocalDate.of(year, month + 1, dayOfMonth))
@@ -97,7 +105,10 @@ fun TripFormHost(
             initialDate.year,
             initialDate.monthValue - 1,
             initialDate.dayOfMonth
-        ).show()
+        )
+        minDate?.let { dialog.datePicker.minDate = it.toEpochMillisAtStartOfDay() }
+        maxDate?.let { dialog.datePicker.maxDate = it.toEpochMillisAtStartOfDay() }
+        dialog.show()
     }
 
     TripFormScreen(
@@ -107,13 +118,28 @@ fun TripFormHost(
         state = state,
         onEvent = onEvent,
         onStartDateClick = {
-            showDatePicker(state.startDate ?: LocalDate.now()) { date ->
+            val today = LocalDate.now()
+            val minStartDate = TripDateRules.minStartDate(today)
+            val maxStartDate = TripDateRules.maxStartDate(today)
+            val initial = (state.startDate ?: today).clamp(minStartDate, maxStartDate)
+            showDatePicker(
+                initialDate = initial,
+                minDate = minStartDate,
+                maxDate = maxStartDate,
+            ) { date ->
                 onEvent(TripFormEvent.OnStartDateSelected(date))
             }
         },
         onEndDateClick = {
-            val fallback = state.startDate ?: LocalDate.now()
-            showDatePicker(state.endDate ?: fallback) { date ->
+            val start = state.startDate ?: LocalDate.now()
+            val minEndDate = start
+            val maxEndDate = TripDateRules.maxEndDateFor(start)
+            val initial = (state.endDate ?: minEndDate).clamp(minEndDate, maxEndDate)
+            showDatePicker(
+                initialDate = initial,
+                minDate = minEndDate,
+                maxDate = maxEndDate,
+            ) { date ->
                 onEvent(TripFormEvent.OnEndDateSelected(date))
             }
         },
@@ -161,6 +187,7 @@ private fun TripFormScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .navigationBarsPadding()
                     .padding(
                         horizontal = CoTripTokens.spacing.x2,
                         vertical = CoTripTokens.spacing.x2
@@ -179,7 +206,8 @@ private fun TripFormScreen(
                 TertiaryTextButton(
                     text = stringResource(R.string.common_cancel),
                     onClick = { onEvent(TripFormEvent.OnCancelClick) },
-                    enabled = !state.isLoading
+                    enabled = !state.isLoading,
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
         }
@@ -282,45 +310,19 @@ private fun TripFormScreen(
                 }
 
                 item {
-                    Row(
+                    DestructiveOutlinedButton(
+                        text = stringResource(R.string.trip_form_delete),
+                        onClick = { onEvent(TripFormEvent.OnDeleteClick) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = CoTripTokens.spacing.x1),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        CoTripIconButton(
-                            icon = CoTripIcons.AccountBalance,
-                            contentDescription = null,
-                            onClick = { onEvent(TripFormEvent.OnArchiveClick) }
-                        )
-                        Spacer(Modifier.width(CoTripTokens.spacing.x1))
-                        Text(
-                            text = stringResource(R.string.trip_form_archive),
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = TextPrimary
-                        )
-                    }
-                }
-
-                item {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = CoTripTokens.spacing.x1),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        CoTripIconButton(
-                            icon = CoTripIcons.Delete,
-                            contentDescription = null,
-                            onClick = { onEvent(TripFormEvent.OnDeleteClick) }
-                        )
-                        Spacer(Modifier.width(CoTripTokens.spacing.x1))
-                        Text(
-                            text = stringResource(R.string.trip_form_delete),
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    }
+                        leadingIcon = {
+                            Icon(
+                                imageVector = CoTripIcons.Delete,
+                                contentDescription = null
+                            )
+                        }
+                    )
                 }
             }
 
@@ -338,7 +340,13 @@ private fun CoverPickerCard(
     Box(
         modifier = modifier
             .height(180.dp)
+            .border(
+                width = 1.dp,
+                color = BorderStrong,
+                shape = RoundedCornerShape(CoTripTokens.radius.large)
+            )
             .clip(RoundedCornerShape(CoTripTokens.radius.large))
+            .clickable(onClick = onPick)
             .background(MaterialTheme.colorScheme.surface),
         contentAlignment = Alignment.Center
     ) {
@@ -365,23 +373,19 @@ private fun CoverPickerCard(
                 )
                 CoTripDashedDivider(modifier = Modifier.matchParentSize())
             }
-        }
-
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(
-                imageVector = CoTripIcons.PhotoCamera,
-                contentDescription = null,
-                tint = TextSecondary
-            )
-            Spacer(Modifier.height(CoTripTokens.spacing.x1))
-            TertiaryTextButton(
-                text = if (coverUrl.isNullOrBlank()) {
-                    stringResource(R.string.trip_form_add_cover)
-                } else {
-                    stringResource(R.string.trip_form_change_cover)
-                },
-                onClick = onPick
-            )
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(
+                    imageVector = CoTripIcons.PhotoCamera,
+                    contentDescription = null,
+                    tint = TextSecondary
+                )
+                Spacer(Modifier.height(CoTripTokens.spacing.x1))
+                Text(
+                    text = stringResource(R.string.trip_form_add_cover),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = TextSecondary
+                )
+            }
         }
     }
 }
@@ -437,4 +441,16 @@ private fun DateField(
 private fun formatDateOrPlaceholder(date: LocalDate?): String {
     if (date == null) return stringResource(R.string.trip_form_date_placeholder)
     return DateTimeFormatter.ofPattern("dd.MM.yyyy", Locale.getDefault()).format(date)
+}
+
+private fun LocalDate.toEpochMillisAtStartOfDay(): Long {
+    return atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+}
+
+private fun LocalDate.clamp(min: LocalDate, max: LocalDate): LocalDate {
+    return when {
+        isBefore(min) -> min
+        isAfter(max) -> max
+        else -> this
+    }
 }

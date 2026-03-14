@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import nvk.cotrip.R
 import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.refresh.RefreshScheduler
@@ -70,7 +71,11 @@ class SignInViewModel @Inject constructor(
 
     private fun handleGoogleResult(resultCode: Int, data: Intent?) {
         if (resultCode != Activity.RESULT_OK) {
-            onEvent(SignInEvent.OnGoogleSignInFailed("Sign-in canceled (code $resultCode)."))
+            onEvent(
+                SignInEvent.OnGoogleSignInFailed(
+                    appContext.getString(R.string.sign_in_error_canceled_with_code, resultCode)
+                )
+            )
             return
         }
         val task = GoogleSignIn.getSignedInAccountFromIntent(data)
@@ -79,17 +84,31 @@ class SignInViewModel @Inject constructor(
         }.onSuccess { account ->
             val token = account.idToken
             if (token.isNullOrBlank()) {
-                onEvent(SignInEvent.OnGoogleSignInFailed("Missing idToken."))
+                onEvent(
+                    SignInEvent.OnGoogleSignInFailed(
+                        appContext.getString(R.string.sign_in_error_missing_id_token)
+                    )
+                )
             } else {
                 onEvent(SignInEvent.OnGoogleIdToken(token))
             }
         }.onFailure {
             val apiException = it as? ApiException
             val code = apiException?.statusCode
-            val message = apiException?.localizedMessage ?: it.localizedMessage ?: "Google sign-in failed."
+            val message = apiException?.localizedMessage
+                ?: it.localizedMessage
+                ?: appContext.getString(R.string.sign_in_error_google_failed)
             onEvent(
                 SignInEvent.OnGoogleSignInFailed(
-                    if (code != null) "Google sign-in failed ($code): $message" else message
+                    if (code != null) {
+                        appContext.getString(
+                            R.string.sign_in_error_google_failed_with_code,
+                            code,
+                            message
+                        )
+                    } else {
+                        message
+                    }
                 )
             )
         }

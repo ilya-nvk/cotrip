@@ -2,6 +2,7 @@ package nvk.cotrip.ui.forecast
 
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -163,23 +164,36 @@ fun TripForecastScreen(
                         verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x2)
                     ) {
                         item {
+                            val cityLabel = uiState.city.ifBlank {
+                                stringResource(R.string.weather_forecast_city_missing)
+                            }
+                            val canSelectCity = uiState.cityOptions.size > 1
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(horizontal = CoTripTokens.spacing.x0_5),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                TertiaryTextButton(
-                                    text = uiState.city.ifBlank {
-                                        stringResource(R.string.weather_forecast_city_missing)
-                                    },
-                                    onClick = { viewModel.onEvent(TripForecastEvent.OnCityClick) }
-                                )
-                                Icon(
-                                    imageVector = CoTripIcons.ExpandMore,
-                                    contentDescription = null,
-                                    tint = TextSecondary
-                                )
+                                if (canSelectCity) {
+                                    TertiaryTextButton(
+                                        text = cityLabel,
+                                        onClick = { viewModel.onEvent(TripForecastEvent.OnCityClick) }
+                                    )
+                                    Icon(
+                                        imageVector = CoTripIcons.ExpandMore,
+                                        contentDescription = null,
+                                        tint = TextSecondary,
+                                        modifier = Modifier.clickable {
+                                            viewModel.onEvent(TripForecastEvent.OnCityClick)
+                                        }
+                                    )
+                                } else {
+                                    Text(
+                                        text = cityLabel,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = TextSecondary
+                                    )
+                                }
                             }
                         }
 

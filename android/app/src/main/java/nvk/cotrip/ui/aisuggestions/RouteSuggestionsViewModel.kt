@@ -1,10 +1,12 @@
 package nvk.cotrip.ui.aisuggestions
 
+import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -25,6 +27,7 @@ import javax.inject.Inject
 @HiltViewModel
 class RouteSuggestionsViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
+    @ApplicationContext private val appContext: Context,
     private val appNavigator: AppNavigator,
     private val aiSuggestionsRepository: AiSuggestionsRepository,
     private val apiCaller: ApiCaller,
@@ -35,7 +38,7 @@ class RouteSuggestionsViewModel @Inject constructor(
         checkNotNull(savedStateHandle[Destination.RouteSuggestions.ARG_TRIP_ID])
     private val selectedCity: String = decodeArg(savedStateHandle[Destination.RouteSuggestions.ARG_CITY])
         ?.takeIf { it.isNotBlank() }
-        ?: "Trip city"
+        ?: appContext.getString(R.string.route_suggestions_city_fallback)
     private val description: String? = decodeArg(savedStateHandle[Destination.RouteSuggestions.ARG_DESCRIPTION])
         ?.takeIf { it.isNotBlank() }
     private val selectedTypes: List<String> =
@@ -108,10 +111,12 @@ class RouteSuggestionsViewModel @Inject constructor(
                                 id = suggestion.id,
                                 title = suggestion.title,
                                 description = suggestion.description.orEmpty(),
-                                typeLabel = suggestion.typeLabel.orEmpty().ifBlank { "Activity" },
+                                typeLabel = suggestion.typeLabel.orEmpty()
+                                    .ifBlank { appContext.getString(R.string.route_suggestions_type_fallback) },
                                 durationLabel = suggestion.durationLabel.orEmpty()
-                                    .ifBlank { "2-3h" },
-                                budgetLabel = suggestion.budgetLabel.orEmpty().ifBlank { "Any" },
+                                    .ifBlank { appContext.getString(R.string.route_suggestions_duration_fallback) },
+                                budgetLabel = suggestion.budgetLabel.orEmpty()
+                                    .ifBlank { appContext.getString(R.string.route_suggestions_budget_fallback) },
                                 estimatedCost = formatEstimatedCost(suggestion.estimatedCost),
                                 isSaved = suggestion.isSaved,
                             )
@@ -181,12 +186,12 @@ class RouteSuggestionsViewModel @Inject constructor(
         selectedBudgets: List<String>,
     ): String {
         val allFilters = selectedTypes + selectedTimes + selectedBudgets
-        if (allFilters.isEmpty()) return "All types"
+        if (allFilters.isEmpty()) return appContext.getString(R.string.route_suggestions_filters_all_types)
         return allFilters.joinToString(" • ")
     }
 
     private fun formatEstimatedCost(cost: Double?): String {
-        if (cost == null) return "—"
+        if (cost == null) return appContext.getString(R.string.common_empty_placeholder)
         return if (cost % 1.0 == 0.0) {
             cost.toInt().toString()
         } else {

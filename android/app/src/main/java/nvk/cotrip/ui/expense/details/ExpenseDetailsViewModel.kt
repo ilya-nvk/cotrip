@@ -1,9 +1,11 @@
 package nvk.cotrip.ui.expense.details
 
+import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -13,6 +15,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import nvk.cotrip.R
 import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.network.dto.ExpenseDto
@@ -36,6 +39,7 @@ import javax.inject.Inject
 @HiltViewModel
 class ExpenseDetailsViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
+    @ApplicationContext private val appContext: Context,
     private val appNavigator: AppNavigator,
     private val tripRepository: TripRepository,
     private val expenseRepository: ExpenseRepository,
@@ -108,6 +112,7 @@ class ExpenseDetailsViewModel @Inject constructor(
                     meId = payload.meId.orEmpty(),
                     membersById = membersById,
                     currencySymbol = currencySymbol,
+                    context = appContext,
                 )
             }
         }
@@ -206,6 +211,7 @@ private fun ExpenseDto.toState(
     meId: String,
     membersById: Map<String, MemberDto>,
     currencySymbol: String,
+    context: Context,
 ): ExpenseDetailsState.Content {
     val statusUi = when {
         status == "planned" -> ExpenseDetailsStatus.Planned
@@ -214,17 +220,21 @@ private fun ExpenseDto.toState(
     }
 
     val paidByName = paidById?.let { payerId ->
-        if (payerId == meId) "You" else membersById[payerId]?.name
+        if (payerId == meId) context.getString(R.string.common_you) else membersById[payerId]?.name
     }
 
-    val splitTypeLabel = if (splitType == "equally") "Split equally" else "Custom amounts"
+    val splitTypeLabel = if (splitType == "equally") {
+        context.getString(R.string.expense_form_split_equally)
+    } else {
+        context.getString(R.string.expense_form_custom_amounts)
+    }
     val shares = computeShares(this)
     val splitRows = participants.filter { it.isIncluded }.map { participant ->
         val member = membersById[participant.userId]
         ExpenseSplitRowUi(
             id = participant.userId,
             initials = member?.initials ?: "?",
-            name = member?.name ?: "Unknown",
+            name = member?.name ?: context.getString(R.string.common_unknown),
             amount = formatMoney(shares[participant.userId] ?: 0.0, currencySymbol),
             isPaid = participant.isPaid
         )
