@@ -45,6 +45,12 @@ data class TransferOwnerRequest(
     val newOwnerId: String,
 )
 
+@Serializable
+private data class TripListResponse(
+    val items: List<TripDto>,
+    val nextCursor: String? = null,
+)
+
 fun Route.tripRoutes() {
     authenticate("auth-jwt") {
         post("/v1/trips") {
@@ -88,7 +94,7 @@ fun Route.tripRoutes() {
             val cursor = call.request.queryParameters["cursor"]
             if (limit == null && cursor.isNullOrBlank()) {
                 val trips = TripRepository.listTripsForUser(userId, status).map { it.toDto() }
-                call.respond(mapOf("items" to trips, "nextCursor" to null))
+                call.respond(TripListResponse(items = trips, nextCursor = null))
             } else {
                 val page = TripRepository.listTripsForUserPage(
                     userId = userId,
@@ -97,9 +103,9 @@ fun Route.tripRoutes() {
                     cursor = cursor,
                 )
                 call.respond(
-                    mapOf(
-                        "items" to page.items.map { it.toDto() },
-                        "nextCursor" to page.nextCursor,
+                    TripListResponse(
+                        items = page.items.map { it.toDto() },
+                        nextCursor = page.nextCursor,
                     )
                 )
             }
