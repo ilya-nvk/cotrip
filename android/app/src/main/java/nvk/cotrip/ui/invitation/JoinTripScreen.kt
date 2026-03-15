@@ -3,11 +3,9 @@ package nvk.cotrip.ui.invitation
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
@@ -110,8 +108,6 @@ fun JoinTripScreen(
                 errorText = inviteErrorText,
                 singleLine = true
             )
-
-            Spacer(Modifier.height(CoTripTokens.spacing.x1))
 
             PrimaryButton(
                 text = stringResource(R.string.join_trip_action),

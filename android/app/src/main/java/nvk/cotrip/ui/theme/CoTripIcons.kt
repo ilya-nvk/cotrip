@@ -4,7 +4,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Cloud
@@ -42,19 +45,19 @@ object CoTripIcons {
     val Share: ImageVector = Icons.Filled.Share
     val Send: ImageVector = Icons.AutoMirrored.Filled.Send
     val Join: ImageVector = Icons.Filled.JoinRight
-    val PhotoCamera: ImageVector = Icons.Filled.Edit
+    val PhotoCamera: ImageVector = Icons.Filled.CameraAlt
     val Copy: ImageVector = Icons.Filled.ContentCopy
     val OpenInNew: ImageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight
 
     val CheckCircle: ImageVector = Icons.Filled.CheckCircle
-    val Schedule: ImageVector = Icons.Filled.DateRange
+    val Schedule: ImageVector = Icons.Filled.CalendarToday
     val Info: ImageVector = Icons.Filled.Info
     val WeatherSunny: ImageVector = Icons.Filled.WbSunny
     val WeatherCloudy: ImageVector = Icons.Filled.Cloud
     val WeatherRain: ImageVector = Icons.Filled.WaterDrop
 
     val TripOrigin: ImageVector = Icons.Filled.LocationOn
-    val AccountBalance: ImageVector = Icons.Filled.Info
+    val AccountBalance: ImageVector = Icons.Filled.AccountBalance
     val Favorite: ImageVector = Icons.Filled.Favorite
     val FavoriteBorder: ImageVector = Icons.Filled.FavoriteBorder
     val Location: ImageVector = Icons.Filled.LocationOn
