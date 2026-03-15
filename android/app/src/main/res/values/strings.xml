@@ -367,6 +367,7 @@
     <string name="activity_form_delete">Delete activity</string>
     <string name="activity_form_pick_date_not_implemented">Date picker is not implemented yet</string>
     <string name="activity_form_pick_time_not_implemented">Time picker is not implemented yet</string>
+    <string name="activity_form_date_out_of_trip_range">Select a date within trip dates.</string>
     <string name="activity_form_created_toast">Activity added</string>
     <string name="activity_form_saved_toast">Changes saved</string>
     <string name="activity_form_deleted_toast">Activity deleted</string>

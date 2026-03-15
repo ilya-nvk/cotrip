@@ -43,6 +43,7 @@ import nvk.cotrip.data.repository.NotificationRepository
 import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.data.repository.UserRepository
 import nvk.cotrip.notifications.SystemNotificationManager
+import nvk.cotrip.ui.common.TextInputLimits
 import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.idea.common.IdeaDayOptionUi
 import nvk.cotrip.ui.idea.common.IdeaDayPickerState
@@ -155,7 +156,9 @@ class IdeaDetailsViewModel @Inject constructor(
                     markDiscussionNotificationsRead()
                 }
             }
-            is IdeaDetailsEvent.OnCommentChange -> _state.update { it.copy(commentInput = event.value) }
+            is IdeaDetailsEvent.OnCommentChange -> _state.update {
+                it.copy(commentInput = event.value.take(TextInputLimits.IDEA_COMMENT))
+            }
             IdeaDetailsEvent.OnSendComment -> sendComment()
             is IdeaDetailsEvent.OnRetryComment -> retryComment(event.localId)
             is IdeaDetailsEvent.OnDeletePendingComment -> deletePendingComment(event.localId)

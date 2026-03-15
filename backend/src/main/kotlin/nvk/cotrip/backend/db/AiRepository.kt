@@ -25,6 +25,7 @@ data class AiSuggestionRow(
     val id: String,
     val requestId: String,
     val title: String,
+    val place: String?,
     val description: String?,
     val typeLabel: String?,
     val durationLabel: String?,
@@ -36,6 +37,7 @@ data class AiSuggestionRow(
 
 data class AiSuggestionInput(
     val title: String,
+    val place: String?,
     val description: String?,
     val typeLabel: String?,
     val durationLabel: String?,
@@ -102,18 +104,19 @@ object AiRepository {
         if (suggestions.isEmpty()) return@dbQuery emptyList()
         conn.prepareStatement(
             """
-            INSERT INTO ai_suggestions (request_id, title, description, type_label, duration_label, budget_label, estimated_cost)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO ai_suggestions (request_id, title, place, description, type_label, duration_label, budget_label, estimated_cost)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """.trimIndent()
         ).use { stmt ->
             suggestions.forEach { suggestion ->
                 stmt.setObject(1, UUID.fromString(requestId))
                 stmt.setString(2, suggestion.title)
-                stmt.setString(3, suggestion.description)
-                stmt.setString(4, suggestion.typeLabel)
-                stmt.setString(5, suggestion.durationLabel)
-                stmt.setString(6, suggestion.budgetLabel)
-                if (suggestion.estimatedCost == null) stmt.setNull(7, java.sql.Types.NUMERIC) else stmt.setDouble(7, suggestion.estimatedCost)
+                stmt.setString(3, suggestion.place)
+                stmt.setString(4, suggestion.description)
+                stmt.setString(5, suggestion.typeLabel)
+                stmt.setString(6, suggestion.durationLabel)
+                stmt.setString(7, suggestion.budgetLabel)
+                if (suggestion.estimatedCost == null) stmt.setNull(8, java.sql.Types.NUMERIC) else stmt.setDouble(8, suggestion.estimatedCost)
                 stmt.addBatch()
             }
             stmt.executeBatch()
@@ -121,7 +124,7 @@ object AiRepository {
 
         conn.prepareStatement(
             """
-            SELECT id, request_id, title, description, type_label, duration_label, budget_label, estimated_cost, is_saved, saved_idea_id
+            SELECT id, request_id, title, place, description, type_label, duration_label, budget_label, estimated_cost, is_saved, saved_idea_id
             FROM ai_suggestions
             WHERE request_id = ?
             ORDER BY created_at ASC
@@ -141,7 +144,7 @@ object AiRepository {
     fun getSuggestionWithRequest(suggestionId: String): AiSuggestionWithRequest? = dbQuery { conn ->
         conn.prepareStatement(
             """
-            SELECT s.id, s.request_id, s.title, s.description, s.type_label, s.duration_label, s.budget_label, s.estimated_cost, s.is_saved, s.saved_idea_id,
+            SELECT s.id, s.request_id, s.title, s.place, s.description, s.type_label, s.duration_label, s.budget_label, s.estimated_cost, s.is_saved, s.saved_idea_id,
                    r.trip_id, r.city, r.description AS request_description
             FROM ai_suggestions s
             JOIN ai_requests r ON r.id = s.request_id
@@ -192,6 +195,7 @@ object AiRepository {
             id = rs.getObject("id", UUID::class.java).toString(),
             requestId = rs.getObject("request_id", UUID::class.java).toString(),
             title = rs.getString("title"),
+            place = rs.getString("place"),
             description = rs.getString("description"),
             typeLabel = rs.getString("type_label"),
             durationLabel = rs.getString("duration_label"),

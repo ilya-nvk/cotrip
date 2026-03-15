@@ -25,6 +25,7 @@ import nvk.cotrip.data.network.dto.UpdateDayRequest
 import nvk.cotrip.data.repository.ItineraryRepository
 import nvk.cotrip.data.repository.PendingTripCreationStore
 import nvk.cotrip.data.repository.TripRepository
+import nvk.cotrip.ui.common.TextInputLimits
 import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
@@ -278,7 +279,8 @@ class TripItineraryViewModel @Inject constructor(
 
     private fun updateCityQuery(value: String) {
         if (_state.value.isPastTrip) return
-        val query = value.trim()
+        val limitedValue = value.take(TextInputLimits.ITINERARY_CITY_QUERY)
+        val query = limitedValue.trim()
         _state.value.cityPicker ?: return
         citySearchJob?.cancel()
 

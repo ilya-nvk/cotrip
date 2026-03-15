@@ -24,6 +24,7 @@ import nvk.cotrip.data.repository.IdeaRepository
 import nvk.cotrip.data.repository.ItineraryRepository
 import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.ui.common.LimitDialogState
+import nvk.cotrip.ui.common.TextInputLimits
 import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
@@ -81,15 +82,25 @@ class CreateIdeaViewModel @Inject constructor(
             IdeaFormEvent.OnConfirmDeleteOldestAndRetry -> deleteOldestAndRetry()
             is IdeaFormEvent.OnCitySelected -> onCitySuggestionSelected(event.city)
 
-            is IdeaFormEvent.OnTitleChange -> _state.update { it.copy(title = event.value) }
+            is IdeaFormEvent.OnTitleChange -> _state.update {
+                it.copy(title = event.value.take(TextInputLimits.IDEA_TITLE))
+            }
             is IdeaFormEvent.OnCityChange -> onCityInputChanged(event.value)
-            is IdeaFormEvent.OnLinkChange -> _state.update { it.copy(link = event.value) }
+            is IdeaFormEvent.OnLinkChange -> _state.update {
+                it.copy(link = event.value.take(TextInputLimits.IDEA_LINK))
+            }
             is IdeaFormEvent.OnCostAmountChange -> _state.update {
-                it.copy(costAmount = event.value.filter { c -> c.isDigit() || c == '.' || c == ',' })
+                it.copy(
+                    costAmount = event.value
+                        .filter { c -> c.isDigit() || c == '.' || c == ',' }
+                        .take(TextInputLimits.IDEA_COST_AMOUNT)
+                )
             }
 
             is IdeaFormEvent.OnCostTypeChange -> _state.update { it.copy(costType = event.value) }
-            is IdeaFormEvent.OnNotesChange -> _state.update { it.copy(notes = event.value) }
+            is IdeaFormEvent.OnNotesChange -> _state.update {
+                it.copy(notes = event.value.take(TextInputLimits.IDEA_NOTES))
+            }
         }
     }
 
@@ -120,11 +131,12 @@ class CreateIdeaViewModel @Inject constructor(
     }
 
     private fun onCityInputChanged(value: String) {
-        val query = value.trim()
+        val limitedValue = value.take(TextInputLimits.IDEA_CITY)
+        val query = limitedValue.trim()
         citySearchJob?.cancel()
         _state.update {
             it.copy(
-                city = value,
+                city = limitedValue,
                 cityPlaceId = null,
                 citySuggestions = emptyList(),
                 isCitySearching = query.isNotBlank(),
@@ -168,7 +180,7 @@ class CreateIdeaViewModel @Inject constructor(
         citySearchJob?.cancel()
         _state.update {
             it.copy(
-                city = city.fullText,
+                city = city.fullText.take(TextInputLimits.IDEA_CITY),
                 cityPlaceId = city.placeId,
                 citySuggestions = emptyList(),
                 isCitySearching = false,

@@ -23,6 +23,7 @@ import nvk.cotrip.data.repository.AuthRepository
 import nvk.cotrip.data.repository.ImageUploadRepository
 import nvk.cotrip.data.repository.NotificationRepository
 import nvk.cotrip.data.repository.UserRepository
+import nvk.cotrip.ui.common.TextInputLimits
 import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
@@ -131,7 +132,7 @@ class SettingsViewModel @Inject constructor(
             }
 
             is SettingsEvent.OnNameChange -> _state.update { current ->
-                val name = event.value
+                val name = event.value.take(TextInputLimits.SETTINGS_NAME)
                 val profile = current.profile.copy(name = name)
                 current.copy(
                     profile = profile,

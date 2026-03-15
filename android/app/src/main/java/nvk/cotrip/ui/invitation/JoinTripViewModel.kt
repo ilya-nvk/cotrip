@@ -19,6 +19,7 @@ import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.repository.InviteRepository
 import nvk.cotrip.data.repository.TripRepository
+import nvk.cotrip.ui.common.TextInputLimits
 import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
@@ -76,10 +77,11 @@ class JoinTripViewModel @Inject constructor(
         when (event) {
             JoinTripEvent.OnBackClick -> appNavigator.popBackStack()
             is JoinTripEvent.OnInviteInputChange -> {
-                val isValid = parseJoinTarget(event.value) != null
+                val input = event.value.take(TextInputLimits.JOIN_TRIP_INPUT)
+                val isValid = parseJoinTarget(input) != null
                 _state.update {
                     it.copy(
-                        inviteInput = event.value,
+                        inviteInput = input,
                         isInviteValid = isValid,
                     )
                 }

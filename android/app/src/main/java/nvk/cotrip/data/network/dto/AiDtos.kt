@@ -17,6 +17,7 @@ data class AiSuggestionsRequestDto(
 data class AiSuggestionDto(
     val id: String,
     val title: String,
+    val place: String? = null,
     val description: String? = null,
     val typeLabel: String? = null,
     val durationLabel: String? = null,

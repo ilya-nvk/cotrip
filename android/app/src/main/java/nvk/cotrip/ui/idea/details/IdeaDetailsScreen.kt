@@ -311,7 +311,7 @@ private fun IdeaDetailsContent(
         ) {
             IdeaInfoRow(
                 icon = CoTripIcons.Location,
-                label = stringResource(R.string.idea_details_city),
+                label = stringResource(R.string.idea_form_city_label),
                 value = state.city
             )
             CoTripDivider()

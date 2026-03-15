@@ -153,7 +153,7 @@ fun Route.aiRoutes(aiConfig: AiConfig) {
                 tripId = suggestion.tripId,
                 authorId = userId,
                 title = suggestion.suggestion.title,
-                city = suggestion.city,
+                city = suggestion.suggestion.place?.trim()?.ifBlank { null },
                 link = null,
                 costAmount = suggestion.suggestion.estimatedCost,
                 costType = null,
@@ -193,6 +193,7 @@ private fun buildMockSuggestions(request: AiSuggestionRequest, maxSuggestions: I
         val title = if (city.isBlank()) type else "$city $type"
         AiSuggestionInput(
             title = title,
+            place = null,
             description = "Suggested $type for $timeLabel in ${if (city.isBlank()) "your trip" else city}.",
             typeLabel = type,
             durationLabel = "2-3 hours",
@@ -206,6 +207,7 @@ private fun AiSuggestionRow.toDto(): AiSuggestionDto {
     return AiSuggestionDto(
         id = id,
         title = title,
+        place = place,
         description = description,
         typeLabel = typeLabel,
         durationLabel = durationLabel,

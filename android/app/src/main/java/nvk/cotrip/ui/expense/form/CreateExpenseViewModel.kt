@@ -24,6 +24,7 @@ import nvk.cotrip.data.repository.ExpenseRepository
 import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.data.repository.UserRepository
 import nvk.cotrip.ui.common.LimitDialogState
+import nvk.cotrip.ui.common.TextInputLimits
 import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
@@ -89,7 +90,9 @@ class CreateExpenseViewModel @Inject constructor(
             is ExpenseFormEvent.OnDateSelected -> selectDate(event.date)
             ExpenseFormEvent.OnPaidByClick -> _state.update { it.copy(paidByPickerVisible = true) }
             ExpenseFormEvent.OnDismissPaidByPicker -> _state.update { it.copy(paidByPickerVisible = false) }
-            is ExpenseFormEvent.OnTitleChange -> _state.update { it.copy(title = event.value) }
+            is ExpenseFormEvent.OnTitleChange -> _state.update {
+                it.copy(title = event.value.take(TextInputLimits.EXPENSE_TITLE))
+            }
             is ExpenseFormEvent.OnAmountChange -> _state.update { it.copy(amount = moneyInput(event.value)) }
             is ExpenseFormEvent.OnStatusChange -> updateStatus(event.value)
             is ExpenseFormEvent.OnPaidBySelected -> _state.update {
@@ -113,14 +116,19 @@ class CreateExpenseViewModel @Inject constructor(
                 current.copy(
                     participants = current.participants.map { participant ->
                         if (participant.id == event.participantId) participant.copy(
-                            customAmount = moneyInput(event.value)
+                            customAmount = moneyInput(
+                                event.value,
+                                TextInputLimits.EXPENSE_CUSTOM_AMOUNT
+                            )
                         )
                         else participant
                     }
                 )
             }
 
-            is ExpenseFormEvent.OnNoteChange -> _state.update { it.copy(note = event.value) }
+            is ExpenseFormEvent.OnNoteChange -> _state.update {
+                it.copy(note = event.value.take(TextInputLimits.EXPENSE_NOTE))
+            }
         }
     }
 
@@ -309,7 +317,13 @@ class CreateExpenseViewModel @Inject constructor(
     }
 
     private fun moneyInput(value: String): String {
-        return value.filter { it.isDigit() || it == '.' || it == ',' }
+        return moneyInput(value, TextInputLimits.EXPENSE_AMOUNT)
+    }
+
+    private fun moneyInput(value: String, maxLength: Int): String {
+        return value
+            .filter { it.isDigit() || it == '.' || it == ',' }
+            .take(maxLength)
     }
 
     private fun emit(effect: ExpenseFormEffect) {

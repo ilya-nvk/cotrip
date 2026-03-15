@@ -25,6 +25,7 @@ import nvk.cotrip.data.network.dto.TripDto
 import nvk.cotrip.data.network.dto.UpdateActivityRequest
 import nvk.cotrip.data.repository.ItineraryRepository
 import nvk.cotrip.data.repository.TripRepository
+import nvk.cotrip.ui.common.TextInputLimits
 import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
@@ -60,6 +61,8 @@ class EditActivityViewModel @Inject constructor(
             activityId = activityId,
             headerDayNumber = null,
             headerCity = null,
+            tripStartDate = null,
+            tripEndDate = null,
             title = "",
             dateText = "",
             timeText = "",
@@ -95,15 +98,19 @@ class EditActivityViewModel @Inject constructor(
             ActivityFormEvent.OnPickTimeClick -> Unit
             is ActivityFormEvent.OnDateSelected -> selectDate(event.date)
             is ActivityFormEvent.OnTimeSelected -> selectTime(event.time)
-            is ActivityFormEvent.OnTitleChange -> _state.update { it.copy(title = event.value) }
+            is ActivityFormEvent.OnTitleChange -> _state.update {
+                it.copy(title = event.value.take(TextInputLimits.ACTIVITY_TITLE))
+            }
             is ActivityFormEvent.OnLocationInputChange -> onLocationInputChanged(event.value)
             is ActivityFormEvent.OnLocationSuggestionSelected -> onLocationSuggestionSelected(event.value)
             is ActivityFormEvent.OnLinkChange -> _state.update {
-                it.copy(linkInput = event.value)
+                it.copy(linkInput = event.value.take(TextInputLimits.ACTIVITY_LINK))
             }
             is ActivityFormEvent.OnCostAmountChange -> _state.update { it.copy(costAmount = moneyInput(event.value)) }
             is ActivityFormEvent.OnCostTypeChange -> _state.update { it.copy(costType = event.value) }
-            is ActivityFormEvent.OnNotesChange -> _state.update { it.copy(notes = event.value) }
+            is ActivityFormEvent.OnNotesChange -> _state.update {
+                it.copy(notes = event.value.take(TextInputLimits.ACTIVITY_NOTES))
+            }
         }
     }
 
@@ -119,11 +126,15 @@ class EditActivityViewModel @Inject constructor(
                     tripId = info.trip.id
                     selectedDayId = info.day.id
                     originalDayId = info.day.id
-                    dayByDate = info.days.associateBy { LocalDate.parse(it.date) }
+                    dayByDate = info.days
+                        .filter { !it.isOutOfRange }
+                        .associateBy { LocalDate.parse(it.date) }
                     _state.update {
                         it.copy(
                             headerDayNumber = info.day.dayNumber,
                             headerCity = info.day.city?.takeIf { city -> city.isNotBlank() },
+                            tripStartDate = LocalDate.parse(info.trip.startDate),
+                            tripEndDate = LocalDate.parse(info.trip.endDate),
                             title = info.activity.title,
                             dateText = formatDate(LocalDate.parse(info.day.date)),
                             timeText = info.activity.timeText.orEmpty(),
@@ -160,7 +171,7 @@ class EditActivityViewModel @Inject constructor(
 
     private fun selectDate(date: LocalDate) {
         val day = dayByDate[date] ?: run {
-            emit(ActivityFormEffect.ShowToastRes(R.string.common_error_message))
+            emit(ActivityFormEffect.ShowToastRes(R.string.activity_form_date_out_of_trip_range))
             return
         }
         selectedDayId = day.id
@@ -216,11 +227,12 @@ class EditActivityViewModel @Inject constructor(
     }
 
     private fun onLocationInputChanged(value: String) {
-        val query = value.trim()
+        val limitedValue = value.take(TextInputLimits.ACTIVITY_LOCATION)
+        val query = limitedValue.trim()
         locationSearchJob?.cancel()
         _state.update {
             it.copy(
-                locationInput = value,
+                locationInput = limitedValue,
                 locationPlaceId = null,
                 locationSuggestions = emptyList(),
                 isLocationSearching = query.isNotBlank(),
@@ -267,7 +279,7 @@ class EditActivityViewModel @Inject constructor(
         locationSearchJob?.cancel()
         _state.update {
             it.copy(
-                locationInput = value.fullText,
+                locationInput = value.fullText.take(TextInputLimits.ACTIVITY_LOCATION),
                 locationPlaceId = value.placeId,
                 locationSuggestions = emptyList(),
                 isLocationSearching = false,
@@ -293,7 +305,9 @@ class EditActivityViewModel @Inject constructor(
     }
 
     private fun moneyInput(value: String): String {
-        return value.filter { it.isDigit() || it == '.' || it == ',' }
+        return value
+            .filter { it.isDigit() || it == '.' || it == ',' }
+            .take(TextInputLimits.ACTIVITY_COST_AMOUNT)
     }
 
     private suspend fun findActivity(activityId: String): ActivityLookup {
