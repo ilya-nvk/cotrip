@@ -4,7 +4,9 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import nvk.cotrip.backend.db.NotificationRow
 import nvk.cotrip.backend.db.NotificationRepository
+import nvk.cotrip.backend.db.PushTokenRepository
 import nvk.cotrip.backend.db.TripMemberRepository
 
 private const val KEY_DISCUSSIONS_COMMENTS = "discussions_comments"
@@ -129,11 +131,32 @@ object NotificationService {
 
         recipients.forEach { userId ->
             if (NotificationRepository.isSettingEnabled(userId, settingKey)) {
-                NotificationRepository.create(
+                val notification = NotificationRepository.create(
                     userId = userId,
                     type = type,
                     payload = payload
                 )
+                sendPush(notification)
+            }
+        }
+    }
+
+    private fun sendPush(notification: NotificationRow) {
+        val payload = mapOf(
+            "notificationId" to notification.id,
+            "type" to notification.type,
+            "payload" to notification.payload,
+            "createdAt" to notification.createdAt.toString(),
+        )
+        PushTokenRepository.listByUserId(notification.userId).forEach { row ->
+            when (FirebasePushService.sendDataMessage(row.token, payload)) {
+                PushDeliveryStatus.INVALID_TOKEN -> {
+                    PushTokenRepository.removeByToken(row.token)
+                }
+
+                PushDeliveryStatus.SENT,
+                PushDeliveryStatus.FAILED,
+                PushDeliveryStatus.DISABLED -> Unit
             }
         }
     }

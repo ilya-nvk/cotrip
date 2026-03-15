@@ -46,6 +46,11 @@ data class AppLinksConfig(
     val sha256CertFingerprints: List<String>,
 )
 
+data class FirebaseConfig(
+    val projectId: String?,
+    val serviceAccountPath: String?,
+)
+
 data class AppConfig(
     val jwt: JwtConfig,
     val db: DbConfig,
@@ -54,5 +59,6 @@ data class AppConfig(
     val ai: AiConfig,
     val media: MediaConfig,
     val appLinks: AppLinksConfig,
+    val firebase: FirebaseConfig,
     val devAuthEnabled: Boolean,
 )

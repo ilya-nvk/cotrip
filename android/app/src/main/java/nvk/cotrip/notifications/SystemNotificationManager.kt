@@ -67,6 +67,33 @@ class SystemNotificationManager @Inject constructor(
         saveDelivered(delivered)
     }
 
+    fun onPushNotification(item: NotificationDto) {
+        ensureChannel()
+        val delivered = deliveredIds().toMutableSet()
+        val id = item.id
+
+        if (item.readAt != null) {
+            cancelById(id)
+            delivered.remove(id)
+            saveDelivered(delivered)
+            return
+        }
+
+        if (shouldSuppress(item)) {
+            AppLogger.i(TAG, "suppressed push in foreground: id=$id type=${item.type}")
+            cancelById(id)
+            delivered.remove(id)
+            saveDelivered(delivered)
+            return
+        }
+
+        if (id !in delivered) {
+            show(item)
+            delivered.add(id)
+            saveDelivered(delivered)
+        }
+    }
+
     fun onMarkedRead(notificationId: String) {
         cancelById(notificationId)
         val delivered = deliveredIds().toMutableSet()

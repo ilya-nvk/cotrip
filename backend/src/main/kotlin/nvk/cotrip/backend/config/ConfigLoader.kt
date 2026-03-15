@@ -123,6 +123,21 @@ fun loadConfig(config: ApplicationConfig): AppConfig {
             .map { it.uppercase(Locale.US) },
     )
 
+    val firebase = FirebaseConfig(
+        projectId = (
+            System.getenv("FIREBASE_PROJECT_ID")
+                ?: config.propertyOrNull("ktor.firebase.projectId")?.getString()
+            )
+            ?.trim()
+            ?.takeIf { it.isNotBlank() },
+        serviceAccountPath = (
+            System.getenv("FIREBASE_SERVICE_ACCOUNT_PATH")
+                ?: config.propertyOrNull("ktor.firebase.serviceAccountPath")?.getString()
+            )
+            ?.trim()
+            ?.takeIf { it.isNotBlank() },
+    )
+
     val devAuthEnabled = System.getenv("DEV_AUTH_ENABLED")
         ?.toBooleanStrictOrNull()
         ?: config.propertyOrNull("ktor.devAuthEnabled")
@@ -138,6 +153,7 @@ fun loadConfig(config: ApplicationConfig): AppConfig {
         ai = ai,
         media = media,
         appLinks = appLinks,
+        firebase = firebase,
         devAuthEnabled = devAuthEnabled
     )
 }

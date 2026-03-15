@@ -629,16 +629,25 @@ class IdeaDetailsViewModel @Inject constructor(
                     systemNotificationManager.onIdeaDiscussionRead(ideaId)
                     notificationRepository.refreshNotifications().getOrThrow()
                     val items = notificationRepository.notifications.first()
-                    val toMark = items.filter { item ->
+                    val toMarkIds = items.filter { item ->
                         item.readAt == null &&
                             item.type == "idea_comment" &&
                             runCatching {
                                 item.payload.jsonObject["ideaId"]?.jsonPrimitive?.contentOrNull == ideaId
                             }.getOrDefault(false)
-                    }
-                    for (item in toMark) {
-                        runCatching { notificationRepository.markRead(item.id) }
-                        systemNotificationManager.onMarkedRead(item.id)
+                    }.map { it.id }
+                    if (toMarkIds.isEmpty()) return@withContext
+
+                    notificationRepository.markReadBulkIdeaComments(ideaId)
+                        .onFailure { error ->
+                            AppLogger.w(
+                                TAG,
+                                "markReadBulkIdeaComments failed for ideaId=$ideaId",
+                                error
+                            )
+                        }
+                    toMarkIds.forEach { notificationId ->
+                        systemNotificationManager.onMarkedRead(notificationId)
                     }
                 }
             }

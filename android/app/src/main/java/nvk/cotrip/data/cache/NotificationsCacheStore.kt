@@ -12,6 +12,8 @@ interface NotificationsCacheStore {
     suspend fun getSettings(): List<NotificationSettingDto>
     suspend fun setNotifications(items: List<NotificationDto>)
     suspend fun markRead(notificationId: String)
+    suspend fun markReadBulkNonComment()
+    suspend fun markReadBulkIdeaComments(ideaId: String)
     suspend fun setSettings(items: List<NotificationSettingDto>)
     suspend fun clear()
 }

@@ -16,6 +16,10 @@ repositories {
     mavenCentral()
 }
 
+configurations.configureEach {
+    exclude(group = "com.google.guava", module = "listenablefuture")
+}
+
 val ktorVersion = "2.3.8"
 val logbackVersion = "1.4.14"
 
@@ -36,6 +40,7 @@ dependencies {
     implementation("ch.qos.logback:logback-classic:$logbackVersion")
     implementation("com.zaxxer:HikariCP:5.1.0")
     implementation("org.postgresql:postgresql:42.7.1")
+    implementation("com.google.firebase:firebase-admin:9.2.0")
 
     testImplementation(kotlin("test"))
     testImplementation("io.ktor:ktor-server-tests-jvm:$ktorVersion")

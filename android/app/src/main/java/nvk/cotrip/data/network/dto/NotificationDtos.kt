@@ -33,3 +33,20 @@ data class NotificationSettingsResponse(
 data class NotificationSettingsUpdateRequest(
     val items: List<NotificationSettingDto> = emptyList(),
 )
+
+@Serializable
+data class NotificationReadBulkRequest(
+    val mode: String,
+    val ideaId: String? = null,
+)
+
+@Serializable
+data class NotificationReadBulkResponse(
+    val updated: Int,
+)
+
+@Serializable
+data class PushTokenUpsertRequest(
+    val token: String,
+    val platform: String = "android",
+)

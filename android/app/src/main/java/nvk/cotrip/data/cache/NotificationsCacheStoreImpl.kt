@@ -9,6 +9,9 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import nvk.cotrip.data.network.dto.NotificationDto
 import nvk.cotrip.data.network.dto.NotificationSettingDto
 import javax.inject.Inject
@@ -46,10 +49,31 @@ class NotificationsCacheStoreImpl @Inject constructor(
     }
 
     override suspend fun markRead(notificationId: String) {
+        markReadWhere { item ->
+            item.id == notificationId && item.readAt == null
+        }
+    }
+
+    override suspend fun markReadBulkNonComment() {
+        markReadWhere { item ->
+            item.type != IDEA_COMMENT_TYPE && item.readAt == null
+        }
+    }
+
+    override suspend fun markReadBulkIdeaComments(ideaId: String) {
+        markReadWhere { item ->
+            if (item.type != IDEA_COMMENT_TYPE || item.readAt != null) return@markReadWhere false
+            runCatching {
+                item.payload.jsonObject["ideaId"]?.jsonPrimitive?.contentOrNull == ideaId
+            }.getOrDefault(false)
+        }
+    }
+
+    private suspend fun markReadWhere(predicate: (NotificationDto) -> Boolean) {
         dataStore.edit { prefs ->
             val current = decodeNotifications(prefs[NOTIFICATIONS_KEY])
             val updated = current.items.map { item ->
-                if (item.id == notificationId && item.readAt == null) {
+                if (predicate(item)) {
                     item.copy(readAt = item.createdAt)
                 } else {
                     item
@@ -103,6 +127,7 @@ class NotificationsCacheStoreImpl @Inject constructor(
     )
 
     private companion object {
+        private const val IDEA_COMMENT_TYPE = "idea_comment"
         private val NOTIFICATIONS_KEY = stringPreferencesKey("notifications_cache")
         private val NOTIFICATION_SETTINGS_KEY = stringPreferencesKey("notification_settings_cache")
     }

@@ -194,6 +194,9 @@ CREATE TABLE IF NOT EXISTS notifications (
 );
 
 CREATE INDEX IF NOT EXISTS idx_notifications_user_read ON notifications(user_id, read_at);
+CREATE INDEX IF NOT EXISTS idx_notifications_unread_comment_idea
+  ON notifications(user_id, ((payload ->> 'ideaId')))
+  WHERE type = 'idea_comment' AND read_at IS NULL;
 
 CREATE TABLE IF NOT EXISTS notification_settings (
   user_id uuid NOT NULL REFERENCES users(id),

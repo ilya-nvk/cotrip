@@ -22,9 +22,12 @@ import nvk.cotrip.data.network.dto.ItineraryDayDto
 import nvk.cotrip.data.network.dto.MemberDto
 import nvk.cotrip.data.network.dto.MoveActivityRequest
 import nvk.cotrip.data.network.dto.NotificationListResponse
+import nvk.cotrip.data.network.dto.NotificationReadBulkRequest
+import nvk.cotrip.data.network.dto.NotificationReadBulkResponse
 import nvk.cotrip.data.network.dto.NotificationSettingsResponse
 import nvk.cotrip.data.network.dto.NotificationSettingsUpdateRequest
 import nvk.cotrip.data.network.dto.PlaceSuggestionDto
+import nvk.cotrip.data.network.dto.PushTokenUpsertRequest
 import nvk.cotrip.data.network.dto.RefreshRequest
 import nvk.cotrip.data.network.dto.RefreshResponse
 import nvk.cotrip.data.network.dto.ReorderActivitiesRequest
@@ -309,6 +312,11 @@ interface CoTripApi {
     @PATCH("v1/notifications/{id}/read")
     suspend fun markNotificationRead(@Path("id") id: String): Response<Unit>
 
+    @POST("v1/notifications/read-bulk")
+    suspend fun markNotificationsReadBulk(
+        @Body request: NotificationReadBulkRequest
+    ): NotificationReadBulkResponse
+
     @GET("v1/users/me/notification-settings")
     suspend fun getNotificationSettings(): NotificationSettingsResponse
 
@@ -316,4 +324,10 @@ interface CoTripApi {
     suspend fun updateNotificationSettings(
         @Body request: NotificationSettingsUpdateRequest
     ): NotificationSettingsResponse
+
+    @POST("v1/push-tokens")
+    suspend fun upsertPushToken(@Body request: PushTokenUpsertRequest): Response<Unit>
+
+    @DELETE("v1/push-tokens/{token}")
+    suspend fun deletePushToken(@Path("token") token: String): Response<Unit>
 }
