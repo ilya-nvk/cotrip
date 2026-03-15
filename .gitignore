@@ -14,6 +14,7 @@ local.properties
 captures/
 .externalNativeBuild/
 .cxx/
+android/app/google-services.json
 
 # Kotlin/Node common ignores
 node_modules/
