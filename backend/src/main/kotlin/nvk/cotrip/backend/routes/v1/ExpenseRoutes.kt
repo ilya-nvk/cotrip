@@ -54,6 +54,12 @@ data class ExpenseUpdateRequest(
     val participants: List<ExpenseParticipantInput>? = null,
 )
 
+@Serializable
+private data class ExpenseListResponse(
+    val items: List<ExpenseDto>,
+    val nextCursor: String? = null,
+)
+
 private fun isValidExpenseStatus(status: String): Boolean = status == "planned" || status == "paid"
 
 private fun isValidSplitType(splitType: String): Boolean = splitType == "equally" || splitType == "custom"
@@ -86,7 +92,7 @@ fun Route.expenseRoutes() {
                     val participants = participantMap[expense.id] ?: emptyList()
                     expense.toDto(participants)
                 }
-                call.respond(mapOf("items" to items, "nextCursor" to null))
+                call.respond(ExpenseListResponse(items = items, nextCursor = null))
             } else {
                 val page = ExpenseRepository.listByTripPage(
                     tripId = tripId,
@@ -99,9 +105,9 @@ fun Route.expenseRoutes() {
                     expense.toDto(participants)
                 }
                 call.respond(
-                    mapOf(
-                        "items" to items,
-                        "nextCursor" to page.nextCursor,
+                    ExpenseListResponse(
+                        items = items,
+                        nextCursor = page.nextCursor,
                     )
                 )
             }

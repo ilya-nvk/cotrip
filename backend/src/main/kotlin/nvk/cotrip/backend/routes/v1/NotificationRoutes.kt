@@ -44,6 +44,12 @@ data class PushTokenUpsertRequest(
     val platform: String = "android",
 )
 
+@Serializable
+private data class NotificationListResponse(
+    val items: List<NotificationDto>,
+    val nextCursor: String? = null,
+)
+
 fun Route.notificationRoutes() {
     authenticate("auth-jwt") {
         get("/v1/notifications") {
@@ -63,7 +69,7 @@ fun Route.notificationRoutes() {
                 )
             }
 
-            call.respond(mapOf("items" to notifications, "nextCursor" to null))
+            call.respond(NotificationListResponse(items = notifications, nextCursor = null))
         }
 
         patch("/v1/notifications/{id}/read") {
