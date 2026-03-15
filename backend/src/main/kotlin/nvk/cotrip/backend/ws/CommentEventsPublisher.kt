@@ -8,6 +8,7 @@ import nvk.cotrip.backend.db.CommentRow
 suspend fun publishCommentCreated(
     tripId: String,
     comment: CommentRow,
+    authorName: String? = null,
     clientMessageId: String? = null,
 ) {
     val payload = CommentCreatedMessage(
@@ -15,6 +16,7 @@ suspend fun publishCommentCreated(
             id = comment.id,
             ideaId = comment.ideaId,
             authorId = comment.authorId,
+            authorName = authorName,
             type = comment.type,
             body = comment.body,
             createdAt = comment.createdAt.toString(),

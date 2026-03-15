@@ -41,6 +41,7 @@ data class CommentCreatedPayload(
     val id: String,
     val ideaId: String,
     val authorId: String,
+    val authorName: String? = null,
     val type: String,
     val body: String,
     val createdAt: String,
