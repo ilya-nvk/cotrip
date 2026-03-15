@@ -1,12 +1,14 @@
 package nvk.cotrip.data.repository
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.runBlocking
 import nvk.cotrip.data.auth.SessionCleaner
 import nvk.cotrip.data.cache.UserCacheStore
 import nvk.cotrip.data.network.CoTripApi
 import nvk.cotrip.data.network.dto.UpdateUserRequest
 import nvk.cotrip.data.network.dto.UserDto
 import nvk.cotrip.data.network.requireSuccess
+import nvk.cotrip.notifications.PushTokenSyncManager
 import nvk.cotrip.util.AppLogger
 import retrofit2.HttpException
 import javax.inject.Inject
@@ -15,6 +17,7 @@ class UserRepositoryImpl @Inject constructor(
     private val api: CoTripApi,
     private val sessionCleaner: SessionCleaner,
     private val userCacheStore: UserCacheStore,
+    private val pushTokenSyncManager: PushTokenSyncManager,
 ) : UserRepository {
 
     private companion object {
@@ -44,6 +47,7 @@ class UserRepositoryImpl @Inject constructor(
     }
 
     override suspend fun deleteMe() {
+        runCatching { pushTokenSyncManager.unregisterRememberedToken() }
         try {
             api.deleteMe().requireSuccess()
         } catch (e: HttpException) {
@@ -56,6 +60,9 @@ class UserRepositoryImpl @Inject constructor(
     }
 
     override fun clearSession() {
+        runCatching {
+            runBlocking { pushTokenSyncManager.unregisterRememberedToken() }
+        }
         runCatching {
             sessionCleaner.clearSessionBlocking()
         }.onFailure {
