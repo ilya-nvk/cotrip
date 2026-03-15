@@ -90,6 +90,36 @@ object NotificationRepository {
         }
     }
 
+    fun markReadBulkNonComment(userId: String): Int = dbQuery { conn ->
+        conn.prepareStatement(
+            """
+            UPDATE notifications
+            SET read_at = now()
+            WHERE user_id = ? AND read_at IS NULL AND type <> 'idea_comment'
+            """.trimIndent()
+        ).use { stmt ->
+            stmt.setObject(1, UUID.fromString(userId))
+            stmt.executeUpdate()
+        }
+    }
+
+    fun markReadBulkIdeaComments(userId: String, ideaId: String): Int = dbQuery { conn ->
+        conn.prepareStatement(
+            """
+            UPDATE notifications
+            SET read_at = now()
+            WHERE user_id = ?
+              AND read_at IS NULL
+              AND type = 'idea_comment'
+              AND payload ->> 'ideaId' = ?
+            """.trimIndent()
+        ).use { stmt ->
+            stmt.setObject(1, UUID.fromString(userId))
+            stmt.setString(2, ideaId)
+            stmt.executeUpdate()
+        }
+    }
+
     fun listSettings(userId: String): List<NotificationSettingRow> = dbQuery { conn ->
         conn.prepareStatement(
             """

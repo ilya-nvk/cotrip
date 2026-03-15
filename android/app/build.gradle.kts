@@ -8,6 +8,10 @@ plugins {
     alias(libs.plugins.hilt)
 }
 
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+}
+
 val localProps = Properties().apply {
     val file = rootProject.file("local.properties")
     if (file.exists()) {
@@ -112,6 +116,9 @@ dependencies {
     implementation(libs.androidx.work.runtime.ktx)
 
     implementation(libs.play.services.auth)
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.messaging.ktx)
+    implementation(libs.kotlinx.coroutines.play.services)
 
     testImplementation(libs.junit)
 

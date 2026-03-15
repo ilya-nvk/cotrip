@@ -23,7 +23,7 @@ import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.refresh.RefreshScheduler
 import nvk.cotrip.data.repository.AuthRepository
-import nvk.cotrip.notifications.NotificationPollAlarm
+import nvk.cotrip.notifications.PushTokenSyncManager
 import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
@@ -35,6 +35,7 @@ class SignInViewModel @Inject constructor(
     private val navigator: AppNavigator,
     private val authRepository: AuthRepository,
     private val refreshScheduler: RefreshScheduler,
+    private val pushTokenSyncManager: PushTokenSyncManager,
     private val apiCaller: ApiCaller,
     private val uiErrorMapper: UiErrorMapper,
 ) : ViewModel() {
@@ -131,7 +132,9 @@ class SignInViewModel @Inject constructor(
                 is ApiResult.Success -> {
                     Log.d(TAG, "sign in success")
                     refreshScheduler.scheduleImmediate()
-                    NotificationPollAlarm.schedule(appContext, delayMs = 10_000L)
+                    withContext(Dispatchers.IO) {
+                        pushTokenSyncManager.syncCurrentToken()
+                    }
                     navigator.navigate(Destination.Trips) {
                         popUpTo(Destination.SignIn.route) { inclusive = true }
                         launchSingleTop = true

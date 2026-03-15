@@ -5,7 +5,6 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
         android:name=".CoTripApp"
@@ -76,20 +75,13 @@
             </intent-filter>
         </activity>
 
-        <receiver
-            android:name=".notifications.NotificationPollAlarmReceiver"
-            android:enabled="true"
-            android:exported="false" />
-
-        <receiver
-            android:name=".notifications.NotificationPollBootReceiver"
-            android:enabled="true"
-            android:exported="true">
+        <service
+            android:name=".notifications.CoTripFirebaseMessagingService"
+            android:exported="false">
             <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
-                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
-        </receiver>
+        </service>
 
     </application>
 

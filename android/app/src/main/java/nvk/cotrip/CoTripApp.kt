@@ -17,7 +17,8 @@ import kotlinx.coroutines.launch
 import nvk.cotrip.data.refresh.RefreshScheduler
 import nvk.cotrip.data.repository.PendingTripCreationCleaner
 import nvk.cotrip.notifications.AppRuntimeState
-import nvk.cotrip.notifications.NotificationPollAlarm
+import nvk.cotrip.notifications.ForegroundNotificationCleaner
+import nvk.cotrip.notifications.PushTokenSyncManager
 import javax.inject.Inject
 
 @HiltAndroidApp
@@ -29,13 +30,26 @@ class CoTripApp : Application(), Configuration.Provider, ImageLoaderFactory {
     @Inject
     lateinit var pendingTripCreationCleaner: PendingTripCreationCleaner
 
+    @Inject
+    lateinit var foregroundNotificationCleaner: ForegroundNotificationCleaner
+
+    @Inject
+    lateinit var pushTokenSyncManager: PushTokenSyncManager
+
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var startedActivities: Int = 0
 
     private val lifecycleCallbacks = object : ActivityLifecycleCallbacks {
         override fun onActivityStarted(activity: Activity) {
+            val wasForeground = startedActivities > 0
             startedActivities += 1
             AppRuntimeState.setAppForeground(startedActivities > 0)
+            if (!wasForeground && startedActivities > 0) {
+                appScope.launch {
+                    foregroundNotificationCleaner.onAppForeground()
+                    pushTokenSyncManager.syncCurrentToken()
+                }
+            }
         }
 
         override fun onActivityStopped(activity: Activity) {
@@ -79,9 +93,9 @@ class CoTripApp : Application(), Configuration.Provider, ImageLoaderFactory {
         registerActivityLifecycleCallbacks(lifecycleCallbacks)
         refreshScheduler.schedule()
         refreshScheduler.scheduleImmediate()
-        NotificationPollAlarm.schedule(this)
         appScope.launch {
             pendingTripCreationCleaner.cleanupOnAppStart()
+            pushTokenSyncManager.syncCurrentToken()
         }
     }
 }

@@ -10,6 +10,10 @@ interface NotificationRepository {
 
     suspend fun refreshNotifications(): Result<Unit>
     suspend fun markRead(id: String)
+    suspend fun markReadBulkNonComment(): Result<Int>
+    suspend fun markReadBulkIdeaComments(ideaId: String): Result<Int>
     suspend fun refreshSettings(): Result<Unit>
     suspend fun updateSettings(items: List<NotificationSettingDto>): Result<Unit>
+    suspend fun upsertPushToken(token: String, platform: String = "android"): Result<Unit>
+    suspend fun deletePushToken(token: String): Result<Unit>
 }

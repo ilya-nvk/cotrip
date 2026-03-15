@@ -2,12 +2,7 @@ package nvk.cotrip.data.refresh
 
 import android.content.Context
 import androidx.hilt.work.HiltWorker
-import androidx.work.Constraints
 import androidx.work.CoroutineWorker
-import androidx.work.ExistingWorkPolicy
-import androidx.work.NetworkType
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -20,7 +15,6 @@ import nvk.cotrip.data.repository.UserRepository
 import nvk.cotrip.data.sync.SyncPullRepository
 import nvk.cotrip.notifications.SystemNotificationManager
 import nvk.cotrip.util.AppLogger
-import java.util.concurrent.TimeUnit
 
 @HiltWorker
 class RefreshWorker @AssistedInject constructor(
@@ -36,8 +30,6 @@ class RefreshWorker @AssistedInject constructor(
 ) : CoroutineWorker(context, params) {
     private companion object {
         private const val TAG = "RefreshWorker"
-        private const val UNIQUE_BACKGROUND_POLL_WORK = "refresh-background-poll"
-        private const val BACKGROUND_POLL_INTERVAL_MINUTES = 2L
     }
 
     override suspend fun doWork(): Result {
@@ -64,7 +56,6 @@ class RefreshWorker @AssistedInject constructor(
         notificationsResult.exceptionOrNull()?.let { error ->
             AppLogger.w(TAG, "notifications fetch failed", error)
         }
-        scheduleNextBackgroundPoll()
 
         return if (
             syncResult.isSuccess &&
@@ -79,20 +70,5 @@ class RefreshWorker @AssistedInject constructor(
             AppLogger.w(TAG, "cycle failed, scheduling retry")
             Result.retry()
         }
-    }
-
-    private fun scheduleNextBackgroundPoll() {
-        val constraints = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.CONNECTED)
-            .build()
-        val request = OneTimeWorkRequestBuilder<RefreshWorker>()
-            .setInitialDelay(BACKGROUND_POLL_INTERVAL_MINUTES, TimeUnit.MINUTES)
-            .setConstraints(constraints)
-            .build()
-        WorkManager.getInstance(applicationContext).enqueueUniqueWork(
-            UNIQUE_BACKGROUND_POLL_WORK,
-            ExistingWorkPolicy.REPLACE,
-            request
-        )
     }
 }

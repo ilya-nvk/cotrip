@@ -20,6 +20,8 @@ Optional:
 - `YC_AI_API_KEY`, `YC_FOLDER_ID`, `YC_AI_MODEL`
 - `MEDIA_UPLOAD_DIR` (default `uploads`)
 - `MEDIA_MAX_UPLOAD_BYTES` (default 10MB)
+- `FIREBASE_PROJECT_ID`
+- `FIREBASE_SERVICE_ACCOUNT_PATH` (path to Firebase Admin SDK JSON key)
 
 ## Operational Commands (server)
 

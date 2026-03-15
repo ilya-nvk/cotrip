@@ -24,6 +24,8 @@ lifecycle = "2.6.2"
 datastore = "1.0.0"
 coil = "2.7.0"
 securityCrypto = "1.1.0-alpha06"
+googleServices = "4.4.2"
+firebaseBom = "33.9.0"
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "androidGradlePlugin" }
@@ -31,6 +33,7 @@ kotlinAndroid = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlinKapt = { id = "org.jetbrains.kotlin.kapt", version.ref = "kotlin" }
 kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
+googleServices = { id = "com.google.gms.google-services", version.ref = "googleServices" }
 
 [libraries]
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
@@ -66,6 +69,9 @@ play-services-auth = { module = "com.google.android.gms:play-services-auth", ver
 androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore" }
 androidx-security-crypto = { module = "androidx.security:security-crypto", version.ref = "securityCrypto" }
 coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coil" }
+kotlinx-coroutines-play-services = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-play-services", version.ref = "coroutines" }
+firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
+firebase-messaging-ktx = { module = "com.google.firebase:firebase-messaging-ktx" }
 androidx-test-ext-junit = { module = "androidx.test.ext:junit", version = "1.1.5" }
 androidx-test-espresso-core = { module = "androidx.test.espresso:espresso-core", version = "3.5.1" }
 androidx-compose-ui-test-junit4 = { module = "androidx.compose.ui:ui-test-junit4" }

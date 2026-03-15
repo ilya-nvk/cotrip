@@ -22,6 +22,8 @@ cd android
 ./gradlew :app:assembleDebug
 ```
 
+For Firebase push on Android, place `google-services.json` in `android/app/`.
+
 ## Docs
 
 Minimal project docs are in `/docs/README.md`.
