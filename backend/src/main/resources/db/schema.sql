@@ -1,6 +1,6 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   google_id text UNIQUE NOT NULL,
   name text NOT NULL,
@@ -9,7 +9,7 @@ CREATE TABLE users (
   deleted_at timestamptz
 );
 
-CREATE TABLE trips (
+CREATE TABLE IF NOT EXISTS trips (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   owner_id uuid NOT NULL REFERENCES users(id),
   title text NOT NULL,
@@ -25,7 +25,7 @@ CREATE TABLE trips (
   deleted_at timestamptz
 );
 
-CREATE TABLE trip_members (
+CREATE TABLE IF NOT EXISTS trip_members (
   trip_id uuid NOT NULL REFERENCES trips(id),
   user_id uuid NOT NULL REFERENCES users(id),
   role text NOT NULL CHECK (role IN ('owner', 'member')),
@@ -34,7 +34,7 @@ CREATE TABLE trip_members (
   PRIMARY KEY (trip_id, user_id)
 );
 
-CREATE TABLE trip_invite_links (
+CREATE TABLE IF NOT EXISTS trip_invite_links (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   trip_id uuid NOT NULL REFERENCES trips(id),
   token text UNIQUE NOT NULL,
@@ -45,9 +45,9 @@ CREATE TABLE trip_invite_links (
   uses_count int NOT NULL DEFAULT 0
 );
 
-CREATE INDEX idx_trip_invite_links_trip_id ON trip_invite_links(trip_id);
+CREATE INDEX IF NOT EXISTS idx_trip_invite_links_trip_id ON trip_invite_links(trip_id);
 
-CREATE TABLE ideas (
+CREATE TABLE IF NOT EXISTS ideas (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   trip_id uuid NOT NULL REFERENCES trips(id),
   author_id uuid NOT NULL REFERENCES users(id),
@@ -64,9 +64,9 @@ CREATE TABLE ideas (
   deleted_at timestamptz
 );
 
-CREATE INDEX idx_ideas_trip_status ON ideas(trip_id, status);
+CREATE INDEX IF NOT EXISTS idx_ideas_trip_status ON ideas(trip_id, status);
 
-CREATE TABLE idea_comments (
+CREATE TABLE IF NOT EXISTS idea_comments (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   idea_id uuid NOT NULL REFERENCES ideas(id),
   author_id uuid NOT NULL REFERENCES users(id),
@@ -76,9 +76,9 @@ CREATE TABLE idea_comments (
   deleted_at timestamptz
 );
 
-CREATE INDEX idx_idea_comments_idea_time ON idea_comments(idea_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_idea_comments_idea_time ON idea_comments(idea_id, created_at);
 
-CREATE TABLE itinerary_days (
+CREATE TABLE IF NOT EXISTS itinerary_days (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   trip_id uuid NOT NULL REFERENCES trips(id),
   date date NOT NULL,
@@ -92,9 +92,9 @@ CREATE TABLE itinerary_days (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_itinerary_days_trip_date ON itinerary_days(trip_id, date);
+CREATE INDEX IF NOT EXISTS idx_itinerary_days_trip_date ON itinerary_days(trip_id, date);
 
-CREATE TABLE activities (
+CREATE TABLE IF NOT EXISTS activities (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   day_id uuid NOT NULL REFERENCES itinerary_days(id),
   source_idea_id uuid REFERENCES ideas(id),
@@ -112,9 +112,9 @@ CREATE TABLE activities (
   deleted_at timestamptz
 );
 
-CREATE INDEX idx_activities_day_order ON activities(day_id, order_index);
+CREATE INDEX IF NOT EXISTS idx_activities_day_order ON activities(day_id, order_index);
 
-CREATE TABLE expenses (
+CREATE TABLE IF NOT EXISTS expenses (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   trip_id uuid NOT NULL REFERENCES trips(id),
   title text NOT NULL,
@@ -130,9 +130,9 @@ CREATE TABLE expenses (
   deleted_at timestamptz
 );
 
-CREATE INDEX idx_expenses_trip_status ON expenses(trip_id, status);
+CREATE INDEX IF NOT EXISTS idx_expenses_trip_status ON expenses(trip_id, status);
 
-CREATE TABLE expense_splits (
+CREATE TABLE IF NOT EXISTS expense_splits (
   expense_id uuid NOT NULL REFERENCES expenses(id),
   user_id uuid NOT NULL REFERENCES users(id),
   share_amount numeric,
@@ -141,7 +141,7 @@ CREATE TABLE expense_splits (
   PRIMARY KEY (expense_id, user_id)
 );
 
-CREATE TABLE weather_forecasts (
+CREATE TABLE IF NOT EXISTS weather_forecasts (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   trip_id uuid NOT NULL REFERENCES trips(id),
   city text NOT NULL,
@@ -155,7 +155,7 @@ CREATE TABLE weather_forecasts (
   UNIQUE (trip_id, city, date)
 );
 
-CREATE TABLE ai_requests (
+CREATE TABLE IF NOT EXISTS ai_requests (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   trip_id uuid NOT NULL REFERENCES trips(id),
   city text,
@@ -170,7 +170,7 @@ CREATE TABLE ai_requests (
   error text
 );
 
-CREATE TABLE ai_suggestions (
+CREATE TABLE IF NOT EXISTS ai_suggestions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   request_id uuid NOT NULL REFERENCES ai_requests(id),
   title text NOT NULL,
@@ -184,7 +184,7 @@ CREATE TABLE ai_suggestions (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE TABLE notifications (
+CREATE TABLE IF NOT EXISTS notifications (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES users(id),
   type text NOT NULL,
@@ -193,11 +193,49 @@ CREATE TABLE notifications (
   read_at timestamptz
 );
 
-CREATE INDEX idx_notifications_user_read ON notifications(user_id, read_at);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_read ON notifications(user_id, read_at);
 
-CREATE TABLE notification_settings (
+CREATE TABLE IF NOT EXISTS notification_settings (
   user_id uuid NOT NULL REFERENCES users(id),
   key text NOT NULL,
   enabled boolean NOT NULL,
   PRIMARY KEY (user_id, key)
 );
+
+CREATE TABLE IF NOT EXISTS push_tokens (
+  token text PRIMARY KEY,
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  platform text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_push_tokens_user_id ON push_tokens(user_id);
+
+CREATE TABLE IF NOT EXISTS auth_sessions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  last_seen_at timestamptz NOT NULL DEFAULT now(),
+  expires_at timestamptz NOT NULL,
+  revoked_at timestamptz,
+  revoke_reason text
+);
+
+CREATE INDEX IF NOT EXISTS idx_auth_sessions_user_active
+  ON auth_sessions(user_id, created_at DESC)
+  WHERE revoked_at IS NULL;
+
+CREATE TABLE IF NOT EXISTS auth_refresh_tokens (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id uuid NOT NULL REFERENCES auth_sessions(id) ON DELETE CASCADE,
+  token_hash text UNIQUE NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  expires_at timestamptz NOT NULL,
+  used_at timestamptz,
+  revoked_at timestamptz,
+  replaced_by uuid REFERENCES auth_refresh_tokens(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_auth_refresh_tokens_session_id ON auth_refresh_tokens(session_id);
+CREATE INDEX IF NOT EXISTS idx_auth_refresh_tokens_token_hash ON auth_refresh_tokens(token_hash);

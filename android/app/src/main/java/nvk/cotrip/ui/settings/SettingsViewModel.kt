@@ -19,6 +19,7 @@ import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.network.dto.NotificationSettingDto
 import nvk.cotrip.data.network.dto.UpdateUserRequest
+import nvk.cotrip.data.repository.AuthRepository
 import nvk.cotrip.data.repository.ImageUploadRepository
 import nvk.cotrip.data.repository.NotificationRepository
 import nvk.cotrip.data.repository.UserRepository
@@ -31,6 +32,7 @@ import javax.inject.Inject
 class SettingsViewModel @Inject constructor(
     @ApplicationContext private val appContext: Context,
     private val appNavigator: AppNavigator,
+    private val authRepository: AuthRepository,
     private val userRepository: UserRepository,
     private val imageUploadRepository: ImageUploadRepository,
     private val notificationRepository: NotificationRepository,
@@ -152,10 +154,13 @@ class SettingsViewModel @Inject constructor(
             }
 
             SettingsEvent.OnLogoutClick -> {
-                userRepository.clearSession()
-                appNavigator.navigate(Destination.SignIn) {
-                    popUpTo(Destination.Trips.route) { inclusive = true }
-                    launchSingleTop = true
+                viewModelScope.launch {
+                    runCatching { authRepository.logout() }
+                    authRepository.clearSession()
+                    appNavigator.navigate(Destination.SignIn) {
+                        popUpTo(Destination.Trips.route) { inclusive = true }
+                        launchSingleTop = true
+                    }
                 }
             }
 

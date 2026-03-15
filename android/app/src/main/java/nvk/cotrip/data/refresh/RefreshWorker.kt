@@ -46,8 +46,7 @@ class RefreshWorker @AssistedInject constructor(
             return Result.retry()
         }
 
-        val token = sessionStore.getAccessToken().orEmpty()
-        if (token.isBlank()) {
+        if (!sessionStore.hasSession()) {
             AppLogger.i(TAG, "skip: no auth token")
             return Result.success()
         }

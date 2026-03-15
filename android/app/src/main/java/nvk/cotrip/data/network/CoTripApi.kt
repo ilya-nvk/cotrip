@@ -25,6 +25,8 @@ import nvk.cotrip.data.network.dto.NotificationListResponse
 import nvk.cotrip.data.network.dto.NotificationSettingsResponse
 import nvk.cotrip.data.network.dto.NotificationSettingsUpdateRequest
 import nvk.cotrip.data.network.dto.PlaceSuggestionDto
+import nvk.cotrip.data.network.dto.RefreshRequest
+import nvk.cotrip.data.network.dto.RefreshResponse
 import nvk.cotrip.data.network.dto.ReorderActivitiesRequest
 import nvk.cotrip.data.network.dto.SyncChangesRequest
 import nvk.cotrip.data.network.dto.SyncChangesResponse
@@ -58,6 +60,12 @@ interface CoTripApi {
 
     @POST("v1/auth/google")
     suspend fun googleAuth(@Body request: AuthGoogleRequest): AuthResponse
+
+    @POST("v1/auth/refresh")
+    suspend fun refreshAuth(@Body request: RefreshRequest): RefreshResponse
+
+    @POST("v1/auth/logout")
+    suspend fun logout(): Response<Unit>
 
     @GET("v1/users/me")
     suspend fun getMe(): UserDto

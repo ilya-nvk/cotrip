@@ -14,6 +14,15 @@ DEV_AUTH_ENABLED=true \
 
 Main config comes from environment variables (JWT, DB, AI, media uploads).
 
+Database schema is created automatically from `src/main/resources/db/schema.sql` on backend start.
+
+Auth-related env vars:
+- `JWT_SECRET` (required)
+- `JWT_ACCESS_TTL_MINUTES` (optional, default `15`)
+- `JWT_REFRESH_TTL_DAYS` (optional, default `30`)
+- `AUTH_MAX_ACTIVE_SESSIONS` (optional, default `5`)
+- `GOOGLE_ALLOWED_AUDIENCES` (comma-separated Google OAuth client IDs for `/v1/auth/google`)
+
 Android App Links (for opening invite links in the app) are served from:
 `/.well-known/assetlinks.json`
 

@@ -14,7 +14,7 @@ class AuthInterceptor(
             request
         } else {
             request.newBuilder()
-                .addHeader("Authorization", "Bearer $token")
+                .header("Authorization", "Bearer $token")
                 .build()
         }
         return chain.proceed(authenticated)

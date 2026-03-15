@@ -16,6 +16,30 @@ fun loadConfig(config: ApplicationConfig): AppConfig {
         audience = config.propertyOrNull("ktor.jwt.audience")?.getString() ?: "cotrip",
         realm = config.propertyOrNull("ktor.jwt.realm")?.getString() ?: "cotrip",
         secret = config.propertyOrNull("ktor.jwt.secret")?.getString() ?: "dev-secret",
+        accessTtlMinutes = (
+            System.getenv("JWT_ACCESS_TTL_MINUTES")?.toIntOrNull()
+                ?: config.propertyOrNull("ktor.jwt.accessTtlMinutes")?.getString()?.toIntOrNull()
+                ?: 15
+            ).coerceIn(1, 120),
+        refreshTtlDays = (
+            System.getenv("JWT_REFRESH_TTL_DAYS")?.toIntOrNull()
+                ?: config.propertyOrNull("ktor.jwt.refreshTtlDays")?.getString()?.toIntOrNull()
+                ?: 30
+            ).coerceIn(1, 365),
+        maxActiveSessions = (
+            System.getenv("AUTH_MAX_ACTIVE_SESSIONS")?.toIntOrNull()
+                ?: config.propertyOrNull("ktor.jwt.maxActiveSessions")?.getString()?.toIntOrNull()
+                ?: 5
+            ).coerceIn(1, 20),
+        googleAllowedAudiences = (
+            System.getenv("GOOGLE_ALLOWED_AUDIENCES")
+                ?: config.propertyOrNull("ktor.jwt.googleAllowedAudiences")?.getString()
+            )
+            .orEmpty()
+            .split(',', ';', '\n')
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .toSet(),
     )
 
     val db = DbConfig(

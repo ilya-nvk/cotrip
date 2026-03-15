@@ -7,5 +7,6 @@ interface AuthRepository {
     fun hasSession(): Boolean
     suspend fun signInWithGoogle(idToken: String): AuthResponse
     suspend fun signInWithDev(request: AuthDevRequest): AuthResponse
+    suspend fun logout()
     fun clearSession()
 }

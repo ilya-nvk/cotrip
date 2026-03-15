@@ -16,7 +16,19 @@ data class AuthGoogleRequest(
 @Serializable
 data class AuthResponse(
     val accessToken: String,
+    val refreshToken: String,
     val user: UserDto,
+)
+
+@Serializable
+data class RefreshRequest(
+    val refreshToken: String,
+)
+
+@Serializable
+data class RefreshResponse(
+    val accessToken: String,
+    val refreshToken: String,
 )
 
 @Serializable
