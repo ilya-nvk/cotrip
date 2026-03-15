@@ -84,8 +84,25 @@ fun Route.tripRoutes() {
             }
 
             val status = call.request.queryParameters["status"]
-            val trips = TripRepository.listTripsForUser(userId, status).map { it.toDto() }
-            call.respond(mapOf("items" to trips, "nextCursor" to null))
+            val limit = call.request.queryParameters["limit"]?.toIntOrNull()?.coerceIn(1, 100)
+            val cursor = call.request.queryParameters["cursor"]
+            if (limit == null && cursor.isNullOrBlank()) {
+                val trips = TripRepository.listTripsForUser(userId, status).map { it.toDto() }
+                call.respond(mapOf("items" to trips, "nextCursor" to null))
+            } else {
+                val page = TripRepository.listTripsForUserPage(
+                    userId = userId,
+                    status = status,
+                    limit = limit ?: 100,
+                    cursor = cursor,
+                )
+                call.respond(
+                    mapOf(
+                        "items" to page.items.map { it.toDto() },
+                        "nextCursor" to page.nextCursor,
+                    )
+                )
+            }
         }
 
         get("/v1/trips/{tripId}") {

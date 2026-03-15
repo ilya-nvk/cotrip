@@ -23,6 +23,7 @@ class UiErrorMapper @Inject constructor(
             "weather_refresh_failed" -> R.string.common_error_weather_refresh
             "ai_provider_unavailable" -> R.string.common_error_ai_unavailable
             "ai_generation_failed" -> R.string.common_error_ai_generation
+            "limit_reached" -> R.string.common_error_limit_reached
 
             else -> when {
                 failure.httpCode == 401 -> R.string.common_error_unauthorized

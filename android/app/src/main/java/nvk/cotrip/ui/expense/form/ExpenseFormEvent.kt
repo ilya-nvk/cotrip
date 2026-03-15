@@ -6,6 +6,8 @@ sealed interface ExpenseFormEvent {
     data object OnBackClick : ExpenseFormEvent
     data object OnPrimaryClick : ExpenseFormEvent
     data object OnDeleteClick : ExpenseFormEvent
+    data object OnDismissLimitDialog : ExpenseFormEvent
+    data object OnConfirmDeleteOldestAndRetry : ExpenseFormEvent
     data object OnDateClick : ExpenseFormEvent
     data class OnDateSelected(val date: LocalDate) : ExpenseFormEvent
     data object OnPaidByClick : ExpenseFormEvent

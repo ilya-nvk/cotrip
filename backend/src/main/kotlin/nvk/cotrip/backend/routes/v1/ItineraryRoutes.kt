@@ -198,26 +198,56 @@ fun Route.itineraryRoutes(weatherConfig: WeatherConfig) {
                 return@get
             }
 
-            val days = ItineraryDayRepository.listByTrip(tripId)
-            val activities = ActivityRepository.listByDayIds(days.map { it.id })
-            val activitiesByDay = activities.groupBy { it.dayId }
-
-            val result = days.map { day ->
-                ItineraryDayDto(
-                    id = day.id,
-                    tripId = day.tripId,
-                    date = day.date.toString(),
-                    dayNumber = day.dayNumber,
-                    city = day.city,
-                    cityProviderId = day.cityProviderId,
-                    cityLat = day.cityLat,
-                    cityLon = day.cityLon,
-                    isOutOfRange = day.isOutOfRange,
-                    activities = activitiesByDay[day.id].orEmpty().map { it.toDto() },
+            val limit = call.request.queryParameters["limit"]?.toIntOrNull()?.coerceIn(1, 100)
+            val cursor = call.request.queryParameters["cursor"]
+            if (limit == null && cursor.isNullOrBlank()) {
+                val days = ItineraryDayRepository.listByTrip(tripId)
+                val activities = ActivityRepository.listByDayIds(days.map { it.id })
+                val activitiesByDay = activities.groupBy { it.dayId }
+                val result = days.map { day ->
+                    ItineraryDayDto(
+                        id = day.id,
+                        tripId = day.tripId,
+                        date = day.date.toString(),
+                        dayNumber = day.dayNumber,
+                        city = day.city,
+                        cityProviderId = day.cityProviderId,
+                        cityLat = day.cityLat,
+                        cityLon = day.cityLon,
+                        isOutOfRange = day.isOutOfRange,
+                        activities = activitiesByDay[day.id].orEmpty().map { it.toDto() },
+                    )
+                }
+                call.respond(mapOf("items" to result, "nextCursor" to null))
+            } else {
+                val page = ItineraryDayRepository.listByTripPage(
+                    tripId = tripId,
+                    limit = limit ?: 100,
+                    cursor = cursor,
+                )
+                val activities = ActivityRepository.listByDayIds(page.items.map { it.id })
+                val activitiesByDay = activities.groupBy { it.dayId }
+                val result = page.items.map { day ->
+                    ItineraryDayDto(
+                        id = day.id,
+                        tripId = day.tripId,
+                        date = day.date.toString(),
+                        dayNumber = day.dayNumber,
+                        city = day.city,
+                        cityProviderId = day.cityProviderId,
+                        cityLat = day.cityLat,
+                        cityLon = day.cityLon,
+                        isOutOfRange = day.isOutOfRange,
+                        activities = activitiesByDay[day.id].orEmpty().map { it.toDto() },
+                    )
+                }
+                call.respond(
+                    mapOf(
+                        "items" to result,
+                        "nextCursor" to page.nextCursor,
+                    )
                 )
             }
-
-            call.respond(mapOf("items" to result))
         }
 
         patch("/v1/itinerary/days/{dayId}") {

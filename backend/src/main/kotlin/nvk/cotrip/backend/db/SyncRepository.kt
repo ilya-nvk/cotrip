@@ -15,6 +15,11 @@ data class SyncChangeRow(
     val payload: JsonElement,
 )
 
+data class SyncChangesPage(
+    val items: List<SyncChangeRow>,
+    val nextCursor: String?,
+)
+
 object SyncRepository {
     fun listChanges(userId: String, since: OffsetDateTime): List<SyncChangeRow> = dbQuery { conn ->
         val changes = mutableListOf<SyncChangeRow>()
@@ -23,7 +28,38 @@ object SyncRepository {
         changes += listItineraryDayChanges(conn, userId, since)
         changes += listActivityChanges(conn, userId, since)
         changes += listExpenseChanges(conn, userId, since)
-        changes.sortedBy { it.updatedAt }
+        changes.sortedWith(compareBy({ it.updatedAt }, { it.entity }, { it.id }))
+    }
+
+    fun listChangesPage(
+        userId: String,
+        since: OffsetDateTime,
+        limit: Int,
+        cursor: String?,
+    ): SyncChangesPage {
+        val all = listChanges(userId, since)
+        val cursorKey = cursor?.let(::parseCursorKey)
+        val filtered = if (cursorKey == null) {
+            all
+        } else {
+            all.filter {
+                compareSyncKey(
+                    updatedAt = it.updatedAt,
+                    entity = it.entity,
+                    id = it.id,
+                    cursor = cursorKey,
+                ) > 0
+            }
+        }
+        val hasMore = filtered.size > limit
+        val items = if (hasMore) filtered.take(limit) else filtered
+        val nextCursor = if (hasMore) {
+            val tail = items.last()
+            encodeCursorKey(tail.updatedAt, tail.entity, tail.id)
+        } else {
+            null
+        }
+        return SyncChangesPage(items = items, nextCursor = nextCursor)
     }
 
     private fun listTripChanges(conn: java.sql.Connection, userId: String, since: OffsetDateTime): List<SyncChangeRow> {
@@ -223,5 +259,45 @@ object SyncRepository {
             deletedAt = rs.getObject("deleted_at", OffsetDateTime::class.java),
             payload = syncJson.parseToJsonElement(payloadString),
         )
+    }
+
+    private data class SyncCursorKey(
+        val updatedAt: OffsetDateTime,
+        val entity: String,
+        val id: String,
+    )
+
+    private fun encodeCursorKey(updatedAt: OffsetDateTime, entity: String, id: String): String {
+        return CursorCodec.encode("$updatedAt|$entity|$id")
+    }
+
+    private fun parseCursorKey(cursor: String): SyncCursorKey {
+        val decoded = CursorCodec.decode(cursor).split("|")
+        if (decoded.size != 3) throw IllegalArgumentException("invalid_cursor")
+        val updatedAt = runCatching { OffsetDateTime.parse(decoded[0]) }.getOrElse {
+            throw IllegalArgumentException("invalid_cursor")
+        }
+        val entity = decoded[1]
+        val id = runCatching { java.util.UUID.fromString(decoded[2]).toString() }.getOrElse {
+            throw IllegalArgumentException("invalid_cursor")
+        }
+        return SyncCursorKey(
+            updatedAt = updatedAt,
+            entity = entity,
+            id = id,
+        )
+    }
+
+    private fun compareSyncKey(
+        updatedAt: OffsetDateTime,
+        entity: String,
+        id: String,
+        cursor: SyncCursorKey,
+    ): Int {
+        val timeCmp = updatedAt.compareTo(cursor.updatedAt)
+        if (timeCmp != 0) return timeCmp
+        val entityCmp = entity.compareTo(cursor.entity)
+        if (entityCmp != 0) return entityCmp
+        return id.compareTo(cursor.id)
     }
 }

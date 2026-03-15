@@ -16,9 +16,11 @@ import nvk.cotrip.R
 import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.network.dto.CreateTripRequest
+import nvk.cotrip.data.network.limitReachedDetails
 import nvk.cotrip.data.repository.ImageUploadRepository
 import nvk.cotrip.data.repository.PendingTripCreationStore
 import nvk.cotrip.data.repository.TripRepository
+import nvk.cotrip.ui.common.LimitDialogState
 import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
@@ -107,6 +109,14 @@ class CreateTripViewModel @Inject constructor(
                 createTrip()
             }
 
+            TripFormEvent.OnDismissLimitDialog -> {
+                _state.update { it.copy(limitDialog = null) }
+            }
+
+            TripFormEvent.OnConfirmDeleteOldestAndRetry -> {
+                deleteOldestAndRetry()
+            }
+
             TripFormEvent.OnArchiveClick,
             TripFormEvent.OnDeleteClick -> Unit
         }
@@ -185,6 +195,20 @@ class CreateTripViewModel @Inject constructor(
                 }
 
                 is ApiResult.Failure -> {
+                    val limitDetails = result.limitReachedDetails()
+                    val oldest = limitDetails?.oldestCandidate
+                    if (oldest?.deletable == true) {
+                        _state.update {
+                            it.copy(
+                                isLoading = false,
+                                limitDialog = LimitDialogState(
+                                    oldestId = oldest.id,
+                                    oldestLabel = oldest.label,
+                                )
+                            )
+                        }
+                        return@launch
+                    }
                     AppLogger.w(
                         TAG,
                         "createTrip failed code=${result.httpCode} apiCode=${result.error?.code.orEmpty()}",
@@ -210,6 +234,50 @@ class CreateTripViewModel @Inject constructor(
 
             _state.update { it.copy(isLoading = false) }
         }
+    }
+
+    private fun deleteOldestAndRetry() {
+        val dialog = _state.value.limitDialog ?: return
+        viewModelScope.launch {
+            _state.update { it.copy(limitDialog = null, isLoading = true) }
+            when (val result = apiCaller.call {
+                withContext(Dispatchers.IO) {
+                    tripRepository.deleteTrip(dialog.oldestId)
+                    val request = buildCreateTripRequest(state.value)
+                    tripRepository.createTrip(request)
+                }
+            }) {
+                is ApiResult.Success -> {
+                    markTripCreationPending(result.data)
+                    emitToastRes(R.string.create_trip_created_toast)
+                    appNavigator.navigate(
+                        Destination.TripItinerary(
+                            tripId = result.data,
+                            requireCities = true,
+                            creationFlow = true,
+                        )
+                    )
+                }
+
+                is ApiResult.Failure -> {
+                    emitToastRes(uiErrorMapper.messageRes(result))
+                    _state.update { it.copy(isLoading = false) }
+                }
+            }
+            _state.update { it.copy(isLoading = false) }
+        }
+    }
+
+    private fun buildCreateTripRequest(state: TripFormState): CreateTripRequest {
+        return CreateTripRequest(
+            title = state.name,
+            description = state.description.takeIf { it.isNotBlank() },
+            startDate = checkNotNull(state.startDate).toString(),
+            endDate = checkNotNull(state.endDate).toString(),
+            locationLine = null,
+            coverUrl = state.coverUri,
+            currencyCode = state.currency.code,
+        )
     }
 
     private suspend fun recoverCreatedTripId(request: CreateTripRequest): String? {

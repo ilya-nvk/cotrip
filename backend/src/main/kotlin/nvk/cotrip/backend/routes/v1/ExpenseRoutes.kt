@@ -77,14 +77,34 @@ fun Route.expenseRoutes() {
                 return@get
             }
 
-            val expenses = ExpenseRepository.listByTrip(tripId)
-            val participantMap = ExpenseRepository.listParticipants(expenses.map { it.id })
-            val items = expenses.map { expense ->
-                val participants = participantMap[expense.id] ?: emptyList()
-                expense.toDto(participants)
+            val limit = call.request.queryParameters["limit"]?.toIntOrNull()?.coerceIn(1, 100)
+            val cursor = call.request.queryParameters["cursor"]
+            if (limit == null && cursor.isNullOrBlank()) {
+                val expenses = ExpenseRepository.listByTrip(tripId)
+                val participantMap = ExpenseRepository.listParticipants(expenses.map { it.id })
+                val items = expenses.map { expense ->
+                    val participants = participantMap[expense.id] ?: emptyList()
+                    expense.toDto(participants)
+                }
+                call.respond(mapOf("items" to items, "nextCursor" to null))
+            } else {
+                val page = ExpenseRepository.listByTripPage(
+                    tripId = tripId,
+                    limit = limit ?: 100,
+                    cursor = cursor,
+                )
+                val participantMap = ExpenseRepository.listParticipants(page.items.map { it.id })
+                val items = page.items.map { expense ->
+                    val participants = participantMap[expense.id] ?: emptyList()
+                    expense.toDto(participants)
+                }
+                call.respond(
+                    mapOf(
+                        "items" to items,
+                        "nextCursor" to page.nextCursor,
+                    )
+                )
             }
-
-            call.respond(mapOf("items" to items, "nextCursor" to null))
         }
 
         post("/v1/trips/{tripId}/expenses") {

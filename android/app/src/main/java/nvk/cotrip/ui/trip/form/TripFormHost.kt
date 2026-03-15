@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -28,6 +29,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -109,6 +111,32 @@ fun TripFormHost(
         minDate?.let { dialog.datePicker.minDate = it.toEpochMillisAtStartOfDay() }
         maxDate?.let { dialog.datePicker.maxDate = it.toEpochMillisAtStartOfDay() }
         dialog.show()
+    }
+
+    state.limitDialog?.let { dialog ->
+        AlertDialog(
+            onDismissRequest = { onEvent(TripFormEvent.OnDismissLimitDialog) },
+            title = { Text(text = stringResource(R.string.limit_reached_dialog_title)) },
+            text = {
+                Text(
+                    text = stringResource(
+                        R.string.limit_reached_dialog_message,
+                        dialog.oldestLabel?.takeIf { it.isNotBlank() }
+                            ?: stringResource(R.string.limit_reached_oldest_fallback)
+                    )
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { onEvent(TripFormEvent.OnConfirmDeleteOldestAndRetry) }) {
+                    Text(text = stringResource(R.string.limit_reached_dialog_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { onEvent(TripFormEvent.OnDismissLimitDialog) }) {
+                    Text(text = stringResource(R.string.common_cancel))
+                }
+            }
+        )
     }
 
     TripFormScreen(

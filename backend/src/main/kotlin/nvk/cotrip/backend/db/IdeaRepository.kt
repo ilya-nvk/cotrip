@@ -3,6 +3,9 @@ package nvk.cotrip.backend.db
 import java.sql.ResultSet
 import java.time.OffsetDateTime
 import java.util.UUID
+import nvk.cotrip.backend.limits.LimitReachedException
+import nvk.cotrip.backend.limits.Limits
+import nvk.cotrip.backend.limits.OldestCandidate
 
 
 data class IdeaRow(
@@ -17,6 +20,11 @@ data class IdeaRow(
     val notes: String?,
     val status: String,
     val updatedAt: OffsetDateTime,
+)
+
+data class IdeaPage(
+    val items: List<IdeaRow>,
+    val nextCursor: String?,
 )
 
 object IdeaRepository {
@@ -91,6 +99,93 @@ object IdeaRepository {
         }
     }
 
+    fun listPage(
+        tripId: String,
+        search: String?,
+        status: String?,
+        authorId: String?,
+        city: String?,
+        limit: Int,
+        cursor: String?,
+    ): IdeaPage = dbQuery { conn ->
+        val conditions = mutableListOf<String>()
+        val params = mutableListOf<Any>()
+        conditions += "trip_id = ?"
+        params += UUID.fromString(tripId)
+        conditions += "deleted_at IS NULL"
+
+        if (!search.isNullOrBlank()) {
+            conditions += "title ILIKE ?"
+            params += "%${search.trim()}%"
+        }
+        if (!status.isNullOrBlank()) {
+            conditions += "status = ?"
+            params += status
+        }
+        if (!authorId.isNullOrBlank()) {
+            conditions += "author_id = ?"
+            params += UUID.fromString(authorId)
+        }
+        if (!city.isNullOrBlank()) {
+            conditions += "city ILIKE ?"
+            params += city.trim()
+        }
+
+        var cursorUpdatedAt: OffsetDateTime? = null
+        var cursorId: String? = null
+        if (!cursor.isNullOrBlank()) {
+            val decoded = CursorCodec.decode(cursor).split("|")
+            if (decoded.size != 2) throw IllegalArgumentException("invalid_cursor")
+            cursorUpdatedAt = runCatching { OffsetDateTime.parse(decoded[0]) }.getOrElse {
+                throw IllegalArgumentException("invalid_cursor")
+            }
+            cursorId = runCatching { UUID.fromString(decoded[1]).toString() }.getOrElse {
+                throw IllegalArgumentException("invalid_cursor")
+            }
+            conditions += "(updated_at < ? OR (updated_at = ? AND id < ?))"
+            params += cursorUpdatedAt
+            params += cursorUpdatedAt
+            params += UUID.fromString(cursorId)
+        }
+
+        val sql = """
+            SELECT id, trip_id, author_id, title, city, link, cost_amount, cost_type, notes, status, updated_at
+            FROM ideas
+            WHERE ${conditions.joinToString(" AND ")}
+            ORDER BY updated_at DESC, id DESC
+            LIMIT ?
+        """.trimIndent()
+
+        conn.prepareStatement(sql).use { stmt ->
+            var bind = 1
+            params.forEach { value ->
+                when (value) {
+                    is UUID -> stmt.setObject(bind++, value)
+                    is String -> stmt.setString(bind++, value)
+                    is OffsetDateTime -> stmt.setObject(bind++, value)
+                    else -> stmt.setObject(bind++, value)
+                }
+            }
+            stmt.setInt(bind, limit + 1)
+
+            stmt.executeQuery().use { rs ->
+                val fetched = mutableListOf<IdeaRow>()
+                while (rs.next()) {
+                    fetched += mapIdea(rs)
+                }
+                val hasMore = fetched.size > limit
+                val items = if (hasMore) fetched.take(limit) else fetched
+                val nextCursor = if (hasMore) {
+                    val tail = items.last()
+                    CursorCodec.encode("${tail.updatedAt}|${tail.id}")
+                } else {
+                    null
+                }
+                IdeaPage(items = items, nextCursor = nextCursor)
+            }
+        }
+    }
+
     fun get(ideaId: String): IdeaRow? = dbQuery { conn ->
         conn.prepareStatement(
             """
@@ -116,6 +211,68 @@ object IdeaRepository {
         costType: String?,
         notes: String?,
     ): IdeaRow = dbQuery { conn ->
+        val tripOwnerId = conn.prepareStatement(
+            """
+            SELECT owner_id
+            FROM trips
+            WHERE id = ? AND deleted_at IS NULL
+            FOR UPDATE
+            """.trimIndent()
+        ).use { stmt ->
+            stmt.setObject(1, UUID.fromString(tripId))
+            stmt.executeQuery().use { rs ->
+                if (rs.next()) rs.getObject("owner_id", UUID::class.java).toString() else null
+            }
+        } ?: throw IllegalArgumentException("trip_not_found")
+
+        val count = conn.prepareStatement(
+            """
+            SELECT COUNT(*) AS cnt
+            FROM ideas
+            WHERE trip_id = ? AND deleted_at IS NULL
+            """.trimIndent()
+        ).use { stmt ->
+            stmt.setObject(1, UUID.fromString(tripId))
+            stmt.executeQuery().use { rs ->
+                rs.next()
+                rs.getInt("cnt")
+            }
+        }
+
+        if (count >= Limits.IDEAS_PER_TRIP) {
+            val oldest = conn.prepareStatement(
+                """
+                SELECT id, title, created_at, author_id
+                FROM ideas
+                WHERE trip_id = ? AND deleted_at IS NULL
+                ORDER BY created_at ASC, id ASC
+                LIMIT 1
+                """.trimIndent()
+            ).use { stmt ->
+                stmt.setObject(1, UUID.fromString(tripId))
+                stmt.executeQuery().use { rs ->
+                    if (rs.next()) {
+                        val oldestAuthorId = rs.getObject("author_id", UUID::class.java).toString()
+                        OldestCandidate(
+                            id = rs.getObject("id", UUID::class.java).toString(),
+                            label = rs.getString("title"),
+                            createdAt = rs.getObject("created_at", OffsetDateTime::class.java),
+                            deletable = (authorId == tripOwnerId || oldestAuthorId == authorId),
+                        )
+                    } else {
+                        null
+                    }
+                }
+            }
+            throw LimitReachedException(
+                entity = "idea",
+                scopeId = tripId,
+                limit = Limits.IDEAS_PER_TRIP,
+                currentCount = count,
+                oldestCandidate = oldest,
+            )
+        }
+
         conn.prepareStatement(
             """
             INSERT INTO ideas (trip_id, author_id, title, city, link, cost_amount, cost_type, notes, status)

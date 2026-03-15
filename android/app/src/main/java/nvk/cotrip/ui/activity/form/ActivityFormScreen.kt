@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -85,6 +86,36 @@ private fun ActivityFormScreen(
                         .show()
             }
         }
+    }
+
+    state.limitDialog?.let { dialog ->
+        AlertDialog(
+            onDismissRequest = { viewModel.onEvent(ActivityFormEvent.OnDismissLimitDialog) },
+            title = { Text(text = stringResource(R.string.limit_reached_dialog_title)) },
+            text = {
+                Text(
+                    text = stringResource(
+                        R.string.limit_reached_dialog_message,
+                        dialog.oldestLabel?.takeIf { it.isNotBlank() }
+                            ?: stringResource(R.string.limit_reached_oldest_fallback)
+                    )
+                )
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(
+                    onClick = { viewModel.onEvent(ActivityFormEvent.OnConfirmDeleteOldestAndRetry) }
+                ) {
+                    Text(text = stringResource(R.string.limit_reached_dialog_confirm))
+                }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(
+                    onClick = { viewModel.onEvent(ActivityFormEvent.OnDismissLimitDialog) }
+                ) {
+                    Text(text = stringResource(R.string.common_cancel))
+                }
+            }
+        )
     }
 
     fun showDatePicker() {

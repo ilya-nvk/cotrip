@@ -2,18 +2,23 @@ package nvk.cotrip.backend.ws
 
 import io.ktor.server.application.call
 import io.ktor.server.routing.Route
+import io.ktor.server.websocket.DefaultWebSocketServerSession
 import io.ktor.server.websocket.webSocket
 import io.ktor.websocket.CloseReason
 import io.ktor.websocket.Frame
 import io.ktor.websocket.close
 import io.ktor.websocket.readText
+import io.ktor.websocket.send
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
 import nvk.cotrip.backend.auth.JwtService
 import nvk.cotrip.backend.db.CommentRepository
 import nvk.cotrip.backend.db.IdeaRepository
 import nvk.cotrip.backend.db.TripRepository
 import nvk.cotrip.backend.db.UserRepository
+import nvk.cotrip.backend.limits.LimitReachedException
+import nvk.cotrip.backend.limits.toDetailsJson
 import nvk.cotrip.backend.notifications.NotificationService
 
 fun Route.commentsWebSocket() {
@@ -45,7 +50,11 @@ fun Route.commentsWebSocket() {
     }
 }
 
-private suspend fun handleTextFrame(tripId: String, userId: String, text: String) {
+private suspend fun DefaultWebSocketServerSession.handleTextFrame(
+    tripId: String,
+    userId: String,
+    text: String,
+) {
     val json = WsJson.instance
     val type = runCatching {
         json.decodeFromString<WsEnvelope>(text).type
@@ -63,7 +72,19 @@ private suspend fun handleTextFrame(tripId: String, userId: String, text: String
             if (ideaTripId != tripId) return
             if (!TripRepository.isMember(tripId, userId)) return
 
-            val stored = CommentRepository.create(ideaId, userId, body)
+            val stored = try {
+                CommentRepository.create(ideaId, userId, body)
+            } catch (limitReached: LimitReachedException) {
+                val rejected = CommentRejectedMessage(
+                    payload = CommentRejectedPayload(
+                        clientMessageId = clientMessageId,
+                        reason = "limit_reached",
+                        details = limitReached.toDetailsJson(),
+                    )
+                )
+                send(Frame.Text(json.encodeToString(rejected)))
+                return
+            }
             val actorName = UserRepository.findById(userId)?.name ?: "Someone"
             publishCommentCreated(
                 tripId = tripId,

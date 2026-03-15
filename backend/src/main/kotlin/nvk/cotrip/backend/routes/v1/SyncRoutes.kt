@@ -66,17 +66,38 @@ fun Route.syncRoutes() {
                 return@get
             }
 
-            val changes = SyncRepository.listChanges(userId, since).map { change ->
-                SyncChangeDto(
-                    entity = change.entity,
-                    id = change.id,
-                    updatedAt = change.updatedAt.toString(),
-                    deletedAt = change.deletedAt?.toString(),
-                    payload = change.payload,
-                )
-            }
+            val limit = call.request.queryParameters["limit"]?.toIntOrNull()?.coerceIn(1, 100)
+            val cursor = call.request.queryParameters["cursor"]
 
-            call.respond(SyncPullResponse(items = changes, nextCursor = null))
+            if (limit == null && cursor.isNullOrBlank()) {
+                val changes = SyncRepository.listChanges(userId, since).map { change ->
+                    SyncChangeDto(
+                        entity = change.entity,
+                        id = change.id,
+                        updatedAt = change.updatedAt.toString(),
+                        deletedAt = change.deletedAt?.toString(),
+                        payload = change.payload,
+                    )
+                }
+                call.respond(SyncPullResponse(items = changes, nextCursor = null))
+            } else {
+                val page = SyncRepository.listChangesPage(
+                    userId = userId,
+                    since = since,
+                    limit = limit ?: 100,
+                    cursor = cursor,
+                )
+                val items = page.items.map { change ->
+                    SyncChangeDto(
+                        entity = change.entity,
+                        id = change.id,
+                        updatedAt = change.updatedAt.toString(),
+                        deletedAt = change.deletedAt?.toString(),
+                        payload = change.payload,
+                    )
+                }
+                call.respond(SyncPullResponse(items = items, nextCursor = page.nextCursor))
+            }
         }
 
         post("/v1/sync/changes") {

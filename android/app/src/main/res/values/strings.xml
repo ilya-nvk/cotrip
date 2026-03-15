@@ -47,6 +47,11 @@
     <string name="common_error_weather_refresh">Unable to refresh weather forecast.</string>
     <string name="common_error_ai_unavailable">AI provider is not configured on server.</string>
     <string name="common_error_ai_generation">Unable to generate AI suggestions right now.</string>
+    <string name="common_error_limit_reached">Data limit reached. Remove old items and try again.</string>
+    <string name="limit_reached_dialog_title">Limit reached</string>
+    <string name="limit_reached_dialog_message">To add a new item, delete the oldest: %1$s?</string>
+    <string name="limit_reached_dialog_confirm">Delete and retry</string>
+    <string name="limit_reached_oldest_fallback">oldest item</string>
     <string name="create_trip_title">Create trip</string>
     <string name="create_trip_primary_button">Create trip</string>
     <string name="create_trip_created_toast">Trip created</string>
@@ -193,6 +198,7 @@
     <string name="idea_details_comment_sending">Sending…</string>
     <string name="idea_details_comment_failed">Not sent</string>
     <string name="idea_details_retry_comment">Retry</string>
+    <string name="idea_details_retry_with_delete_oldest">Delete oldest and retry</string>
     <string name="idea_details_delete_pending_comment">Delete</string>
     <string name="idea_details_added_toast">Idea added to itinerary</string>
     <string name="idea_details_deleted_toast">Idea deleted</string>

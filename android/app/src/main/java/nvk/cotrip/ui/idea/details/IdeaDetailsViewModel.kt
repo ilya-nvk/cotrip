@@ -32,7 +32,9 @@ import nvk.cotrip.data.network.dto.ConvertIdeaRequest
 import nvk.cotrip.data.network.dto.IdeaDto
 import nvk.cotrip.data.network.dto.ItineraryDayDto
 import nvk.cotrip.data.network.dto.MemberDto
+import nvk.cotrip.data.network.parseLimitReachedDetails
 import nvk.cotrip.data.network.ws.CommentCreatedPayload
+import nvk.cotrip.data.network.ws.CommentRejectedPayload
 import nvk.cotrip.data.network.ws.CommentWsEvent
 import nvk.cotrip.data.network.ws.CommentsWebSocket
 import nvk.cotrip.data.repository.IdeaRepository
@@ -273,6 +275,7 @@ class IdeaDetailsViewModel @Inject constructor(
                 when (event) {
                     is CommentWsEvent.CommentCreated -> handleCommentCreated(event.payload)
                     is CommentWsEvent.CommentDeleted -> handleCommentDeleted(event.payload.id)
+                    is CommentWsEvent.CommentRejected -> handleCommentRejected(event.payload)
                     is CommentWsEvent.Closed -> {
                         AppLogger.w(
                             TAG,
@@ -412,9 +415,33 @@ class IdeaDetailsViewModel @Inject constructor(
     private fun retryComment(localId: String) {
         val pending = pendingComments[localId] ?: return
         if (pending.status == PendingStatus.Sending) return
-        pendingComments[localId] = pending.copy(status = PendingStatus.Sending)
-        updatePendingMessageStatus(localId, IdeaDiscussionItemUi.DeliveryState.Sending)
-        sendPendingComment(localId)
+        val oldestId = pending.oldestCommentIdForRetry
+        if (oldestId.isNullOrBlank()) {
+            pendingComments[localId] = pending.copy(status = PendingStatus.Sending)
+            updatePendingMessageStatus(localId, IdeaDiscussionItemUi.DeliveryState.Sending)
+            sendPendingComment(localId)
+            return
+        }
+
+        viewModelScope.launch {
+            when (val result = apiCaller.call {
+                withContext(Dispatchers.IO) { ideaRepository.deleteComment(oldestId) }
+            }) {
+                is ApiResult.Success -> {
+                    val refreshed = pendingComments[localId] ?: return@launch
+                    pendingComments[localId] = refreshed.copy(
+                        status = PendingStatus.Sending,
+                        oldestCommentIdForRetry = null,
+                    )
+                    updatePendingMessageStatus(localId, IdeaDiscussionItemUi.DeliveryState.Sending)
+                    sendPendingComment(localId)
+                }
+
+                is ApiResult.Failure -> {
+                    emit(IdeaDetailsEffect.ShowToastRes(uiErrorMapper.messageRes(result)))
+                }
+            }
+        }
     }
 
     private fun deletePendingComment(localId: String) {
@@ -480,6 +507,15 @@ class IdeaDetailsViewModel @Inject constructor(
         updatePendingMessageStatus(localId, IdeaDiscussionItemUi.DeliveryState.Failed)
     }
 
+    private fun markPendingFailedWithDeleteCandidate(localId: String, oldestCommentId: String) {
+        val pending = pendingComments[localId] ?: return
+        pendingComments[localId] = pending.copy(
+            status = PendingStatus.Failed,
+            oldestCommentIdForRetry = oldestCommentId,
+        )
+        updatePendingMessageStatus(localId, IdeaDiscussionItemUi.DeliveryState.Failed)
+    }
+
     private fun updatePendingMessageStatus(
         localId: String,
         deliveryState: IdeaDiscussionItemUi.DeliveryState,
@@ -489,13 +525,29 @@ class IdeaDetailsViewModel @Inject constructor(
                 discussion = current.discussion.map { item ->
                     val message = item as? IdeaDiscussionItemUi.Message ?: return@map item
                     if (message.localId == localId) {
-                        message.copy(deliveryState = deliveryState)
+                        val pending = pendingComments[localId]
+                        message.copy(
+                            deliveryState = deliveryState,
+                            deleteOldestOnRetry = pending?.oldestCommentIdForRetry != null,
+                        )
                     } else {
                         message
                     }
                 }
             )
         }
+    }
+
+    private fun handleCommentRejected(payload: CommentRejectedPayload) {
+        if (payload.reason != "limit_reached") return
+        val localId = payload.clientMessageId ?: return
+        val details = parseLimitReachedDetails(payload.details)
+        val oldest = details?.oldestCandidate
+        if (oldest?.deletable == true && oldest.id.isNotBlank()) {
+            markPendingFailedWithDeleteCandidate(localId, oldest.id)
+            return
+        }
+        markPendingFailed(localId)
     }
 
     private fun resolvePendingOnCreated(payload: CommentCreatedPayload): String? {
@@ -737,7 +789,8 @@ private fun pendingToMessage(
         time = formatTimestamp(Instant.ofEpochMilli(pending.createdAtMillis).toString()),
         isMe = true,
         deliveryState = deliveryState,
-        localId = pending.localId
+        localId = pending.localId,
+        deleteOldestOnRetry = pending.oldestCommentIdForRetry != null,
     )
 }
 
@@ -766,6 +819,7 @@ private data class PendingComment(
     val text: String,
     val createdAtMillis: Long,
     val status: PendingStatus,
+    val oldestCommentIdForRetry: String? = null,
 )
 
 private enum class PendingStatus {

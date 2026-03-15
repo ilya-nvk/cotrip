@@ -102,7 +102,13 @@ class ExpenseRepositoryImpl @Inject constructor(
 
     override suspend fun refreshExpenses(tripId: String): Result<Unit> {
         return runCatching {
-            val expenses = api.listExpenses(tripId).items
+            val expenses = mutableListOf<ExpenseDto>()
+            var cursor: String? = null
+            do {
+                val page = api.listExpenses(tripId = tripId, limit = 100, cursor = cursor)
+                expenses += page.items
+                cursor = page.nextCursor
+            } while (cursor != null)
             safeLocalMutation("refreshExpenses.setExpenses(tripId=$tripId)") {
                 expensesCacheStore.setExpenses(tripId, expenses)
             }

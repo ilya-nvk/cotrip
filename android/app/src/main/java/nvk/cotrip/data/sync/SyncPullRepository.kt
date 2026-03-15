@@ -30,9 +30,21 @@ class SyncPullRepository @Inject constructor(
             val sinceRaw = syncStateStore.getLastSync()
             val since = sinceRaw?.let { OffsetDateTime.parse(it) }
                 ?: OffsetDateTime.parse("1970-01-01T00:00:00Z")
-            val response = api.getSyncChanges(since.toString())
-            applyChanges(response.items)
-            val maxUpdated = response.items.mapNotNull { parseUpdatedAt(it) }.maxOrNull()
+            var cursor: String? = null
+            var maxUpdated: OffsetDateTime? = null
+            do {
+                val response = api.getSyncChanges(
+                    since = since.toString(),
+                    limit = 100,
+                    cursor = cursor,
+                )
+                applyChanges(response.items)
+                val pageMax = response.items.mapNotNull { parseUpdatedAt(it) }.maxOrNull()
+                if (pageMax != null && (maxUpdated == null || pageMax.isAfter(maxUpdated))) {
+                    maxUpdated = pageMax
+                }
+                cursor = response.nextCursor
+            } while (cursor != null)
             val nextCursor = maxUpdated ?: OffsetDateTime.now()
             syncStateStore.setLastSync(nextCursor.toString())
         }

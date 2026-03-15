@@ -19,9 +19,11 @@ import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.network.dto.ExpenseCreateRequest
 import nvk.cotrip.data.network.dto.ExpenseParticipantInput
 import nvk.cotrip.data.network.dto.MemberDto
+import nvk.cotrip.data.network.limitReachedDetails
 import nvk.cotrip.data.repository.ExpenseRepository
 import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.data.repository.UserRepository
+import nvk.cotrip.ui.common.LimitDialogState
 import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
@@ -81,6 +83,8 @@ class CreateExpenseViewModel @Inject constructor(
             ExpenseFormEvent.OnBackClick -> appNavigator.popBackStack()
             ExpenseFormEvent.OnPrimaryClick -> createExpense()
             ExpenseFormEvent.OnDeleteClick -> emit(ExpenseFormEffect.ShowToastRes(R.string.expense_form_delete_not_available))
+            ExpenseFormEvent.OnDismissLimitDialog -> _state.update { it.copy(limitDialog = null) }
+            ExpenseFormEvent.OnConfirmDeleteOldestAndRetry -> deleteOldestAndRetry()
             ExpenseFormEvent.OnDateClick -> Unit
             is ExpenseFormEvent.OnDateSelected -> selectDate(event.date)
             ExpenseFormEvent.OnPaidByClick -> _state.update { it.copy(paidByPickerVisible = true) }
@@ -213,6 +217,57 @@ class CreateExpenseViewModel @Inject constructor(
                         request = ExpenseCreateRequest(
                             title = snapshot.title.trim(),
                             amount = amount,
+                            currencyCode = currencyCode,
+                            status = snapshot.status.toApiStatus(),
+                            paidById = snapshot.paidById,
+                            date = if (snapshot.status == ExpenseFormStatus.Paid) selectedDate?.toString() else null,
+                            splitType = snapshot.splitType.toApiSplitType(),
+                            note = snapshot.note.trim().ifBlank { null },
+                            participants = buildParticipants(snapshot)
+                        )
+                    )
+                }
+            }) {
+                is ApiResult.Success -> {
+                    emit(ExpenseFormEffect.ShowToastRes(R.string.expense_form_created_toast))
+                    appNavigator.popBackStack()
+                }
+
+                is ApiResult.Failure -> {
+                    val limit = result.limitReachedDetails()
+                    val oldest = limit?.oldestCandidate
+                    if (oldest?.deletable == true) {
+                        _state.update {
+                            it.copy(
+                                isSaving = false,
+                                limitDialog = LimitDialogState(
+                                    oldestId = oldest.id,
+                                    oldestLabel = oldest.label,
+                                )
+                            )
+                        }
+                    } else {
+                        emit(ExpenseFormEffect.ShowToastRes(uiErrorMapper.messageRes(result)))
+                        _state.update { it.copy(isSaving = false) }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun deleteOldestAndRetry() {
+        val dialog = _state.value.limitDialog ?: return
+        val snapshot = _state.value
+        _state.update { it.copy(limitDialog = null, isSaving = true) }
+        viewModelScope.launch {
+            when (val result = apiCaller.call {
+                withContext(Dispatchers.IO) {
+                    expenseRepository.deleteExpense(dialog.oldestId)
+                    expenseRepository.createExpense(
+                        tripId = tripId,
+                        request = ExpenseCreateRequest(
+                            title = snapshot.title.trim(),
+                            amount = parseAmount(snapshot.amount) ?: 0.0,
                             currencyCode = currencyCode,
                             status = snapshot.status.toApiStatus(),
                             paidById = snapshot.paidById,

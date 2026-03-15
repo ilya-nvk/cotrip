@@ -1,5 +1,6 @@
 package nvk.cotrip.ui.trip.form
 
+import nvk.cotrip.ui.common.LimitDialogState
 import java.time.LocalDate
 
 data class TripFormState(
@@ -13,4 +14,5 @@ data class TripFormState(
     val currency: TripCurrency = TripCurrency.EUR,
     val availableCurrencies: List<TripCurrency> = TripCurrency.entries,
     val canSubmit: Boolean = false,
+    val limitDialog: LimitDialogState? = null,
 )

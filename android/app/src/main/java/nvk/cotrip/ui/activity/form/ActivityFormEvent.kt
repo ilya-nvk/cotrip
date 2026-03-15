@@ -7,6 +7,8 @@ sealed interface ActivityFormEvent {
     data object OnBackClick : ActivityFormEvent
     data object OnPrimaryClick : ActivityFormEvent
     data object OnDeleteClick : ActivityFormEvent
+    data object OnDismissLimitDialog : ActivityFormEvent
+    data object OnConfirmDeleteOldestAndRetry : ActivityFormEvent
     data object OnPickDateClick : ActivityFormEvent
     data object OnPickTimeClick : ActivityFormEvent
     data class OnDateSelected(val date: LocalDate) : ActivityFormEvent

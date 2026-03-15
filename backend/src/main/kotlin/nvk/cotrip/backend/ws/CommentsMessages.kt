@@ -2,6 +2,7 @@ package nvk.cotrip.backend.ws
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonObject
 
 @Serializable
 sealed interface WsMessage {
@@ -30,6 +31,13 @@ data class CommentDeletedMessage(
 ) : WsMessage
 
 @Serializable
+@SerialName("comment.rejected")
+data class CommentRejectedMessage(
+    override val type: String = "comment.rejected",
+    val payload: CommentRejectedPayload,
+) : WsMessage
+
+@Serializable
 data class CommentCreatePayload(
     val ideaId: String,
     val body: String,
@@ -52,4 +60,11 @@ data class CommentCreatedPayload(
 data class CommentDeletedPayload(
     val id: String,
     val ideaId: String,
+)
+
+@Serializable
+data class CommentRejectedPayload(
+    val clientMessageId: String? = null,
+    val reason: String,
+    val details: JsonObject? = null,
 )

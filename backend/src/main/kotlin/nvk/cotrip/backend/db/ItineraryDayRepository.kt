@@ -23,6 +23,11 @@ data class CityCoordinatesRow(
     val cityLon: Double,
 )
 
+data class ItineraryDayPage(
+    val items: List<ItineraryDayRow>,
+    val nextCursor: String?,
+)
+
 object ItineraryDayRepository {
     fun listByTrip(tripId: String): List<ItineraryDayRow> = dbQuery { conn ->
         conn.prepareStatement(
@@ -40,6 +45,64 @@ object ItineraryDayRepository {
                     result += mapDay(rs)
                 }
                 result
+            }
+        }
+    }
+
+    fun listByTripPage(
+        tripId: String,
+        limit: Int,
+        cursor: String?,
+    ): ItineraryDayPage = dbQuery { conn ->
+        val conditions = mutableListOf<String>()
+        conditions += "trip_id = ?"
+
+        var cursorDate: LocalDate? = null
+        var cursorId: String? = null
+        if (!cursor.isNullOrBlank()) {
+            val decoded = CursorCodec.decode(cursor).split("|")
+            if (decoded.size != 2) throw IllegalArgumentException("invalid_cursor")
+            cursorDate = runCatching { LocalDate.parse(decoded[0]) }.getOrElse {
+                throw IllegalArgumentException("invalid_cursor")
+            }
+            cursorId = runCatching { UUID.fromString(decoded[1]).toString() }.getOrElse {
+                throw IllegalArgumentException("invalid_cursor")
+            }
+            conditions += "(date > ? OR (date = ? AND id > ?))"
+        }
+
+        val sql = """
+            SELECT id, trip_id, date, day_number, city, city_provider_id, city_lat, city_lon, is_out_of_range
+            FROM itinerary_days
+            WHERE ${conditions.joinToString(" AND ")}
+            ORDER BY date ASC, id ASC
+            LIMIT ?
+        """.trimIndent()
+
+        conn.prepareStatement(sql).use { stmt ->
+            var idx = 1
+            stmt.setObject(idx++, UUID.fromString(tripId))
+            if (cursorDate != null && cursorId != null) {
+                stmt.setObject(idx++, cursorDate)
+                stmt.setObject(idx++, cursorDate)
+                stmt.setObject(idx++, UUID.fromString(cursorId))
+            }
+            stmt.setInt(idx, limit + 1)
+
+            stmt.executeQuery().use { rs ->
+                val fetched = mutableListOf<ItineraryDayRow>()
+                while (rs.next()) {
+                    fetched += mapDay(rs)
+                }
+                val hasMore = fetched.size > limit
+                val items = if (hasMore) fetched.take(limit) else fetched
+                val nextCursor = if (hasMore) {
+                    val tail = items.last()
+                    CursorCodec.encode("${tail.date}|${tail.id}")
+                } else {
+                    null
+                }
+                ItineraryDayPage(items = items, nextCursor = nextCursor)
             }
         }
     }

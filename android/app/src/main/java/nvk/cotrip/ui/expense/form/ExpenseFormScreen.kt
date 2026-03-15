@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -135,6 +136,32 @@ private fun ExpenseFormScreen(
                 onSelect = { viewModel.onEvent(ExpenseFormEvent.OnPaidBySelected(it)) }
             )
         }
+    }
+
+    state.limitDialog?.let { dialog ->
+        AlertDialog(
+            onDismissRequest = { viewModel.onEvent(ExpenseFormEvent.OnDismissLimitDialog) },
+            title = { Text(text = stringResource(R.string.limit_reached_dialog_title)) },
+            text = {
+                Text(
+                    text = stringResource(
+                        R.string.limit_reached_dialog_message,
+                        dialog.oldestLabel?.takeIf { it.isNotBlank() }
+                            ?: stringResource(R.string.limit_reached_oldest_fallback)
+                    )
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { viewModel.onEvent(ExpenseFormEvent.OnConfirmDeleteOldestAndRetry) }) {
+                    Text(text = stringResource(R.string.limit_reached_dialog_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.onEvent(ExpenseFormEvent.OnDismissLimitDialog) }) {
+                    Text(text = stringResource(R.string.common_cancel))
+                }
+            }
+        )
     }
 
     val amountValue = parseMoney(state.amount)
