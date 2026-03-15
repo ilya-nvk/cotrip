@@ -3,18 +3,25 @@ package nvk.cotrip.ui.trip.details
 import nvk.cotrip.data.network.dto.ItineraryDayDto
 import nvk.cotrip.data.network.dto.WeatherForecastResponseDto
 import nvk.cotrip.ui.theme.CoTripIcons
-import nvk.cotrip.ui.theme.Info
-import nvk.cotrip.ui.theme.TextSecondary
-import nvk.cotrip.ui.theme.Warning
+import nvk.cotrip.ui.theme.WeatherCloudy
+import nvk.cotrip.ui.theme.WeatherRainy
+import nvk.cotrip.ui.theme.WeatherSunny
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 object TripDetailsWeatherMapper {
     fun pickCity(days: List<ItineraryDayDto>): String? {
-        return days
-            .sortedBy { it.dayNumber }
+        val sorted = days.sortedBy { it.dayNumber }
+        val withCoordinates = sorted
             .firstOrNull { !it.city.isNullOrBlank() && it.cityLat != null && it.cityLon != null }
+            ?.city
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() }
+        if (withCoordinates != null) return withCoordinates
+
+        return sorted
+            .firstOrNull { !it.city.isNullOrBlank() }
             ?.city
             ?.trim()
             ?.takeIf { it.isNotEmpty() }
@@ -58,9 +65,12 @@ object TripDetailsWeatherMapper {
                         else -> CoTripIcons.WeatherCloudy
                     },
                     tint = when {
-                        forecast.iconCode?.startsWith("01") == true -> Warning
-                        forecast.iconCode?.startsWith("09") == true || forecast.iconCode?.startsWith("10") == true -> Info
-                        else -> TextSecondary
+                        forecast.iconCode?.startsWith("01") == true -> WeatherSunny
+                        forecast.iconCode?.startsWith("09") == true || forecast.iconCode?.startsWith(
+                            "10"
+                        ) == true -> WeatherRainy
+
+                        else -> WeatherCloudy
                     },
                 )
             }

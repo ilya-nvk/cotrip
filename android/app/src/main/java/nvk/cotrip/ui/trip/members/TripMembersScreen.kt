@@ -2,7 +2,6 @@ package nvk.cotrip.ui.trip.members
 
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,12 +13,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -36,22 +33,18 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import coil.compose.AsyncImage
 import kotlinx.coroutines.flow.collectLatest
 import nvk.cotrip.R
+import nvk.cotrip.ui.components.CoTripAvatar
 import nvk.cotrip.ui.components.CoTripIconButton
 import nvk.cotrip.ui.theme.Border
 import nvk.cotrip.ui.theme.CoTripIcons
 import nvk.cotrip.ui.theme.CoTripTokens
-import nvk.cotrip.ui.theme.PrimaryBlue
-import nvk.cotrip.ui.theme.PrimaryLight
 import nvk.cotrip.ui.theme.TextPrimary
 import nvk.cotrip.ui.theme.TextSecondary
 
@@ -163,31 +156,12 @@ private fun MemberRow(
                 .padding(CoTripTokens.spacing.x2),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (!member.photoUrl.isNullOrBlank()) {
-                AsyncImage(
-                    model = member.photoUrl,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(PrimaryLight),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = member.initials,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = PrimaryBlue
-                    )
-                }
-            }
+            CoTripAvatar(
+                initials = member.initials,
+                photoUrl = member.photoUrl,
+                size = 44.dp,
+                textStyle = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+            )
 
             Spacer(Modifier.width(CoTripTokens.spacing.x1_5))
 

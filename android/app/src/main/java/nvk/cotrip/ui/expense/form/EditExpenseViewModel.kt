@@ -147,6 +147,7 @@ class EditExpenseViewModel @Inject constructor(
                             id = member.userId,
                             initials = member.initials,
                             name = member.name,
+                            photoUrl = member.photoUrl,
                             isSelected = participant?.isIncluded ?: false,
                             customAmount = participant?.shareAmount?.let { formatAmount(it) }
                                 .orEmpty()

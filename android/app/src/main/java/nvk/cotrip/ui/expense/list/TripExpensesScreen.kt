@@ -7,10 +7,12 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -165,41 +167,46 @@ fun TripExpensesScreen(
                             SummaryBlock(summary = uiState.summary)
                         }
 
-                        val hasAnyExpenses =
-                            uiState.spent.isNotEmpty() || uiState.planned.isNotEmpty()
+                        val hasSpentExpenses = uiState.spent.isNotEmpty()
+                        val hasPlannedExpenses = uiState.planned.isNotEmpty()
+                        val hasAnyExpenses = hasSpentExpenses || hasPlannedExpenses
                         if (hasAnyExpenses) {
-                            item(key = KEY_SPENT_HEADER) {
-                                SectionTitle(text = stringResource(R.string.expenses_spent_section))
-                            }
+                            if (hasSpentExpenses) {
+                                item(key = KEY_SPENT_HEADER) {
+                                    SectionTitle(text = stringResource(R.string.expenses_spent_section))
+                                }
 
-                            items(uiState.spent, key = { it.id }) { expense ->
-                                ExpenseCard(
-                                    expense = expense,
-                                    onClick = {
-                                        viewModel.onEvent(
-                                            TripExpensesEvent.OnExpenseClick(
-                                                expense.id
+                                items(uiState.spent, key = { it.id }) { expense ->
+                                    ExpenseCard(
+                                        expense = expense,
+                                        onClick = {
+                                            viewModel.onEvent(
+                                                TripExpensesEvent.OnExpenseClick(
+                                                    expense.id
+                                                )
                                             )
-                                        )
-                                    }
-                                )
+                                        }
+                                    )
+                                }
                             }
 
-                            item(key = KEY_PLANNED_HEADER) {
-                                SectionTitle(text = stringResource(R.string.expenses_planned_section))
-                            }
+                            if (hasPlannedExpenses) {
+                                item(key = KEY_PLANNED_HEADER) {
+                                    SectionTitle(text = stringResource(R.string.expenses_planned_section))
+                                }
 
-                            items(uiState.planned, key = { it.id }) { expense ->
-                                ExpenseCard(
-                                    expense = expense,
-                                    onClick = {
-                                        viewModel.onEvent(
-                                            TripExpensesEvent.OnExpenseClick(
-                                                expense.id
+                                items(uiState.planned, key = { it.id }) { expense ->
+                                    ExpenseCard(
+                                        expense = expense,
+                                        onClick = {
+                                            viewModel.onEvent(
+                                                TripExpensesEvent.OnExpenseClick(
+                                                    expense.id
+                                                )
                                             )
-                                        )
-                                    }
-                                )
+                                        }
+                                    )
+                                }
                             }
                         } else {
                             item(key = KEY_EMPTY_STATE) {
@@ -282,10 +289,14 @@ private fun SummaryBlock(
 
         Row(
             horizontalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x1),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(IntrinsicSize.Min)
         ) {
             Surface(
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight(),
                 shape = MaterialTheme.shapes.large,
                 border = BorderStroke(1.dp, Success.copy(alpha = 0.35f)),
                 color = Success.copy(alpha = 0.12f)
@@ -312,7 +323,9 @@ private fun SummaryBlock(
             }
 
             Surface(
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight(),
                 shape = MaterialTheme.shapes.large,
                 border = BorderStroke(1.dp, Border),
                 color = MaterialTheme.colorScheme.surface

@@ -64,8 +64,13 @@ private suspend fun handleTextFrame(tripId: String, userId: String, text: String
             if (!TripRepository.isMember(tripId, userId)) return
 
             val stored = CommentRepository.create(ideaId, userId, body)
-            publishCommentCreated(tripId, stored, clientMessageId)
             val actorName = UserRepository.findById(userId)?.name ?: "Someone"
+            publishCommentCreated(
+                tripId = tripId,
+                comment = stored,
+                authorName = actorName,
+                clientMessageId = clientMessageId,
+            )
             NotificationService.notifyIdeaComment(
                 tripId = tripId,
                 ideaId = stored.ideaId,

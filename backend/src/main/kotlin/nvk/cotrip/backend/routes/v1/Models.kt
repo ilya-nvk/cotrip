@@ -53,6 +53,7 @@ data class CommentDto(
     val id: String,
     val ideaId: String,
     val authorId: String,
+    val authorName: String? = null,
     val type: String,
     val body: String,
     val createdAt: String,
@@ -135,6 +136,7 @@ data class ExpenseParticipantDto(
     val shareAmount: Double? = null,
     val isIncluded: Boolean,
     val isPaid: Boolean,
+    val name: String? = null,
 )
 
 @Serializable

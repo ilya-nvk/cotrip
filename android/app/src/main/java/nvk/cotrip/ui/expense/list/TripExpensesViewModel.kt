@@ -206,13 +206,18 @@ private fun ExpenseDto.toListItem(
     shares: Map<String, Double>,
     context: Context,
 ): ExpenseListItemUi {
+    val paidBySnapshotName = paidById?.let { payerId ->
+        participants.firstOrNull { it.userId == payerId }?.name
+    }
     val paidByText = when {
         status != "paid" -> context.getString(R.string.trip_expenses_paid_status_planned)
         paidById == null -> context.getString(R.string.trip_expenses_paid_status_paid)
         paidById == meId -> context.getString(R.string.trip_expenses_paid_by_you)
         else -> context.getString(
             R.string.trip_expenses_paid_by_member,
-            memberById[paidById]?.name ?: context.getString(R.string.common_member)
+            memberById[paidById]?.name
+                ?: paidBySnapshotName
+                ?: context.getString(R.string.common_member)
         )
     }
     val splitTypeText = if (splitType == "equally") {

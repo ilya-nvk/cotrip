@@ -17,11 +17,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
@@ -53,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.flow.collectLatest
 import nvk.cotrip.R
+import nvk.cotrip.ui.components.CoTripAvatar
 import nvk.cotrip.ui.components.CoTripDivider
 import nvk.cotrip.ui.components.CoTripIconButton
 import nvk.cotrip.ui.components.CoTripListItem
@@ -505,7 +504,11 @@ private fun ParticipantCheckRow(
             onCheckedChange = { onChecked(it) }
         )
 
-        Avatar(initials = participant.initials)
+        CoTripAvatar(
+            initials = participant.initials,
+            photoUrl = participant.photoUrl,
+            size = 40.dp
+        )
 
         Text(
             text = participant.name,
@@ -551,7 +554,11 @@ private fun CustomAmountRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x1)
     ) {
-        Avatar(initials = participant.initials)
+        CoTripAvatar(
+            initials = participant.initials,
+            photoUrl = participant.photoUrl,
+            size = 40.dp
+        )
 
         Text(
             text = participant.name,
@@ -580,22 +587,6 @@ private fun CustomAmountRow(
                 unfocusedIndicatorColor = Border,
                 cursorColor = PrimaryBlue
             )
-        )
-    }
-}
-
-@Composable
-private fun Avatar(initials: String) {
-    Box(
-        modifier = Modifier
-            .size(40.dp)
-            .background(Warning.copy(alpha = 0.35f), CircleShape),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = initials,
-            style = MaterialTheme.typography.titleMedium,
-            color = PrimaryBlue
         )
     }
 }

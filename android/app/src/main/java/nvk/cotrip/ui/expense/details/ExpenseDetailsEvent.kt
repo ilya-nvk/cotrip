@@ -5,6 +5,6 @@ sealed interface ExpenseDetailsEvent {
     data object OnRefresh : ExpenseDetailsEvent
     data object OnEditClick : ExpenseDetailsEvent
     data object OnMarkAsPaidClick : ExpenseDetailsEvent
-    data object OnMarkAllSettledClick : ExpenseDetailsEvent
     data class OnMarkParticipantPaidClick(val participantId: String) : ExpenseDetailsEvent
+    data class OnUnmarkParticipantPaidClick(val participantId: String) : ExpenseDetailsEvent
 }

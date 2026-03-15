@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -12,7 +13,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import nvk.cotrip.R
@@ -47,6 +50,7 @@ class TripsListViewModel @Inject constructor(
 
     init {
         observeTrips()
+        observeTripMembers()
         refreshTrips(isUserRefresh = false)
     }
 
@@ -110,9 +114,6 @@ class TripsListViewModel @Inject constructor(
 
             val result = tripRepository.refreshTrips()
             val syncResult = syncPullRepository.pull()
-            if (result.isSuccess) {
-                refreshTripMembers()
-            }
             if (result.isFailure) {
                 _effects.tryEmit(
                     TripsListEffect.ShowToast(appContext.getString(R.string.trips_list_load_failed))
@@ -126,26 +127,34 @@ class TripsListViewModel @Inject constructor(
         }
     }
 
-    private suspend fun refreshTripMembers() {
-        val trips = runCatching { tripRepository.trips.first() }.getOrDefault(emptyList())
-        if (trips.isEmpty()) {
-            membersByTrip.value = emptyMap()
-            return
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun observeTripMembers() {
+        viewModelScope.launch {
+            tripRepository.trips
+                .flatMapLatest { trips ->
+                    if (trips.isEmpty()) {
+                        return@flatMapLatest flowOf(emptyMap())
+                    }
+
+                    val memberFlows = trips.map { trip ->
+                        tripRepository.tripMembers(trip.id).map { members ->
+                            trip.id to members.map { member ->
+                                AvatarStackItem(
+                                    initials = member.initials,
+                                    photoUrl = member.photoUrl
+                                )
+                            }
+                        }
+                    }
+
+                    combine(memberFlows) { perTrip ->
+                        perTrip.toMap()
+                    }
+                }
+                .collect { resolved ->
+                    membersByTrip.value = resolved
+                }
         }
-        val resolved = mutableMapOf<String, List<AvatarStackItem>>()
-        trips.forEach { trip ->
-            val members =
-                runCatching {
-                    tripRepository.tripMembers(trip.id).first()
-                }.getOrDefault(emptyList())
-            resolved[trip.id] = members.map { member ->
-                AvatarStackItem(
-                    initials = member.initials,
-                    photoUrl = member.photoUrl
-                )
-            }
-        }
-        membersByTrip.value = resolved
     }
 
     private data class TripBuckets(

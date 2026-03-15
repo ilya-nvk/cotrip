@@ -12,6 +12,7 @@ import io.ktor.server.routing.get
 import nvk.cotrip.backend.db.CommentRepository
 import nvk.cotrip.backend.db.IdeaRepository
 import nvk.cotrip.backend.db.TripRepository
+import nvk.cotrip.backend.db.UserRepository
 
 fun Route.commentRoutes() {
     authenticate("auth-jwt") {
@@ -38,11 +39,19 @@ fun Route.commentRoutes() {
                 return@get
             }
 
-            val comments = CommentRepository.listByIdea(ideaId).map {
+            val commentRows = CommentRepository.listByIdea(ideaId)
+            val authorNamesById = commentRows
+                .asSequence()
+                .map { it.authorId }
+                .distinct()
+                .associateWith { authorId -> UserRepository.findById(authorId)?.name }
+
+            val comments = commentRows.map {
                 CommentDto(
                     id = it.id,
                     ideaId = it.ideaId,
                     authorId = it.authorId,
+                    authorName = authorNamesById[it.authorId],
                     type = it.type,
                     body = it.body,
                     createdAt = it.createdAt.toString(),

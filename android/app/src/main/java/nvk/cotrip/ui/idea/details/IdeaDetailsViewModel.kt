@@ -628,8 +628,11 @@ private fun CommentDto.toDiscussion(
         )
     }
     val member = membersById[authorId]
-    val name = member?.name ?: unknownNameFallback
-    val initials = member?.initials ?: initialsFromName(name)
+    val fallbackAuthorName = authorName?.trim()?.takeIf { it.isNotEmpty() }
+    val name = member?.name ?: fallbackAuthorName ?: unknownNameFallback
+    val initials = member?.initials
+        ?: fallbackAuthorName?.let(::initialsFromName)
+        ?: initialsFromName(name)
     return IdeaDiscussionItemUi.Message(
         id = id,
         author = name,
@@ -647,8 +650,11 @@ private fun CommentCreatedPayload.toDiscussion(
     unknownNameFallback: String,
 ): IdeaDiscussionItemUi.Message {
     val member = membersById[authorId]
-    val name = member?.name ?: unknownNameFallback
-    val initials = member?.initials ?: initialsFromName(name)
+    val fallbackAuthorName = authorName?.trim()?.takeIf { it.isNotEmpty() }
+    val name = member?.name ?: fallbackAuthorName ?: unknownNameFallback
+    val initials = member?.initials
+        ?: fallbackAuthorName?.let(::initialsFromName)
+        ?: initialsFromName(name)
     return IdeaDiscussionItemUi.Message(
         id = id,
         author = name,

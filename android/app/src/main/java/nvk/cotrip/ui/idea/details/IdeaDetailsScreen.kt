@@ -49,7 +49,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
@@ -59,11 +58,11 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import coil.compose.AsyncImage
 import kotlinx.coroutines.flow.collectLatest
 import nvk.cotrip.R
 import nvk.cotrip.notifications.AppRuntimeState
 import nvk.cotrip.notifications.NotificationNavigationState
+import nvk.cotrip.ui.components.CoTripAvatar
 import nvk.cotrip.ui.components.CoTripCard
 import nvk.cotrip.ui.components.CoTripDivider
 import nvk.cotrip.ui.components.CoTripIconButton
@@ -459,28 +458,13 @@ private fun MyMessageBubble(
                     )
                 )
             }
-            Box(
-                modifier = Modifier
-                    .size(32.dp)
-                    .clip(CircleShape)
-                    .background(PrimaryLight),
-                contentAlignment = Alignment.Center
-            ) {
-                if (!item.photoUrl.isNullOrBlank()) {
-                    AsyncImage(
-                        model = item.photoUrl,
-                        contentDescription = item.author,
-                        modifier = Modifier.matchParentSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    Text(
-                        text = item.initials,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = TextPrimary
-                    )
-                }
-            }
+            CoTripAvatar(
+                initials = item.initials,
+                photoUrl = item.photoUrl,
+                contentDescription = item.author,
+                size = 32.dp,
+                textStyle = MaterialTheme.typography.bodySmall
+            )
         }
         Spacer(Modifier.height(CoTripTokens.spacing.x0_5))
         Text(
@@ -533,28 +517,13 @@ private fun OtherMessageBubble(
         horizontalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x1_5),
         verticalAlignment = Alignment.Top
     ) {
-        Box(
-            modifier = Modifier
-                .size(32.dp)
-                .clip(CircleShape)
-                .background(PrimaryLight),
-            contentAlignment = Alignment.Center
-        ) {
-            if (!item.photoUrl.isNullOrBlank()) {
-                AsyncImage(
-                    model = item.photoUrl,
-                    contentDescription = item.author,
-                    modifier = Modifier.matchParentSize(),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                Text(
-                    text = item.initials,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextPrimary
-                )
-            }
-        }
+        CoTripAvatar(
+            initials = item.initials,
+            photoUrl = item.photoUrl,
+            contentDescription = item.author,
+            size = 32.dp,
+            textStyle = MaterialTheme.typography.bodySmall
+        )
 
         Column(
             modifier = Modifier.weight(1f),
@@ -681,7 +650,7 @@ private fun CommentInputBar(
                     enabled = value.isNotBlank()
                 ) {
                     Icon(
-                        imageVector = CoTripIcons.Share,
+                        imageVector = CoTripIcons.Send,
                         contentDescription = null,
                         tint = if (value.isNotBlank()) PrimaryBlue else TextSecondary
                     )
