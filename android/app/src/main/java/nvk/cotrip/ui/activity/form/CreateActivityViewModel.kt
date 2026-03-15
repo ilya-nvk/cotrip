@@ -24,6 +24,7 @@ import nvk.cotrip.data.network.limitReachedDetails
 import nvk.cotrip.data.repository.ItineraryRepository
 import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.ui.common.LimitDialogState
+import nvk.cotrip.ui.common.TextInputLimits
 import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
@@ -57,6 +58,8 @@ class CreateActivityViewModel @Inject constructor(
             activityId = null,
             headerDayNumber = null,
             headerCity = null,
+            tripStartDate = null,
+            tripEndDate = null,
             title = "",
             dateText = "",
             timeText = "",
@@ -92,11 +95,13 @@ class CreateActivityViewModel @Inject constructor(
             ActivityFormEvent.OnPickTimeClick -> Unit
             is ActivityFormEvent.OnDateSelected -> selectDate(event.date)
             is ActivityFormEvent.OnTimeSelected -> selectTime(event.time)
-            is ActivityFormEvent.OnTitleChange -> _state.update { it.copy(title = event.value) }
+            is ActivityFormEvent.OnTitleChange -> _state.update {
+                it.copy(title = event.value.take(TextInputLimits.ACTIVITY_TITLE))
+            }
             is ActivityFormEvent.OnLocationInputChange -> onLocationInputChanged(event.value)
             is ActivityFormEvent.OnLocationSuggestionSelected -> onLocationSuggestionSelected(event.value)
             is ActivityFormEvent.OnLinkChange -> _state.update {
-                it.copy(linkInput = event.value)
+                it.copy(linkInput = event.value.take(TextInputLimits.ACTIVITY_LINK))
             }
             is ActivityFormEvent.OnCostAmountChange -> _state.update {
                 it.copy(
@@ -106,7 +111,9 @@ class CreateActivityViewModel @Inject constructor(
                 )
             }
             is ActivityFormEvent.OnCostTypeChange -> _state.update { it.copy(costType = event.value) }
-            is ActivityFormEvent.OnNotesChange -> _state.update { it.copy(notes = event.value) }
+            is ActivityFormEvent.OnNotesChange -> _state.update {
+                it.copy(notes = event.value.take(TextInputLimits.ACTIVITY_NOTES))
+            }
         }
     }
 
@@ -117,10 +124,13 @@ class CreateActivityViewModel @Inject constructor(
                     val trip = tripRepository.getTrip(tripId).first()
                     val itinerary = itineraryRepository.getItinerary(tripId).first()
                         .sortedBy { it.dayNumber }
-                    val firstDay = itinerary.firstOrNull()
-                    val dayMap = itinerary.associateBy { LocalDate.parse(it.date) }
+                    val availableDays = itinerary.filter { !it.isOutOfRange }
+                    val firstDay = availableDays.firstOrNull()
+                    val dayMap = availableDays.associateBy { LocalDate.parse(it.date) }
                     TripMeta(
                         currencySymbol = currencySymbolFor(trip.currencyCode),
+                        startDate = LocalDate.parse(trip.startDate),
+                        endDate = LocalDate.parse(trip.endDate),
                         firstDay = firstDay,
                         dayByDate = dayMap
                     )
@@ -133,6 +143,8 @@ class CreateActivityViewModel @Inject constructor(
                     _state.update {
                         it.copy(
                             currencySymbol = meta.currencySymbol,
+                            tripStartDate = meta.startDate,
+                            tripEndDate = meta.endDate,
                             dateText = meta.firstDay?.let { day -> formatDate(LocalDate.parse(day.date)) }
                                 .orEmpty(),
                             headerDayNumber = meta.firstDay?.dayNumber,
@@ -152,7 +164,7 @@ class CreateActivityViewModel @Inject constructor(
 
     private fun selectDate(date: LocalDate) {
         val day = dayByDate[date] ?: run {
-            emit(ActivityFormEffect.ShowToastRes(R.string.common_error_message))
+            emit(ActivityFormEffect.ShowToastRes(R.string.activity_form_date_out_of_trip_range))
             return
         }
         selectedDayId = day.id
@@ -258,11 +270,12 @@ class CreateActivityViewModel @Inject constructor(
     }
 
     private fun onLocationInputChanged(value: String) {
-        val query = value.trim()
+        val limitedValue = value.take(TextInputLimits.ACTIVITY_LOCATION)
+        val query = limitedValue.trim()
         locationSearchJob?.cancel()
         _state.update {
             it.copy(
-                locationInput = value,
+                locationInput = limitedValue,
                 locationPlaceId = null,
                 locationSuggestions = emptyList(),
                 isLocationSearching = query.isNotBlank(),
@@ -308,7 +321,7 @@ class CreateActivityViewModel @Inject constructor(
         locationSearchJob?.cancel()
         _state.update {
             it.copy(
-                locationInput = value.fullText,
+                locationInput = value.fullText.take(TextInputLimits.ACTIVITY_LOCATION),
                 locationPlaceId = value.placeId,
                 locationSuggestions = emptyList(),
                 isLocationSearching = false,
@@ -317,7 +330,9 @@ class CreateActivityViewModel @Inject constructor(
     }
 
     private fun moneyInput(value: String): String {
-        return value.filter { it.isDigit() || it == '.' || it == ',' }
+        return value
+            .filter { it.isDigit() || it == '.' || it == ',' }
+            .take(TextInputLimits.ACTIVITY_COST_AMOUNT)
     }
 
     private fun emit(effect: ActivityFormEffect) {
@@ -326,6 +341,8 @@ class CreateActivityViewModel @Inject constructor(
 
     private data class TripMeta(
         val currencySymbol: String,
+        val startDate: LocalDate,
+        val endDate: LocalDate,
         val firstDay: ItineraryDayDto?,
         val dayByDate: Map<LocalDate, ItineraryDayDto>,
     )

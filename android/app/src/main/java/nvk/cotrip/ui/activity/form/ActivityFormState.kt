@@ -1,6 +1,7 @@
 package nvk.cotrip.ui.activity.form
 
 import nvk.cotrip.ui.common.LimitDialogState
+import java.time.LocalDate
 
 data class LocationSuggestionUi(
     val name: String,
@@ -13,6 +14,8 @@ data class ActivityFormState(
     val activityId: String?,
     val headerDayNumber: Int?,
     val headerCity: String?,
+    val tripStartDate: LocalDate?,
+    val tripEndDate: LocalDate?,
     val title: String,
     val dateText: String,
     val timeText: String,

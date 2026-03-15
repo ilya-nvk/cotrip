@@ -296,7 +296,7 @@ private fun HeaderCard(state: ExpenseDetailsState.Content) {
 
         Text(
             text = state.amount,
-            style = MaterialTheme.typography.displaySmall,
+            style = MaterialTheme.typography.headlineLarge,
             color = TextPrimary
         )
 

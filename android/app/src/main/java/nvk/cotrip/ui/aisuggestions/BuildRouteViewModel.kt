@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import nvk.cotrip.R
 import nvk.cotrip.data.repository.ItineraryRepository
+import nvk.cotrip.ui.common.TextInputLimits
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import javax.inject.Inject
@@ -60,7 +61,9 @@ class BuildRouteViewModel @Inject constructor(
                 it.copy(city = event.city, cityPicker = null)
             }
 
-            is BuildRouteEvent.OnDescriptionChange -> _state.update { it.copy(description = event.value) }
+            is BuildRouteEvent.OnDescriptionChange -> _state.update {
+                it.copy(description = event.value.take(TextInputLimits.AI_ROUTE_DESCRIPTION))
+            }
             is BuildRouteEvent.OnTypeToggle -> toggleType(event.label)
             is BuildRouteEvent.OnTimeOfDaySelect -> selectTimeOfDay(event.label)
             is BuildRouteEvent.OnBudgetSelect -> selectBudget(event.label)

@@ -6,6 +6,7 @@ import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -176,7 +177,7 @@ fun ActivityDetailsScreen(
             }
 
             is ActivityDetailsState.Content -> {
-                androidx.compose.foundation.layout.Column(
+                Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(padding)
@@ -206,7 +207,7 @@ fun ActivityDetailsScreen(
 
                     Text(
                         text = uiState.title,
-                        style = MaterialTheme.typography.displaySmall,
+                        style = MaterialTheme.typography.headlineLarge,
                         fontWeight = FontWeight.SemiBold,
                         color = TextPrimary,
                         maxLines = 3,
@@ -310,7 +311,7 @@ private fun InfoRow(
 
         Spacer(Modifier.width(CoTripTokens.spacing.x2))
 
-        androidx.compose.foundation.layout.Column(
+        Column(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x0_5)
         ) {

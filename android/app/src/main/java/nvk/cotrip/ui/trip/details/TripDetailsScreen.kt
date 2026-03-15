@@ -190,17 +190,6 @@ fun TripDetailsScreen(
                     )
                 }
 
-                if (!content.isPast && content.isEmpty) {
-                    item(key = KEY_START_PLANNING) {
-                        StartPlanningCard(
-                            title = stringResource(R.string.trip_details_start_planning),
-                            text = stringResource(R.string.trip_details_start_planning_text),
-                            actionText = stringResource(R.string.trip_details_browse_ideas),
-                            onClick = { viewModel.onEvent(TripDetailsEvent.OnBrowseIdeasClick) }
-                        )
-                    }
-                }
-
                 item(key = KEY_OVERVIEW) {
                     OverviewSection(
                         title = stringResource(R.string.trip_details_overview),

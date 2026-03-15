@@ -174,6 +174,7 @@ CREATE TABLE IF NOT EXISTS ai_suggestions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   request_id uuid NOT NULL REFERENCES ai_requests(id),
   title text NOT NULL,
+  place text,
   description text,
   type_label text,
   duration_label text,
@@ -183,6 +184,9 @@ CREATE TABLE IF NOT EXISTS ai_suggestions (
   saved_idea_id uuid REFERENCES ideas(id),
   created_at timestamptz NOT NULL DEFAULT now()
 );
+
+ALTER TABLE ai_suggestions
+  ADD COLUMN IF NOT EXISTS place text;
 
 CREATE TABLE IF NOT EXISTS notifications (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -20,6 +20,7 @@ import nvk.cotrip.data.network.dto.UpdateTripRequest
 import nvk.cotrip.data.repository.ImageUploadRepository
 import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.data.repository.UserRepository
+import nvk.cotrip.ui.common.TextInputLimits
 import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
@@ -69,7 +70,7 @@ class EditTripViewModel @Inject constructor(
             }
 
             is TripFormEvent.OnNameChange -> {
-                _state.update { it.copy(name = event.value) }
+                _state.update { it.copy(name = event.value.take(TextInputLimits.TRIP_TITLE)) }
                 recomputeCanSubmit()
             }
 
@@ -123,7 +124,7 @@ class EditTripViewModel @Inject constructor(
             }
 
             is TripFormEvent.OnDescriptionChange ->
-                _state.update { it.copy(description = event.value) }
+                _state.update { it.copy(description = event.value.take(TextInputLimits.TRIP_DESCRIPTION)) }
 
             is TripFormEvent.OnCurrencySelect ->
                 _state.update { it.copy(currency = event.currency) }

@@ -52,6 +52,7 @@ import nvk.cotrip.ui.theme.TextPrimary
 import nvk.cotrip.ui.theme.TextSecondary
 import java.time.LocalDate
 import java.time.LocalTime
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -119,9 +120,14 @@ private fun ActivityFormScreen(
     }
 
     fun showDatePicker() {
+        val minDate = state.tripStartDate
+        val maxDate = state.tripEndDate
+        val fallbackDate = minDate ?: LocalDate.now()
         val initialDate = runCatching { LocalDate.parse(state.dateText, dateFormatter) }
-            .getOrNull() ?: LocalDate.now()
-        DatePickerDialog(
+            .getOrNull()
+            ?.coerceIn(minDate, maxDate)
+            ?: fallbackDate
+        val dialog = DatePickerDialog(
             context,
             { _, year, month, dayOfMonth ->
                 viewModel.onEvent(ActivityFormEvent.OnDateSelected(LocalDate.of(year, month + 1, dayOfMonth)))
@@ -129,7 +135,10 @@ private fun ActivityFormScreen(
             initialDate.year,
             initialDate.monthValue - 1,
             initialDate.dayOfMonth
-        ).show()
+        )
+        minDate?.let { dialog.datePicker.minDate = it.toEpochMillisAtStartOfDay() }
+        maxDate?.let { dialog.datePicker.maxDate = it.toEpochMillisAtStartOfDay() }
+        dialog.show()
     }
 
     fun showTimePicker() {
@@ -390,6 +399,18 @@ private fun ActivityFormScreen(
                 trailingIcon = null
             )
         }
+    }
+}
+
+private fun LocalDate.toEpochMillisAtStartOfDay(): Long {
+    return atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+}
+
+private fun LocalDate.coerceIn(min: LocalDate?, max: LocalDate?): LocalDate {
+    return when {
+        min != null && isBefore(min) -> min
+        max != null && isAfter(max) -> max
+        else -> this
     }
 }
 

@@ -178,6 +178,8 @@ object YandexAiClient {
             Generation token: $generationToken
             Response language: $language
             Output rule: estimatedCost must be a numeric amount in trip currency (${prompt.currencyCode}).
+            Output rule: place must be either a specific full address of the suggestion location or null.
+            Output rule: never put just a city/region/country into place. If exact address is unknown, use null.
             For different generation tokens, produce a different set of suggestions.
             Output rule: all human-readable fields must be in the response language.
         """.trimIndent()
@@ -207,6 +209,7 @@ object YandexAiClient {
                                         JsonArray(
                                             listOf(
                                                 JsonPrimitive("title"),
+                                                JsonPrimitive("place"),
                                                 JsonPrimitive("description"),
                                                 JsonPrimitive("typeLabel"),
                                                 JsonPrimitive("durationLabel"),
@@ -219,6 +222,12 @@ object YandexAiClient {
                                         "properties",
                                         buildJsonObject {
                                             put("title", buildJsonObject { put("type", "string") })
+                                            put(
+                                                "place",
+                                                buildJsonObject {
+                                                    put("type", JsonArray(listOf(JsonPrimitive("string"), JsonPrimitive("null"))))
+                                                }
+                                            )
                                             put(
                                                 "description",
                                                 buildJsonObject {
@@ -269,6 +278,7 @@ object YandexAiClient {
                 val item = entry.jsonObject
                 val title = item["title"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty().take(120)
                 if (title.isBlank()) return@mapNotNull null
+                val place = item["place"]?.jsonPrimitive?.contentOrNull?.trim()?.take(180)
                 val description = item["description"]?.jsonPrimitive?.contentOrNull?.trim()?.take(500)
                 val typeLabel = item["typeLabel"]?.jsonPrimitive?.contentOrNull?.trim()?.take(64)
                 val durationLabel = item["durationLabel"]?.jsonPrimitive?.contentOrNull?.trim()?.take(64)
@@ -276,6 +286,7 @@ object YandexAiClient {
                 val estimatedCost = item["estimatedCost"]?.jsonPrimitive?.doubleOrNull
                 AiSuggestionInput(
                     title = title,
+                    place = place?.ifBlank { null },
                     description = description,
                     typeLabel = typeLabel,
                     durationLabel = durationLabel,

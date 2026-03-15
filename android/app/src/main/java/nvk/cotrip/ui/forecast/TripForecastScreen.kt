@@ -306,7 +306,7 @@ private fun ForecastRow(
         Spacer(Modifier.width(CoTripTokens.spacing.x2))
 
         Column(
-            modifier = Modifier.width(90.dp),
+            modifier = Modifier.width(110.dp),
             horizontalAlignment = Alignment.End,
             verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x0_5)
         ) {
