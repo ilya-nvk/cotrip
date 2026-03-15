@@ -9,10 +9,17 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
+import kotlinx.serialization.Serializable
 import nvk.cotrip.backend.db.CommentRepository
 import nvk.cotrip.backend.db.IdeaRepository
 import nvk.cotrip.backend.db.TripRepository
 import nvk.cotrip.backend.db.UserRepository
+
+@Serializable
+private data class CommentListResponse(
+    val items: List<CommentDto>,
+    val nextCursor: String? = null,
+)
 
 fun Route.commentRoutes() {
     authenticate("auth-jwt") {
@@ -72,7 +79,7 @@ fun Route.commentRoutes() {
                 )
             }
 
-            call.respond(mapOf("items" to comments, "nextCursor" to pageRows.nextCursor))
+            call.respond(CommentListResponse(items = comments, nextCursor = pageRows.nextCursor))
         }
 
         delete("/v1/comments/{commentId}") {

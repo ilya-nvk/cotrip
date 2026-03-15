@@ -50,6 +50,12 @@ data class ConvertToActivityRequest(
     val orderIndex: Int? = null,
 )
 
+@Serializable
+private data class IdeaListResponse(
+    val items: List<IdeaDto>,
+    val nextCursor: String? = null,
+)
+
 fun Route.ideaRoutes() {
     authenticate("auth-jwt") {
         get("/v1/trips/{tripId}/ideas") {
@@ -82,7 +88,7 @@ fun Route.ideaRoutes() {
                 val items = ideas.map { idea ->
                     idea.toDto(commentCounts[idea.id] ?: 0)
                 }
-                call.respond(mapOf("items" to items, "nextCursor" to null))
+                call.respond(IdeaListResponse(items = items, nextCursor = null))
             } else {
                 val page = IdeaRepository.listPage(
                     tripId = tripId,
@@ -98,9 +104,9 @@ fun Route.ideaRoutes() {
                     idea.toDto(commentCounts[idea.id] ?: 0)
                 }
                 call.respond(
-                    mapOf(
-                        "items" to items,
-                        "nextCursor" to page.nextCursor,
+                    IdeaListResponse(
+                        items = items,
+                        nextCursor = page.nextCursor,
                     )
                 )
             }

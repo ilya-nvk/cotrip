@@ -70,6 +70,12 @@ data class TrimOutOfRangeRequest(
     val dayIds: List<String>,
 )
 
+@Serializable
+private data class ItineraryListResponse(
+    val items: List<ItineraryDayDto>,
+    val nextCursor: String? = null,
+)
+
 fun Route.itineraryRoutes(weatherConfig: WeatherConfig) {
     authenticate("auth-jwt") {
         get("/v1/trips/{tripId}/cities/search") {
@@ -218,7 +224,7 @@ fun Route.itineraryRoutes(weatherConfig: WeatherConfig) {
                         activities = activitiesByDay[day.id].orEmpty().map { it.toDto() },
                     )
                 }
-                call.respond(mapOf("items" to result, "nextCursor" to null))
+                call.respond(ItineraryListResponse(items = result, nextCursor = null))
             } else {
                 val page = ItineraryDayRepository.listByTripPage(
                     tripId = tripId,
@@ -242,9 +248,9 @@ fun Route.itineraryRoutes(weatherConfig: WeatherConfig) {
                     )
                 }
                 call.respond(
-                    mapOf(
-                        "items" to result,
-                        "nextCursor" to page.nextCursor,
+                    ItineraryListResponse(
+                        items = result,
+                        nextCursor = page.nextCursor,
                     )
                 )
             }
