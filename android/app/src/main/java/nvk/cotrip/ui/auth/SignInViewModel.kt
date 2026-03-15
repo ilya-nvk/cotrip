@@ -6,7 +6,9 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInStatusCodes
 import com.google.android.gms.common.api.ApiException
+import com.google.android.gms.common.api.CommonStatusCodes
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -21,6 +23,7 @@ import kotlinx.coroutines.withContext
 import nvk.cotrip.R
 import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
+import nvk.cotrip.data.network.NetworkStateProvider
 import nvk.cotrip.data.refresh.RefreshScheduler
 import nvk.cotrip.data.repository.AuthRepository
 import nvk.cotrip.notifications.PushTokenSyncManager
@@ -37,6 +40,7 @@ class SignInViewModel @Inject constructor(
     private val refreshScheduler: RefreshScheduler,
     private val pushTokenSyncManager: PushTokenSyncManager,
     private val apiCaller: ApiCaller,
+    private val networkStateProvider: NetworkStateProvider,
     private val uiErrorMapper: UiErrorMapper,
 ) : ViewModel() {
 
@@ -71,14 +75,6 @@ class SignInViewModel @Inject constructor(
     }
 
     private fun handleGoogleResult(resultCode: Int, data: Intent?) {
-        if (resultCode != Activity.RESULT_OK) {
-            onEvent(
-                SignInEvent.OnGoogleSignInFailed(
-                    appContext.getString(R.string.sign_in_error_canceled_with_code, resultCode)
-                )
-            )
-            return
-        }
         val task = GoogleSignIn.getSignedInAccountFromIntent(data)
         runCatching {
             task.getResult(ApiException::class.java)
@@ -96,27 +92,37 @@ class SignInViewModel @Inject constructor(
         }.onFailure {
             val apiException = it as? ApiException
             val code = apiException?.statusCode
-            val message = apiException?.localizedMessage
-                ?: it.localizedMessage
-                ?: appContext.getString(R.string.sign_in_error_google_failed)
-            onEvent(
-                SignInEvent.OnGoogleSignInFailed(
-                    if (code != null) {
-                        appContext.getString(
-                            R.string.sign_in_error_google_failed_with_code,
-                            code,
-                            message
-                        )
-                    } else {
-                        message
-                    }
+            val message = when {
+                code != null -> mapGoogleSignInError(
+                    code = code,
+                    fallbackMessage = apiException.localizedMessage
+                        ?: it.localizedMessage
+                        ?: appContext.getString(R.string.sign_in_error_google_failed)
                 )
+
+                resultCode != Activity.RESULT_OK -> appContext.getString(
+                    R.string.sign_in_error_canceled_with_code,
+                    resultCode
+                )
+
+                else -> it.localizedMessage
+                    ?: appContext.getString(R.string.sign_in_error_google_failed)
+            }
+            if (code != null) {
+                Log.w(TAG, "Google sign-in failed with statusCode=$code resultCode=$resultCode", it)
+            }
+            onEvent(
+                SignInEvent.OnGoogleSignInFailed(message)
             )
         }
     }
 
     private fun startGoogleSignIn() {
         if (_uiState.value.isLoading) return
+        if (!networkStateProvider.isOnline()) {
+            _effects.tryEmit(SignInEffect.ShowToastRes(R.string.common_error_network))
+            return
+        }
         _uiState.update { it.copy(isLoading = true) }
     }
 
@@ -152,5 +158,25 @@ class SignInViewModel @Inject constructor(
 
     companion object {
         private const val TAG = "SignInViewModel"
+    }
+
+    private fun mapGoogleSignInError(code: Int, fallbackMessage: String): String {
+        return when (code) {
+            CommonStatusCodes.NETWORK_ERROR -> appContext.getString(R.string.sign_in_error_google_network)
+            CommonStatusCodes.DEVELOPER_ERROR -> appContext.getString(R.string.sign_in_error_google_misconfigured)
+            GoogleSignInStatusCodes.SIGN_IN_CANCELLED -> appContext.getString(
+                R.string.sign_in_error_canceled_with_code,
+                code
+            )
+
+            GoogleSignInStatusCodes.SIGN_IN_CURRENTLY_IN_PROGRESS ->
+                appContext.getString(R.string.sign_in_error_google_in_progress)
+
+            else -> appContext.getString(
+                R.string.sign_in_error_google_failed_with_code,
+                code,
+                fallbackMessage
+            )
+        }
     }
 }
