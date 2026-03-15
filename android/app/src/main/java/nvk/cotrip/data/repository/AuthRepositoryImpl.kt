@@ -8,6 +8,7 @@ import nvk.cotrip.data.network.dto.AuthDevRequest
 import nvk.cotrip.data.network.dto.AuthGoogleRequest
 import nvk.cotrip.data.network.dto.AuthResponse
 import nvk.cotrip.data.network.requireSuccess
+import nvk.cotrip.notifications.PushTokenSyncManager
 import javax.inject.Inject
 
 class AuthRepositoryImpl @Inject constructor(
@@ -15,6 +16,7 @@ class AuthRepositoryImpl @Inject constructor(
     private val sessionStore: SessionStore,
     private val sessionCleaner: SessionCleaner,
     private val userCacheStore: UserCacheStore,
+    private val pushTokenSyncManager: PushTokenSyncManager,
 ) : AuthRepository {
 
     override fun hasSession(): Boolean {
@@ -42,6 +44,9 @@ class AuthRepositoryImpl @Inject constructor(
     }
 
     override suspend fun logout() {
+        runCatching {
+            pushTokenSyncManager.unregisterRememberedToken()
+        }
         runCatching {
             api.logout().requireSuccess()
         }
