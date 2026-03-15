@@ -18,7 +18,6 @@ repositories {
 
 val ktorVersion = "2.3.8"
 val logbackVersion = "1.4.14"
-val flywayVersion = "11.20.3"
 
 dependencies {
     implementation("io.ktor:ktor-server-core-jvm:$ktorVersion")
@@ -37,8 +36,6 @@ dependencies {
     implementation("ch.qos.logback:logback-classic:$logbackVersion")
     implementation("com.zaxxer:HikariCP:5.1.0")
     implementation("org.postgresql:postgresql:42.7.1")
-    implementation("org.flywaydb:flyway-core:$flywayVersion")
-    implementation("org.flywaydb:flyway-database-postgresql:$flywayVersion")
 
     testImplementation(kotlin("test"))
     testImplementation("io.ktor:ktor-server-tests-jvm:$ktorVersion")
@@ -53,6 +50,5 @@ tasks.test {
 }
 
 tasks.withType<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>().configureEach {
-    // Required for ServiceLoader-based libraries (Flyway) inside the fat jar.
     mergeServiceFiles()
 }

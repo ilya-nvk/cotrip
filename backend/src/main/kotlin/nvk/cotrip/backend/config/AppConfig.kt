@@ -5,6 +5,10 @@ data class JwtConfig(
     val audience: String,
     val realm: String,
     val secret: String,
+    val accessTtlMinutes: Int,
+    val refreshTtlDays: Int,
+    val maxActiveSessions: Int,
+    val googleAllowedAudiences: Set<String>,
 )
 
 data class DbConfig(

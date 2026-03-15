@@ -63,7 +63,7 @@ class MainActivity : ComponentActivity() {
         window.navigationBarColor = Color.TRANSPARENT
         setContent {
             val navController = rememberNavController()
-            val startDestination = if (sessionStore.getAccessToken().isNullOrBlank()) {
+            val startDestination = if (!sessionStore.hasSession()) {
                 Destination.SignIn.route
             } else {
                 Destination.Trips.route
@@ -93,6 +93,20 @@ class MainActivity : ComponentActivity() {
                         lifecycleScope.launch {
                             runCatching { notificationRepository.markRead(notificationId) }
                             systemNotificationManager.onMarkedRead(notificationId)
+                        }
+                    }
+                }
+            }
+
+            LaunchedEffect(navController) {
+                sessionStore.isAuthenticated.collect { isAuthenticated ->
+                    if (!isAuthenticated) {
+                        val currentRoute = navController.currentBackStackEntry?.destination?.route
+                        if (currentRoute != Destination.SignIn.route) {
+                            navController.navigate(Destination.SignIn.route) {
+                                popUpTo(Destination.Trips.route) { inclusive = true }
+                                launchSingleTop = true
+                            }
                         }
                     }
                 }

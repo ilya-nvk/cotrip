@@ -13,6 +13,7 @@ import kotlinx.serialization.json.Json
 @Serializable
 data class GoogleTokenInfo(
     val sub: String,
+    val aud: String? = null,
     val name: String? = null,
     val picture: String? = null,
     val email: String? = null,
@@ -25,11 +26,18 @@ object GoogleTokenVerifier {
         }
     }
 
-    suspend fun verify(idToken: String): GoogleTokenInfo? {
+    suspend fun verify(
+        idToken: String,
+        allowedAudiences: Set<String>,
+    ): GoogleTokenInfo? {
         return try {
-            client.get("https://oauth2.googleapis.com/tokeninfo") {
+            val tokenInfo = client.get("https://oauth2.googleapis.com/tokeninfo") {
                 parameter("id_token", idToken)
-            }.body()
+            }.body<GoogleTokenInfo>()
+            val audience = tokenInfo.aud?.trim()
+            if (audience.isNullOrBlank()) return null
+            if (audience !in allowedAudiences) return null
+            tokenInfo
         } catch (_: Exception) {
             null
         }

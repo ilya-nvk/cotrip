@@ -1,9 +1,9 @@
 package nvk.cotrip.data.repository
 
-import javax.inject.Inject
-import javax.inject.Singleton
 import nvk.cotrip.data.auth.SessionStore
 import nvk.cotrip.util.AppLogger
+import javax.inject.Inject
+import javax.inject.Singleton
 
 @Singleton
 class PendingTripCreationCleaner @Inject constructor(
@@ -13,7 +13,7 @@ class PendingTripCreationCleaner @Inject constructor(
 ) {
     suspend fun cleanupOnAppStart() {
         val pendingTripId = pendingTripCreationStore.getPendingTripId() ?: return
-        if (sessionStore.getAccessToken().isNullOrBlank()) {
+        if (!sessionStore.hasSession()) {
             AppLogger.w(TAG, "Skipping pending trip cleanup: no active session")
             return
         }

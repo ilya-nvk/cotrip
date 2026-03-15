@@ -7,6 +7,7 @@ import io.ktor.server.application.ServerReady
 import io.ktor.server.application.log
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
+import nvk.cotrip.backend.auth.AuthTokenService
 import nvk.cotrip.backend.auth.JwtService
 import nvk.cotrip.backend.config.AppConfig
 import nvk.cotrip.backend.config.loadConfig
@@ -30,6 +31,7 @@ fun Application.module() {
 
     DatabaseFactory.init(appConfig.db)
     JwtService.init(appConfig.jwt)
+    AuthTokenService.init(appConfig.jwt)
 
     configureLogging()
     configureSerialization()

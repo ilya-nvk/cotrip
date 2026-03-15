@@ -12,7 +12,7 @@ import io.ktor.websocket.send
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
-import nvk.cotrip.backend.auth.JwtService
+import nvk.cotrip.backend.auth.AuthTokenService
 import nvk.cotrip.backend.db.CommentRepository
 import nvk.cotrip.backend.db.IdeaRepository
 import nvk.cotrip.backend.db.TripRepository
@@ -30,11 +30,12 @@ fun Route.commentsWebSocket() {
         }
 
         val token = call.request.queryParameters["token"]
-        val userId = JwtService.userIdFromToken(token)
-        if (userId.isNullOrBlank()) {
+        val identity = AuthTokenService.authenticateAccessToken(token)
+        if (identity == null) {
             close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Unauthorized"))
             return@webSocket
         }
+        val userId = identity.userId
 
         CommentsHub.add(tripId, this)
 
