@@ -144,6 +144,7 @@ class CreateExpenseViewModel @Inject constructor(
                             id = member.userId,
                             initials = member.initials,
                             name = member.name,
+                            photoUrl = member.photoUrl,
                             isSelected = true,
                             customAmount = ""
                         )
@@ -246,7 +247,8 @@ class CreateExpenseViewModel @Inject constructor(
                     participant.customAmount
                 ) else null,
                 isIncluded = true,
-                isPaid = snapshot.status == ExpenseFormStatus.Paid && participant.id == snapshot.paidById
+                // Manual settlement happens from expense details; creation should not auto-settle.
+                isPaid = false
             )
         }
     }

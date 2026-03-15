@@ -1,26 +1,17 @@
 package nvk.cotrip.ui.components
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
-import coil.compose.AsyncImage
 import nvk.cotrip.ui.theme.Error
 import nvk.cotrip.ui.theme.TextDark
 import nvk.cotrip.ui.theme.TextDisabled
@@ -72,36 +63,15 @@ fun DestructiveIconButton(
 fun AvatarsStack(avatars: List<AvatarStackItem>, size: Dp) {
     Row {
         avatars.forEachIndexed { index, item ->
-            Box(
+            CoTripAvatar(
+                initials = item.initials,
+                photoUrl = item.photoUrl,
                 modifier = Modifier
-                    .size(size)
                     .offset(x = (-6 * index).dp)
-                    .zIndex((avatars.size - index).toFloat())
-                    .clip(CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                if (!item.photoUrl.isNullOrBlank()) {
-                    AsyncImage(
-                        model = item.photoUrl,
-                        contentDescription = null,
-                        modifier = Modifier.matchParentSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .matchParentSize()
-                            .background(avatarColorFromInitials(item.initials)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = item.initials,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = TextDark
-                        )
-                    }
-                }
-            }
+                    .zIndex((avatars.size - index).toFloat()),
+                size = size,
+                textStyle = androidx.compose.material3.MaterialTheme.typography.labelMedium
+            )
         }
     }
 }

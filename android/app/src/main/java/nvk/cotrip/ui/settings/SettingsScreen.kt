@@ -4,7 +4,6 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,7 +21,6 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -42,17 +40,14 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import coil.compose.AsyncImage
 import kotlinx.coroutines.flow.collectLatest
 import nvk.cotrip.R
+import nvk.cotrip.ui.components.CoTripAvatar
 import nvk.cotrip.ui.components.CoTripDivider
 import nvk.cotrip.ui.components.CoTripIconButton
 import nvk.cotrip.ui.components.CoTripTextField
@@ -62,7 +57,6 @@ import nvk.cotrip.ui.theme.CoTripIcons
 import nvk.cotrip.ui.theme.CoTripTokens
 import nvk.cotrip.ui.theme.Error
 import nvk.cotrip.ui.theme.PrimaryBlue
-import nvk.cotrip.ui.theme.PrimaryLight
 import nvk.cotrip.ui.theme.TextDisabled
 import nvk.cotrip.ui.theme.TextPrimary
 import nvk.cotrip.ui.theme.TextSecondary
@@ -256,42 +250,12 @@ private fun ProfileSection(
 
 @Composable
 private fun ProfileAvatar(profile: SettingsProfileUi) {
-    val photoUrl = profile.photoUrl?.takeIf { it.isNotBlank() }
-    val brush = if (profile.hasPhoto) {
-        Brush.linearGradient(
-            colors = listOf(PrimaryBlue, PrimaryLight)
-        )
-    } else {
-        Brush.linearGradient(
-            colors = listOf(PrimaryBlue, PrimaryBlue)
-        )
-    }
-
-    Box(
-        modifier = Modifier
-            .size(96.dp)
-            .clip(CircleShape)
-            .background(brush),
-        contentAlignment = Alignment.Center
-    ) {
-        if (photoUrl != null) {
-            AsyncImage(
-                model = photoUrl,
-                contentDescription = null,
-                modifier = Modifier
-                    .matchParentSize()
-                    .clip(CircleShape),
-                contentScale = ContentScale.Crop
-            )
-        } else {
-            Text(
-                text = profile.initials,
-                style = MaterialTheme.typography.headlineLarge,
-                color = MaterialTheme.colorScheme.onPrimary,
-                fontWeight = FontWeight.SemiBold
-            )
-        }
-    }
+    CoTripAvatar(
+        initials = profile.initials,
+        photoUrl = profile.photoUrl,
+        size = 96.dp,
+        textStyle = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.SemiBold)
+    )
 }
 
 @Composable

@@ -286,6 +286,9 @@
     <string name="expense_details_total">Total: %1$s</string>
     <string name="expense_details_mark_as_paid">Mark as paid</string>
     <string name="expense_details_mark_all_settled">Mark all as settled</string>
+    <string name="expense_details_unmark_paid_title">Remove paid mark?</string>
+    <string name="expense_details_unmark_paid_message">Your share will be marked as unpaid.</string>
+    <string name="expense_details_unmark_paid_confirm">Mark as unpaid</string>
 
     <!--Expense Form-->
     <string name="expense_form_title_add">Add expense</string>

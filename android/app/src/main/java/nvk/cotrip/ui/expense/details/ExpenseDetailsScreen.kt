@@ -2,7 +2,9 @@ package nvk.cotrip.ui.expense.details
 
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,8 +22,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -37,6 +39,9 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -47,6 +52,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import nvk.cotrip.R
+import nvk.cotrip.ui.components.CoTripAvatar
 import nvk.cotrip.ui.components.CoTripCard
 import nvk.cotrip.ui.components.CoTripDivider
 import nvk.cotrip.ui.components.CoTripIconButton
@@ -54,6 +60,7 @@ import nvk.cotrip.ui.components.PrimaryButton
 import nvk.cotrip.ui.theme.Border
 import nvk.cotrip.ui.theme.CoTripIcons
 import nvk.cotrip.ui.theme.CoTripTokens
+import nvk.cotrip.ui.theme.Error
 import nvk.cotrip.ui.theme.PrimaryBlue
 import nvk.cotrip.ui.theme.Success
 import nvk.cotrip.ui.theme.TextPrimary
@@ -69,6 +76,7 @@ fun ExpenseDetailsScreen(
     val state by viewModel.state.collectAsState()
     val lifecycleOwner = LocalLifecycleOwner.current
     val context = LocalContext.current
+    var unmarkDialogParticipantId by rememberSaveable { mutableStateOf<String?>(null) }
 
     DisposableEffect(lifecycleOwner, viewModel) {
         val observer = LifecycleEventObserver { _, event ->
@@ -88,6 +96,50 @@ fun ExpenseDetailsScreen(
                         .show()
             }
         }
+    }
+
+    if (unmarkDialogParticipantId != null) {
+        AlertDialog(
+            onDismissRequest = { unmarkDialogParticipantId = null },
+            title = {
+                Text(
+                    text = stringResource(R.string.expense_details_unmark_paid_title),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = TextPrimary
+                )
+            },
+            text = {
+                Text(
+                    text = stringResource(R.string.expense_details_unmark_paid_message),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = TextSecondary
+                )
+            },
+            dismissButton = {
+                TextButton(onClick = { unmarkDialogParticipantId = null }) {
+                    Text(
+                        text = stringResource(R.string.common_cancel),
+                        color = TextPrimary
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val participantId = unmarkDialogParticipantId ?: return@TextButton
+                        viewModel.onEvent(
+                            ExpenseDetailsEvent.OnUnmarkParticipantPaidClick(participantId)
+                        )
+                        unmarkDialogParticipantId = null
+                    }
+                ) {
+                    Text(
+                        text = stringResource(R.string.expense_details_unmark_paid_confirm),
+                        color = Error
+                    )
+                }
+            }
+        )
     }
 
     Scaffold(
@@ -133,10 +185,7 @@ fun ExpenseDetailsScreen(
                     onClick = { viewModel.onEvent(ExpenseDetailsEvent.OnMarkAsPaidClick) }
                 )
 
-                ExpenseDetailsStatus.Unsettled -> BottomPrimaryAction(
-                    text = stringResource(R.string.expense_details_mark_all_settled),
-                    onClick = { viewModel.onEvent(ExpenseDetailsEvent.OnMarkAllSettledClick) }
-                )
+                ExpenseDetailsStatus.Unsettled -> Unit
 
                 ExpenseDetailsStatus.Settled -> Unit
             }
@@ -177,6 +226,9 @@ fun ExpenseDetailsScreen(
                                     it
                                 )
                             )
+                        },
+                        onRequestUnmarkPaid = { participantId ->
+                            unmarkDialogParticipantId = participantId
                         }
                     )
 
@@ -339,6 +391,7 @@ private fun SectionTitle(text: String) {
 private fun SplitDetailsCard(
     state: ExpenseDetailsState.Content,
     onMarkPaid: (String) -> Unit,
+    onRequestUnmarkPaid: (String) -> Unit,
 ) {
     CoTripCard(
         modifier = Modifier.fillMaxWidth(),
@@ -349,7 +402,8 @@ private fun SplitDetailsCard(
             SplitRow(
                 row = row,
                 status = state.status,
-                onMarkPaid = { onMarkPaid(row.id) }
+                onMarkPaid = { onMarkPaid(row.id) },
+                onRequestUnmarkPaid = { onRequestUnmarkPaid(row.id) }
             )
             if (index != state.splitRows.lastIndex) {
                 CoTripDivider()
@@ -359,14 +413,26 @@ private fun SplitDetailsCard(
 }
 
 @Composable
+@OptIn(ExperimentalFoundationApi::class)
 private fun SplitRow(
     row: ExpenseSplitRowUi,
     status: ExpenseDetailsStatus,
     onMarkPaid: () -> Unit,
+    onRequestUnmarkPaid: () -> Unit,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .then(
+                if (status != ExpenseDetailsStatus.Planned && row.canTogglePaid && row.isPaid) {
+                    Modifier.combinedClickable(
+                        onClick = {},
+                        onLongClick = onRequestUnmarkPaid,
+                    )
+                } else {
+                    Modifier
+                }
+            )
             .padding(
                 horizontal = CoTripTokens.spacing.x1_5,
                 vertical = CoTripTokens.spacing.x1_5
@@ -374,18 +440,11 @@ private fun SplitRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x1)
     ) {
-        Box(
-            modifier = Modifier
-                .size(44.dp)
-                .background(Warning.copy(alpha = 0.35f), CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = row.initials,
-                style = MaterialTheme.typography.titleMedium,
-                color = PrimaryBlue
-            )
-        }
+        CoTripAvatar(
+            initials = row.initials,
+            photoUrl = row.photoUrl,
+            size = 44.dp
+        )
 
         Text(
             text = row.name,
@@ -413,12 +472,14 @@ private fun SplitRow(
             }
 
             else -> {
-                TextButton(onClick = onMarkPaid) {
-                    Text(
-                        text = stringResource(R.string.expense_details_mark_paid),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = PrimaryBlue
-                    )
+                if (row.canTogglePaid) {
+                    TextButton(onClick = onMarkPaid) {
+                        Text(
+                            text = stringResource(R.string.expense_details_mark_paid),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = PrimaryBlue
+                        )
+                    }
                 }
             }
         }

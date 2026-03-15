@@ -8,6 +8,7 @@ data class ExpenseParticipantDto(
     val shareAmount: Double? = null,
     val isIncluded: Boolean,
     val isPaid: Boolean,
+    val name: String? = null,
 )
 
 @Serializable

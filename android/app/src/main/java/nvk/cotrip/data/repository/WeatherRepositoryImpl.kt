@@ -26,6 +26,16 @@ class WeatherRepositoryImpl @Inject constructor(
 
     private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
+    override suspend fun getCachedWeather(
+        tripId: String,
+        city: String,
+        start: String?,
+        end: String?,
+    ): WeatherForecastResponseDto? {
+        val cacheKey = cacheKey(tripId = tripId, city = city, start = start, end = end)
+        return weatherCacheStore.getWeather(cacheKey)
+    }
+
     override fun getWeather(
         tripId: String,
         city: String,
@@ -65,6 +75,22 @@ class WeatherRepositoryImpl @Inject constructor(
             safeLocalMutation("refreshWeather.setWeather(key=$cacheKey)") {
                 weatherCacheStore.setWeather(cacheKey, response)
             }
+        }
+    }
+
+    override suspend fun fetchWeatherSnapshot(
+        tripId: String,
+        city: String,
+        start: String?,
+        end: String?,
+    ): Result<WeatherForecastResponseDto> {
+        val cacheKey = cacheKey(tripId = tripId, city = city, start = start, end = end)
+        return runCatching {
+            val response = api.getWeather(tripId = tripId, city = city, start = start, end = end)
+            safeLocalMutation("fetchWeatherSnapshot.setWeather(key=$cacheKey)") {
+                weatherCacheStore.setWeather(cacheKey, response)
+            }
+            response
         }
     }
 

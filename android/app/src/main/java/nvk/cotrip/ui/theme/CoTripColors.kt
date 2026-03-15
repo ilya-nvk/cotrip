@@ -32,8 +32,12 @@ val Error = Color(0xFFF44336)
 val Warning = Color(0xFFFFF3E0)
 val Info = Color(0xFF2196F3)
 
-//Text
+// Text
 val WarningText = Color(0xFFE65100)
+
+val WeatherSunny = Color(0xFFFFA726)
+val WeatherRainy = Color(0xFF4680D7)
+val WeatherCloudy = Color(0xFF90A4AE)
 
 @Immutable
 data class CoTripExtraColors(

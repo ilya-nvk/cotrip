@@ -107,7 +107,12 @@ class TripMembersViewModel @Inject constructor(
                     tripRepository.tripMembers(tripId).first()
                 }
             }) {
-                is ApiResult.Success -> Unit
+                is ApiResult.Success -> {
+                    val latest = _state.value as? TripMembersState.Content
+                    if (latest != null) {
+                        _state.value = latest.copy(isLoadingAction = false)
+                    }
+                }
                 is ApiResult.Failure -> {
                     val latest = _state.value as? TripMembersState.Content
                     if (latest != null) {

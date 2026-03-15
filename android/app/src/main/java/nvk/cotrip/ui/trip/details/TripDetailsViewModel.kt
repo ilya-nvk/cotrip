@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -61,6 +62,7 @@ class TripDetailsViewModel @Inject constructor(
 
     private val tripId: String = checkNotNull(savedStateHandle["tripId"])
     private var latestWeather: WeatherCardUi = TripDetailsWeatherMapper.cityMissingCard()
+    private var weatherBootstrapInFlight: Boolean = false
 
     private val _state =
         MutableStateFlow<TripDetailsState>(TripDetailsState.Loading)
@@ -165,15 +167,23 @@ class TripDetailsViewModel @Inject constructor(
         viewModelScope.launch {
             val membersFlow = runCatching { tripRepository.tripMembers(tripId) }
                 .getOrElse { flowOf(emptyList()) }
+                .onStart { emit(emptyList()) }
             val tripFlow = tripRepository.trips.map { trips ->
                 trips.firstOrNull { it.id == tripId }
             }
+            val ideasFlow = ideaRepository.observeIdeas(tripId)
+                .onStart { emit(emptyList()) }
+            val expensesFlow = expenseRepository.observeExpenses(tripId)
+                .onStart { emit(emptyList()) }
+            val itineraryFlow = itineraryRepository.observeItinerary(tripId)
+                .onStart { emit(emptyList()) }
+            val meFlow = userRepository.me.onStart { emit(null) }
             combine(
                 tripFlow,
                 membersFlow,
-                ideaRepository.observeIdeas(tripId),
-                expenseRepository.observeExpenses(tripId),
-                itineraryRepository.observeItinerary(tripId),
+                ideasFlow,
+                expensesFlow,
+                itineraryFlow,
             ) { trip, members, ideas, expenses, itinerary ->
                 if (trip == null) {
                     null
@@ -186,7 +196,7 @@ class TripDetailsViewModel @Inject constructor(
                         itinerary = itinerary,
                     )
                 }
-            }.combine(userRepository.me) { base, me ->
+            }.combine(meFlow) { base, me ->
                 if (base == null) {
                     null
                 } else {
@@ -204,8 +214,39 @@ class TripDetailsViewModel @Inject constructor(
                 val current = _state.value as? TripDetailsState.Content
                 _state.value = buildState(loaded, latestWeather, appContext)
                     .copy(isRefreshing = current?.isRefreshing ?: false)
+                maybeBootstrapWeather(loaded)
                 AppLogger.i(TAG, "trip details state updated for tripId=$tripId")
             }
+        }
+    }
+
+    private fun maybeBootstrapWeather(loaded: LoadedTrip) {
+        if (weatherBootstrapInFlight) return
+        if (latestWeather.days.isNotEmpty()) return
+        val tripEnd = runCatching { LocalDate.parse(loaded.trip.endDate) }.getOrNull()
+        if (tripEnd != null && tripEnd.isBefore(LocalDate.now())) return
+        if (TripDetailsWeatherMapper.pickCity(loaded.itinerary) == null) return
+
+        weatherBootstrapInFlight = true
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    loadWeatherCard(
+                        trip = loaded.trip,
+                        cachedItinerary = loaded.itinerary,
+                    )
+                }
+            }.onSuccess { weather ->
+                latestWeather = weather
+                val current = _state.value as? TripDetailsState.Content
+                if (current != null) {
+                    _state.value = current.copy(weather = weather)
+                }
+                AppLogger.i(TAG, "weather bootstrap success for tripId=$tripId")
+            }.onFailure { error ->
+                AppLogger.w(TAG, "weather bootstrap failed for tripId=$tripId", error)
+            }
+            weatherBootstrapInFlight = false
         }
     }
 
@@ -307,19 +348,28 @@ class TripDetailsViewModel @Inject constructor(
         }
     }
 
-    private suspend fun loadWeatherCard(trip: TripDto): WeatherCardUi {
+    private suspend fun loadWeatherCard(
+        trip: TripDto,
+        cachedItinerary: List<ItineraryDayDto>? = null,
+    ): WeatherCardUi {
         val today = LocalDate.now()
         val tripEnd = runCatching { LocalDate.parse(trip.endDate) }.getOrNull()
         if (tripEnd != null && tripEnd.isBefore(today)) {
             return TripDetailsWeatherMapper.cityMissingCard()
         }
 
-        val itinerary = itineraryRepository.getItinerary(trip.id).first()
+        val itinerary = cachedItinerary
+            ?.takeIf { TripDetailsWeatherMapper.pickCity(it) != null }
+            ?: withTimeoutOrNull(1_500) {
+                itineraryRepository.getItinerary(trip.id).first { days ->
+                    TripDetailsWeatherMapper.pickCity(days) != null
+                }
+            }
+            ?: itineraryRepository.getItinerary(trip.id).first()
         val selectableCitiesCount = itinerary
             .sortedBy { it.dayNumber }
             .mapNotNull { day ->
                 val city = day.city?.trim()?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
-                if (day.cityLat == null || day.cityLon == null) return@mapNotNull null
                 city
             }
             .distinct()
@@ -330,6 +380,21 @@ class TripDetailsViewModel @Inject constructor(
 
         val start = trip.startDate
         val end = trip.endDate
+
+        val cachedBeforeRefresh = weatherRepository.getCachedWeather(
+            tripId = trip.id,
+            city = selectedCity,
+            start = start,
+            end = end,
+        )
+        if (cachedBeforeRefresh != null) {
+            return TripDetailsWeatherMapper.mapResponse(
+                city = selectedCity,
+                response = cachedBeforeRefresh,
+                isCitySelectable = isCitySelectable,
+            )
+        }
+
         val refreshResult = weatherRepository.refreshWeather(
             tripId = trip.id,
             city = selectedCity,
@@ -337,10 +402,42 @@ class TripDetailsViewModel @Inject constructor(
             end = end,
         )
         if (refreshResult.isFailure) {
-            AppLogger.w(TAG, "refreshWeather failed for tripId=${trip.id}, city=$selectedCity", refreshResult.exceptionOrNull())
+            AppLogger.w(
+                TAG,
+                "refreshWeather failed for tripId=${trip.id}, city=$selectedCity",
+                refreshResult.exceptionOrNull()
+            )
         }
 
-        val response = withTimeoutOrNull(1_000) {
+        val cachedAfterRefresh = weatherRepository.getCachedWeather(
+            tripId = trip.id,
+            city = selectedCity,
+            start = start,
+            end = end,
+        )
+        if (cachedAfterRefresh != null) {
+            return TripDetailsWeatherMapper.mapResponse(
+                city = selectedCity,
+                response = cachedAfterRefresh,
+                isCitySelectable = isCitySelectable,
+            )
+        }
+
+        val snapshot = weatherRepository.fetchWeatherSnapshot(
+            tripId = trip.id,
+            city = selectedCity,
+            start = start,
+            end = end,
+        ).getOrNull()
+        if (snapshot != null) {
+            return TripDetailsWeatherMapper.mapResponse(
+                city = selectedCity,
+                response = snapshot,
+                isCitySelectable = isCitySelectable,
+            )
+        }
+
+        val response = withTimeoutOrNull(8_000) {
             weatherRepository.getWeather(
                 tripId = trip.id,
                 city = selectedCity,

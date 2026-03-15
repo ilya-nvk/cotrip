@@ -339,6 +339,7 @@ private fun nvk.cotrip.backend.db.ExpenseRow.toDto(participants: List<nvk.cotrip
                 shareAmount = participant.shareAmount,
                 isIncluded = participant.isIncluded,
                 isPaid = participant.isPaid,
+                name = participant.userName,
             )
         },
     )

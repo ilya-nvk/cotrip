@@ -19,6 +19,7 @@ data class ExpenseParticipantUi(
     val id: String,
     val initials: String,
     val name: String,
+    val photoUrl: String?,
     val isSelected: Boolean,
     val customAmount: String,
 )

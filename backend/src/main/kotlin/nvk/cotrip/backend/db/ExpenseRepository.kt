@@ -25,6 +25,7 @@ data class ExpenseParticipantRow(
     val shareAmount: Double?,
     val isIncluded: Boolean,
     val isPaid: Boolean,
+    val userName: String? = null,
 )
 
 object ExpenseRepository {
@@ -67,10 +68,17 @@ object ExpenseRepository {
         if (expenseIds.isEmpty()) return@dbQuery emptyMap()
         val placeholders = expenseIds.joinToString(",") { "?" }
         val sql = """
-            SELECT expense_id, user_id, share_amount, is_included, is_paid
-            FROM expense_splits
-            WHERE expense_id IN ($placeholders)
-            ORDER BY expense_id
+            SELECT
+                es.expense_id,
+                es.user_id,
+                es.share_amount,
+                es.is_included,
+                es.is_paid,
+                u.name AS user_name
+            FROM expense_splits es
+            LEFT JOIN users u ON u.id = es.user_id
+            WHERE es.expense_id IN ($placeholders)
+            ORDER BY es.expense_id
         """.trimIndent()
         conn.prepareStatement(sql).use { stmt ->
             expenseIds.forEachIndexed { idx, id ->
@@ -234,6 +242,7 @@ object ExpenseRepository {
             shareAmount = rs.getObject("share_amount", java.math.BigDecimal::class.java)?.toDouble(),
             isIncluded = rs.getBoolean("is_included"),
             isPaid = rs.getBoolean("is_paid"),
+            userName = rs.getString("user_name"),
         )
     }
 }

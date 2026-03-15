@@ -3,10 +3,12 @@ package nvk.cotrip.ui.theme
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -38,9 +40,10 @@ object CoTripIcons {
     val Edit: ImageVector = Icons.Filled.Edit
     val Delete: ImageVector = Icons.Filled.Delete
     val Share: ImageVector = Icons.Filled.Share
+    val Send: ImageVector = Icons.AutoMirrored.Filled.Send
     val Join: ImageVector = Icons.Filled.JoinRight
     val PhotoCamera: ImageVector = Icons.Filled.Edit
-    val Copy: ImageVector = Icons.Filled.Info
+    val Copy: ImageVector = Icons.Filled.ContentCopy
     val OpenInNew: ImageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight
 
     val CheckCircle: ImageVector = Icons.Filled.CheckCircle

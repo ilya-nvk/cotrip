@@ -5,9 +5,9 @@ import nvk.cotrip.R
 import nvk.cotrip.data.network.dto.WeatherForecastDto
 import nvk.cotrip.data.network.dto.WeatherForecastResponseDto
 import nvk.cotrip.ui.theme.CoTripIcons
-import nvk.cotrip.ui.theme.Info
-import nvk.cotrip.ui.theme.TextSecondary
-import nvk.cotrip.ui.theme.Warning
+import nvk.cotrip.ui.theme.WeatherCloudy
+import nvk.cotrip.ui.theme.WeatherRainy
+import nvk.cotrip.ui.theme.WeatherSunny
 import java.time.LocalDate
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
@@ -78,9 +78,9 @@ object TripForecastUiMapper {
             else -> CoTripIcons.WeatherCloudy
         }
         val tint = when (icon) {
-            CoTripIcons.WeatherSunny -> Warning
-            CoTripIcons.WeatherRain -> Info
-            else -> TextSecondary
+            CoTripIcons.WeatherSunny -> WeatherSunny
+            CoTripIcons.WeatherRain -> WeatherRainy
+            else -> WeatherCloudy
         }
         val tempText = when {
             tempMin != null && tempMax != null -> "${tempMin.roundTemp()}° / ${tempMax.roundTemp()}°"

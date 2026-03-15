@@ -81,8 +81,9 @@ class ExpenseDetailsViewModel @Inject constructor(
             )
 
             ExpenseDetailsEvent.OnMarkAsPaidClick -> markAsPaid()
-            ExpenseDetailsEvent.OnMarkAllSettledClick -> markAllSettled()
             is ExpenseDetailsEvent.OnMarkParticipantPaidClick -> markParticipantPaid(event.participantId)
+            is ExpenseDetailsEvent.OnUnmarkParticipantPaidClick ->
+                unmarkParticipantPaid(event.participantId)
         }
     }
 
@@ -160,10 +161,14 @@ class ExpenseDetailsViewModel @Inject constructor(
         )
     }
 
-    private fun markAllSettled() {
+    private fun markParticipantPaid(participantId: String) {
         val expense = currentExpense ?: return
         if (expense.status != "paid") return
-        val participants = expense.participants.map { it.copy(isPaid = true) }
+        val currentUserId = meId ?: return
+        if (participantId != currentUserId) return
+        val participants = expense.participants.map { participant ->
+            if (participant.userId == participantId) participant.copy(isPaid = true) else participant
+        }
         updateExpense(
             ExpenseUpdateRequest(
                 participants = participants.toInputs()
@@ -171,11 +176,13 @@ class ExpenseDetailsViewModel @Inject constructor(
         )
     }
 
-    private fun markParticipantPaid(participantId: String) {
+    private fun unmarkParticipantPaid(participantId: String) {
         val expense = currentExpense ?: return
         if (expense.status != "paid") return
+        val currentUserId = meId ?: return
+        if (participantId != currentUserId) return
         val participants = expense.participants.map { participant ->
-            if (participant.userId == participantId) participant.copy(isPaid = true) else participant
+            if (participant.userId == participantId) participant.copy(isPaid = false) else participant
         }
         updateExpense(
             ExpenseUpdateRequest(
@@ -220,7 +227,12 @@ private fun ExpenseDto.toState(
     }
 
     val paidByName = paidById?.let { payerId ->
-        if (payerId == meId) context.getString(R.string.common_you) else membersById[payerId]?.name
+        if (payerId == meId) {
+            context.getString(R.string.common_you)
+        } else {
+            membersById[payerId]?.name
+                ?: participants.firstOrNull { it.userId == payerId }?.name
+        }
     }
 
     val splitTypeLabel = if (splitType == "equally") {
@@ -231,12 +243,20 @@ private fun ExpenseDto.toState(
     val shares = computeShares(this)
     val splitRows = participants.filter { it.isIncluded }.map { participant ->
         val member = membersById[participant.userId]
+        val participantName = member?.name
+            ?: participant.name
+            ?: context.getString(R.string.common_unknown)
+        val participantInitials = member?.initials
+            ?: participant.name?.let(::initialsFromName)
+            ?: "?"
         ExpenseSplitRowUi(
             id = participant.userId,
-            initials = member?.initials ?: "?",
-            name = member?.name ?: context.getString(R.string.common_unknown),
+            initials = participantInitials,
+            name = participantName,
+            photoUrl = member?.photoUrl,
             amount = formatMoney(shares[participant.userId] ?: 0.0, currencySymbol),
-            isPaid = participant.isPaid
+            isPaid = participant.isPaid,
+            canTogglePaid = participant.userId == meId,
         )
     }
 
@@ -291,4 +311,13 @@ private fun formatMoney(amount: Double, currencySymbol: String): String {
 
 private fun currencySymbolFor(code: String): String {
     return TripCurrency.values().firstOrNull { it.code == code }?.symbol ?: code
+}
+
+private fun initialsFromName(name: String): String {
+    val parts = name.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
+    return when {
+        parts.isEmpty() -> "?"
+        parts.size == 1 -> parts[0].take(2).uppercase(Locale.getDefault())
+        else -> ("${parts[0].first()}${parts[1].first()}").uppercase(Locale.getDefault())
+    }
 }

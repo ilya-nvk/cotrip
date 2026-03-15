@@ -48,13 +48,16 @@ class TripForecastViewModel @Inject constructor(
     val effects = _effects.asSharedFlow()
 
     init {
-        refreshForecast(isUserRefresh = false)
+        refreshForecast(isUserRefresh = false, forceRefresh = true)
     }
 
     fun onEvent(event: TripForecastEvent) {
         when (event) {
             TripForecastEvent.OnBackClick -> appNavigator.popBackStack()
-            TripForecastEvent.OnAutoRefresh -> refreshForecast(isUserRefresh = false)
+            TripForecastEvent.OnAutoRefresh -> refreshForecast(
+                isUserRefresh = false,
+                forceRefresh = true
+            )
             TripForecastEvent.OnUserRefresh -> refreshForecast(isUserRefresh = true)
             TripForecastEvent.OnCityClick -> {
                 val current = _state.value as? TripForecastState.Content ?: return
@@ -73,12 +76,15 @@ class TripForecastViewModel @Inject constructor(
                     city = event.city,
                     isCityPickerVisible = false,
                 )
-                refreshForecast(isUserRefresh = false)
+                refreshForecast(isUserRefresh = false, forceRefresh = true)
             }
         }
     }
 
-    private fun refreshForecast(isUserRefresh: Boolean) {
+    private fun refreshForecast(
+        isUserRefresh: Boolean,
+        forceRefresh: Boolean = false,
+    ) {
         viewModelScope.launch {
             val current = _state.value as? TripForecastState.Content
             if (isUserRefresh) {
@@ -103,7 +109,8 @@ class TripForecastViewModel @Inject constructor(
                         )
                     } else {
                         val shouldRefresh =
-                            isUserRefresh ||
+                            forceRefresh ||
+                                    isUserRefresh ||
                                     current == null ||
                                     current.days.isEmpty() ||
                                     !current.city.equals(selectedCity.city, ignoreCase = true)

@@ -260,7 +260,14 @@ private fun Header(
         modifier = Modifier
             .fillMaxWidth()
             .height(220.dp)
-            .clip(RoundedCornerShape(CoTripTokens.radius.large))
+            .clip(
+                RoundedCornerShape(
+                    topStart = 0.dp,
+                    topEnd = 0.dp,
+                    bottomStart = CoTripTokens.radius.large,
+                    bottomEnd = CoTripTokens.radius.large
+                )
+            )
             .background(tripGradientFromId(tripId))
     ) {
         if (!coverUrl.isNullOrBlank()) {
@@ -507,7 +514,7 @@ private fun WeatherCard(
                     val daysToDisplay = days.take(5)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = if (daysToDisplay.size < 4) {
+                        horizontalArrangement = if (daysToDisplay.size < 3) {
                             Arrangement.spacedBy(CoTripTokens.spacing.x2, Alignment.Start)
                         } else {
                             Arrangement.SpaceBetween
