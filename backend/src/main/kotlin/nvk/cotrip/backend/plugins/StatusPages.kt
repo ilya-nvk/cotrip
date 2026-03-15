@@ -5,9 +5,24 @@ import io.ktor.server.application.Application
 import io.ktor.server.application.install
 import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.response.respond
+import nvk.cotrip.backend.limits.LimitReachedException
+import nvk.cotrip.backend.limits.toDetailsJson
 
 fun Application.configureStatusPages() {
     install(StatusPages) {
+        exception<LimitReachedException> { call, cause ->
+            call.respond(
+                HttpStatusCode.Conflict,
+                mapOf(
+                    "error" to mapOf(
+                        "code" to "limit_reached",
+                        "message" to "Limit reached for ${cause.entity}",
+                        "details" to cause.toDetailsJson(),
+                    )
+                )
+            )
+        }
+
         exception<IllegalArgumentException> { call, cause ->
             call.respond(
                 HttpStatusCode.BadRequest,

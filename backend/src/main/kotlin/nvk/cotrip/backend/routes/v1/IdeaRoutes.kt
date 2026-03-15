@@ -73,14 +73,37 @@ fun Route.ideaRoutes() {
             val status = call.request.queryParameters["status"]
             val authorId = call.request.queryParameters["authorId"]
             val city = call.request.queryParameters["city"]
+            val limit = call.request.queryParameters["limit"]?.toIntOrNull()?.coerceIn(1, 100)
+            val cursor = call.request.queryParameters["cursor"]
 
-            val ideas = IdeaRepository.list(tripId, search, status, authorId, city)
-            val commentCounts = CommentRepository.countByIdeaIds(ideas.map { it.id })
-            val items = ideas.map { idea ->
-                idea.toDto(commentCounts[idea.id] ?: 0)
+            if (limit == null && cursor.isNullOrBlank()) {
+                val ideas = IdeaRepository.list(tripId, search, status, authorId, city)
+                val commentCounts = CommentRepository.countByIdeaIds(ideas.map { it.id })
+                val items = ideas.map { idea ->
+                    idea.toDto(commentCounts[idea.id] ?: 0)
+                }
+                call.respond(mapOf("items" to items, "nextCursor" to null))
+            } else {
+                val page = IdeaRepository.listPage(
+                    tripId = tripId,
+                    search = search,
+                    status = status,
+                    authorId = authorId,
+                    city = city,
+                    limit = limit ?: 100,
+                    cursor = cursor,
+                )
+                val commentCounts = CommentRepository.countByIdeaIds(page.items.map { it.id })
+                val items = page.items.map { idea ->
+                    idea.toDto(commentCounts[idea.id] ?: 0)
+                }
+                call.respond(
+                    mapOf(
+                        "items" to items,
+                        "nextCursor" to page.nextCursor,
+                    )
+                )
             }
-
-            call.respond(mapOf("items" to items, "nextCursor" to null))
         }
 
         post("/v1/trips/{tripId}/ideas") {

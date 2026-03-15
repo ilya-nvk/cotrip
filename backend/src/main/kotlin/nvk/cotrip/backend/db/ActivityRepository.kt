@@ -3,6 +3,9 @@ package nvk.cotrip.backend.db
 import java.sql.ResultSet
 import java.time.OffsetDateTime
 import java.util.UUID
+import nvk.cotrip.backend.limits.LimitReachedException
+import nvk.cotrip.backend.limits.Limits
+import nvk.cotrip.backend.limits.OldestCandidate
 
 data class ActivityRow(
     val id: String,
@@ -72,6 +75,65 @@ object ActivityRepository {
         notes: String?,
         orderIndex: Int,
     ): ActivityRow = dbQuery { conn ->
+        conn.prepareStatement(
+            """
+            SELECT 1
+            FROM itinerary_days
+            WHERE id = ?
+            FOR UPDATE
+            """.trimIndent()
+        ).use { stmt ->
+            stmt.setObject(1, UUID.fromString(dayId))
+            stmt.executeQuery()
+        }
+
+        val count = conn.prepareStatement(
+            """
+            SELECT COUNT(*) AS cnt
+            FROM activities
+            WHERE day_id = ? AND deleted_at IS NULL
+            """.trimIndent()
+        ).use { stmt ->
+            stmt.setObject(1, UUID.fromString(dayId))
+            stmt.executeQuery().use { rs ->
+                rs.next()
+                rs.getInt("cnt")
+            }
+        }
+
+        if (count >= Limits.ACTIVITIES_PER_DAY) {
+            val oldest = conn.prepareStatement(
+                """
+                SELECT id, title, created_at
+                FROM activities
+                WHERE day_id = ? AND deleted_at IS NULL
+                ORDER BY created_at ASC, id ASC
+                LIMIT 1
+                """.trimIndent()
+            ).use { stmt ->
+                stmt.setObject(1, UUID.fromString(dayId))
+                stmt.executeQuery().use { rs ->
+                    if (rs.next()) {
+                        OldestCandidate(
+                            id = rs.getObject("id", UUID::class.java).toString(),
+                            label = rs.getString("title"),
+                            createdAt = rs.getObject("created_at", OffsetDateTime::class.java),
+                            deletable = true,
+                        )
+                    } else {
+                        null
+                    }
+                }
+            }
+            throw LimitReachedException(
+                entity = "activity",
+                scopeId = dayId,
+                limit = Limits.ACTIVITIES_PER_DAY,
+                currentCount = count,
+                oldestCandidate = oldest,
+            )
+        }
+
         conn.prepareStatement(
             """
             INSERT INTO activities (day_id, source_idea_id, title, time_text, location_name, link, cost_amount, cost_type, notes, order_index)
