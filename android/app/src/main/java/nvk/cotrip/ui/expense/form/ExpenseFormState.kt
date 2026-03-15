@@ -1,5 +1,7 @@
 package nvk.cotrip.ui.expense.form
 
+import nvk.cotrip.ui.common.LimitDialogState
+
 data class ExpenseFormState(
     val mode: ExpenseFormMode,
     val expenseId: String?,
@@ -14,4 +16,5 @@ data class ExpenseFormState(
     val note: String,
     val isSaving: Boolean,
     val paidByPickerVisible: Boolean,
+    val limitDialog: LimitDialogState? = null,
 )

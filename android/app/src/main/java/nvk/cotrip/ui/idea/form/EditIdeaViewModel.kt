@@ -77,6 +77,8 @@ class EditIdeaViewModel @Inject constructor(
             IdeaFormEvent.OnBackClick -> appNavigator.popBackStack()
             IdeaFormEvent.OnPrimaryClick -> updateIdea()
             IdeaFormEvent.OnDeleteClick -> deleteIdea()
+            IdeaFormEvent.OnDismissLimitDialog,
+            IdeaFormEvent.OnConfirmDeleteOldestAndRetry -> Unit
             is IdeaFormEvent.OnCitySelected -> onCitySuggestionSelected(event.city)
             is IdeaFormEvent.OnTitleChange -> _state.update { it.copy(title = event.value) }
             is IdeaFormEvent.OnCityChange -> onCityInputChanged(event.value)

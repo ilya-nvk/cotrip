@@ -6,6 +6,9 @@ import java.time.LocalDate
 import java.time.OffsetDateTime
 import java.time.temporal.ChronoUnit
 import java.util.UUID
+import nvk.cotrip.backend.limits.LimitReachedException
+import nvk.cotrip.backend.limits.Limits
+import nvk.cotrip.backend.limits.OldestCandidate
 
 data class TripRow(
     val id: String,
@@ -21,6 +24,11 @@ data class TripRow(
     val updatedAt: OffsetDateTime,
 )
 
+data class TripPage(
+    val items: List<TripRow>,
+    val nextCursor: String?,
+)
+
 object TripRepository {
     fun createTrip(
         ownerId: String,
@@ -32,6 +40,66 @@ object TripRepository {
         coverUrl: String?,
         currencyCode: String,
     ): TripRow = dbQuery { conn ->
+        conn.prepareStatement(
+            """
+            SELECT 1
+            FROM users
+            WHERE id = ?
+            FOR UPDATE
+            """.trimIndent()
+        ).use { stmt ->
+            stmt.setObject(1, UUID.fromString(ownerId))
+            stmt.executeQuery()
+        }
+
+        val ownedTripsCount = conn.prepareStatement(
+            """
+            SELECT COUNT(*) AS cnt
+            FROM trips
+            WHERE owner_id = ? AND deleted_at IS NULL
+            """.trimIndent()
+        ).use { stmt ->
+            stmt.setObject(1, UUID.fromString(ownerId))
+            stmt.executeQuery().use { rs ->
+                rs.next()
+                rs.getInt("cnt")
+            }
+        }
+
+        if (ownedTripsCount >= Limits.TRIPS_PER_OWNER) {
+            val oldest = conn.prepareStatement(
+                """
+                SELECT id, title, start_date
+                FROM trips
+                WHERE owner_id = ? AND deleted_at IS NULL
+                ORDER BY start_date ASC, id ASC
+                LIMIT 1
+                """.trimIndent()
+            ).use { stmt ->
+                stmt.setObject(1, UUID.fromString(ownerId))
+                stmt.executeQuery().use { rs ->
+                    if (rs.next()) {
+                        OldestCandidate(
+                            id = rs.getObject("id", UUID::class.java).toString(),
+                            label = rs.getString("title"),
+                            startDate = rs.getObject("start_date", LocalDate::class.java),
+                            deletable = true,
+                        )
+                    } else {
+                        null
+                    }
+                }
+            }
+
+            throw LimitReachedException(
+                entity = "trip",
+                scopeId = ownerId,
+                limit = Limits.TRIPS_PER_OWNER,
+                currentCount = ownedTripsCount,
+                oldestCandidate = oldest,
+            )
+        }
+
         val trip = conn.prepareStatement(
             """
             INSERT INTO trips (owner_id, title, description, start_date, end_date, location_line, cover_url, currency_code, status)
@@ -130,6 +198,93 @@ object TripRepository {
                     result += mapTrip(rs)
                 }
                 result
+            }
+        }
+    }
+
+    fun listTripsForUserPage(
+        userId: String,
+        status: String?,
+        limit: Int,
+        cursor: String?,
+    ): TripPage = dbQuery { conn ->
+        val today = LocalDate.now()
+        val conditions = mutableListOf<String>()
+        conditions += "m.user_id = ?"
+        conditions += "m.status = 'accepted'"
+        conditions += "t.deleted_at IS NULL"
+
+        when (status) {
+            "archived" -> conditions += "t.status = 'archived'"
+            "active" -> {
+                conditions += "t.status = 'active'"
+                conditions += "t.start_date <= ? AND t.end_date >= ?"
+            }
+            "upcoming" -> {
+                conditions += "t.status = 'active'"
+                conditions += "t.start_date > ?"
+            }
+            "past" -> {
+                conditions += "t.status = 'active'"
+                conditions += "t.end_date < ?"
+            }
+        }
+
+        var cursorDate: LocalDate? = null
+        var cursorId: String? = null
+        if (!cursor.isNullOrBlank()) {
+            val decoded = CursorCodec.decode(cursor).split("|")
+            if (decoded.size != 2) throw IllegalArgumentException("invalid_cursor")
+            cursorDate = runCatching { LocalDate.parse(decoded[0]) }.getOrElse {
+                throw IllegalArgumentException("invalid_cursor")
+            }
+            cursorId = runCatching { UUID.fromString(decoded[1]).toString() }.getOrElse {
+                throw IllegalArgumentException("invalid_cursor")
+            }
+            conditions += "(t.start_date > ? OR (t.start_date = ? AND t.id > ?))"
+        }
+
+        val sql = """
+            SELECT t.id, t.owner_id, t.title, t.description, t.start_date, t.end_date, t.location_line, t.cover_url, t.currency_code, t.status, t.updated_at
+            FROM trips t
+            JOIN trip_members m ON m.trip_id = t.id
+            WHERE ${conditions.joinToString(" AND ")}
+            ORDER BY t.start_date ASC, t.id ASC
+            LIMIT ?
+        """.trimIndent()
+
+        conn.prepareStatement(sql).use { stmt ->
+            var index = 1
+            stmt.setObject(index++, UUID.fromString(userId))
+            when (status) {
+                "active" -> {
+                    stmt.setObject(index++, today)
+                    stmt.setObject(index++, today)
+                }
+                "upcoming" -> stmt.setObject(index++, today)
+                "past" -> stmt.setObject(index++, today)
+            }
+            if (cursorDate != null && cursorId != null) {
+                stmt.setObject(index++, cursorDate)
+                stmt.setObject(index++, cursorDate)
+                stmt.setObject(index++, UUID.fromString(cursorId))
+            }
+            stmt.setInt(index, limit + 1)
+
+            stmt.executeQuery().use { rs ->
+                val fetched = mutableListOf<TripRow>()
+                while (rs.next()) {
+                    fetched += mapTrip(rs)
+                }
+                val hasMore = fetched.size > limit
+                val items = if (hasMore) fetched.take(limit) else fetched
+                val nextCursor = if (hasMore) {
+                    val tail = items.last()
+                    CursorCodec.encode("${tail.startDate}|${tail.id}")
+                } else {
+                    null
+                }
+                TripPage(items = items, nextCursor = nextCursor)
             }
         }
     }

@@ -493,7 +493,15 @@ private fun MyMessageBubble(
                 ) {
                     item.localId?.let { localId ->
                         TextButton(onClick = { onRetry(localId) }) {
-                            Text(text = stringResource(R.string.idea_details_retry_comment))
+                            Text(
+                                text = stringResource(
+                                    if (item.deleteOldestOnRetry) {
+                                        R.string.idea_details_retry_with_delete_oldest
+                                    } else {
+                                        R.string.idea_details_retry_comment
+                                    }
+                                )
+                            )
                         }
                         TextButton(
                             onClick = { onDeletePending(localId) },

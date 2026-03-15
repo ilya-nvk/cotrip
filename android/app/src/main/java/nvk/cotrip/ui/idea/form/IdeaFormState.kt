@@ -1,5 +1,7 @@
 package nvk.cotrip.ui.idea.form
 
+import nvk.cotrip.ui.common.LimitDialogState
+
 data class IdeaLocationSuggestionUi(
     val name: String,
     val placeId: String,
@@ -20,4 +22,5 @@ data class IdeaFormState(
     val costType: IdeaCostType,
     val notes: String,
     val isSaving: Boolean,
+    val limitDialog: LimitDialogState? = null,
 )

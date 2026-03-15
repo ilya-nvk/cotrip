@@ -40,7 +40,13 @@ class TripRepositoryImpl @Inject constructor(
 
     override suspend fun refreshTrips(): Result<Unit> {
         return try {
-            val trips = api.listTrips().items
+            val trips = mutableListOf<TripDto>()
+            var cursor: String? = null
+            do {
+                val page = api.listTrips(limit = 100, cursor = cursor)
+                trips += page.items
+                cursor = page.nextCursor
+            } while (cursor != null)
             safeLocalMutation("refreshTrips.setTrips") {
                 tripsCacheStore.setTrips(trips)
             }

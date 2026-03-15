@@ -4,6 +4,9 @@ import java.sql.ResultSet
 import java.time.LocalDate
 import java.time.OffsetDateTime
 import java.util.UUID
+import nvk.cotrip.backend.limits.LimitReachedException
+import nvk.cotrip.backend.limits.Limits
+import nvk.cotrip.backend.limits.OldestCandidate
 
 data class ExpenseRow(
     val id: String,
@@ -28,6 +31,11 @@ data class ExpenseParticipantRow(
     val userName: String? = null,
 )
 
+data class ExpensePage(
+    val items: List<ExpenseRow>,
+    val nextCursor: String?,
+)
+
 object ExpenseRepository {
     fun listByTrip(tripId: String): List<ExpenseRow> = dbQuery { conn ->
         conn.prepareStatement(
@@ -45,6 +53,65 @@ object ExpenseRepository {
                     result += mapExpense(rs)
                 }
                 result
+            }
+        }
+    }
+
+    fun listByTripPage(
+        tripId: String,
+        limit: Int,
+        cursor: String?,
+    ): ExpensePage = dbQuery { conn ->
+        val conditions = mutableListOf<String>()
+        conditions += "trip_id = ?"
+        conditions += "deleted_at IS NULL"
+
+        var cursorUpdatedAt: OffsetDateTime? = null
+        var cursorId: String? = null
+        if (!cursor.isNullOrBlank()) {
+            val decoded = CursorCodec.decode(cursor).split("|")
+            if (decoded.size != 2) throw IllegalArgumentException("invalid_cursor")
+            cursorUpdatedAt = runCatching { OffsetDateTime.parse(decoded[0]) }.getOrElse {
+                throw IllegalArgumentException("invalid_cursor")
+            }
+            cursorId = runCatching { UUID.fromString(decoded[1]).toString() }.getOrElse {
+                throw IllegalArgumentException("invalid_cursor")
+            }
+            conditions += "(updated_at < ? OR (updated_at = ? AND id < ?))"
+        }
+
+        val sql = """
+            SELECT id, trip_id, title, amount, currency_code, status, paid_by, expense_date, split_type, note, updated_at
+            FROM expenses
+            WHERE ${conditions.joinToString(" AND ")}
+            ORDER BY updated_at DESC, id DESC
+            LIMIT ?
+        """.trimIndent()
+
+        conn.prepareStatement(sql).use { stmt ->
+            var idx = 1
+            stmt.setObject(idx++, UUID.fromString(tripId))
+            if (cursorUpdatedAt != null && cursorId != null) {
+                stmt.setObject(idx++, cursorUpdatedAt)
+                stmt.setObject(idx++, cursorUpdatedAt)
+                stmt.setObject(idx++, UUID.fromString(cursorId))
+            }
+            stmt.setInt(idx, limit + 1)
+
+            stmt.executeQuery().use { rs ->
+                val fetched = mutableListOf<ExpenseRow>()
+                while (rs.next()) {
+                    fetched += mapExpense(rs)
+                }
+                val hasMore = fetched.size > limit
+                val items = if (hasMore) fetched.take(limit) else fetched
+                val nextCursor = if (hasMore) {
+                    val tail = items.last()
+                    CursorCodec.encode("${tail.updatedAt}|${tail.id}")
+                } else {
+                    null
+                }
+                ExpensePage(items = items, nextCursor = nextCursor)
             }
         }
     }
@@ -106,6 +173,64 @@ object ExpenseRepository {
         note: String?,
         participants: List<ExpenseParticipantRow>,
     ): ExpenseRow = dbQuery { conn ->
+        conn.prepareStatement(
+            """
+            SELECT 1
+            FROM trips
+            WHERE id = ? AND deleted_at IS NULL
+            FOR UPDATE
+            """.trimIndent()
+        ).use { stmt ->
+            stmt.setObject(1, UUID.fromString(tripId))
+            stmt.executeQuery()
+        }
+
+        val count = conn.prepareStatement(
+            """
+            SELECT COUNT(*) AS cnt
+            FROM expenses
+            WHERE trip_id = ? AND deleted_at IS NULL
+            """.trimIndent()
+        ).use { stmt ->
+            stmt.setObject(1, UUID.fromString(tripId))
+            stmt.executeQuery().use { rs ->
+                rs.next()
+                rs.getInt("cnt")
+            }
+        }
+        if (count >= Limits.EXPENSES_PER_TRIP) {
+            val oldest = conn.prepareStatement(
+                """
+                SELECT id, title, created_at
+                FROM expenses
+                WHERE trip_id = ? AND deleted_at IS NULL
+                ORDER BY created_at ASC, id ASC
+                LIMIT 1
+                """.trimIndent()
+            ).use { stmt ->
+                stmt.setObject(1, UUID.fromString(tripId))
+                stmt.executeQuery().use { rs ->
+                    if (rs.next()) {
+                        OldestCandidate(
+                            id = rs.getObject("id", UUID::class.java).toString(),
+                            label = rs.getString("title"),
+                            createdAt = rs.getObject("created_at", OffsetDateTime::class.java),
+                            deletable = true,
+                        )
+                    } else {
+                        null
+                    }
+                }
+            }
+            throw LimitReachedException(
+                entity = "expense",
+                scopeId = tripId,
+                limit = Limits.EXPENSES_PER_TRIP,
+                currentCount = count,
+                oldestCandidate = oldest,
+            )
+        }
+
         val expense = conn.prepareStatement(
             """
             INSERT INTO expenses (trip_id, title, amount, currency_code, status, paid_by, expense_date, split_type, note)

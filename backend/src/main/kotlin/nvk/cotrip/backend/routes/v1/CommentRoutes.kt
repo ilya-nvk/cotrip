@@ -39,7 +39,21 @@ fun Route.commentRoutes() {
                 return@get
             }
 
-            val commentRows = CommentRepository.listByIdea(ideaId)
+            val limit = call.request.queryParameters["limit"]?.toIntOrNull()?.coerceIn(1, 50)
+            val cursor = call.request.queryParameters["cursor"]
+            val pageRows = if (limit == null && cursor.isNullOrBlank()) {
+                nvk.cotrip.backend.db.CommentPage(
+                    items = CommentRepository.listByIdea(ideaId),
+                    nextCursor = null,
+                )
+            } else {
+                CommentRepository.listByIdeaPage(
+                    ideaId = ideaId,
+                    limit = limit ?: 50,
+                    cursor = cursor,
+                )
+            }
+            val commentRows = pageRows.items
             val authorNamesById = commentRows
                 .asSequence()
                 .map { it.authorId }
@@ -58,7 +72,7 @@ fun Route.commentRoutes() {
                 )
             }
 
-            call.respond(mapOf("items" to comments, "nextCursor" to null))
+            call.respond(mapOf("items" to comments, "nextCursor" to pageRows.nextCursor))
         }
 
         delete("/v1/comments/{commentId}") {

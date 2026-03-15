@@ -81,6 +81,8 @@ class EditExpenseViewModel @Inject constructor(
             ExpenseFormEvent.OnBackClick -> appNavigator.popBackStack()
             ExpenseFormEvent.OnPrimaryClick -> updateExpense()
             ExpenseFormEvent.OnDeleteClick -> deleteExpense()
+            ExpenseFormEvent.OnDismissLimitDialog,
+            ExpenseFormEvent.OnConfirmDeleteOldestAndRetry -> Unit
             ExpenseFormEvent.OnDateClick -> Unit
             is ExpenseFormEvent.OnDateSelected -> selectDate(event.date)
             ExpenseFormEvent.OnPaidByClick -> _state.update { it.copy(paidByPickerVisible = true) }

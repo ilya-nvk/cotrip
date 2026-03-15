@@ -14,6 +14,7 @@ interface IdeaRepository {
     suspend fun createIdea(tripId: String, request: CreateIdeaRequest): IdeaDto
     suspend fun updateIdea(ideaId: String, request: UpdateIdeaRequest)
     suspend fun deleteIdea(ideaId: String)
+    suspend fun deleteComment(commentId: String)
     suspend fun convertIdeaToActivity(ideaId: String, request: ConvertIdeaRequest)
     suspend fun approveIdea(ideaId: String): IdeaDto
     suspend fun rejectIdea(ideaId: String): IdeaDto

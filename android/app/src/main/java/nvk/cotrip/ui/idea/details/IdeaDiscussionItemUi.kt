@@ -19,6 +19,7 @@ sealed interface IdeaDiscussionItemUi {
         val isMe: Boolean,
         val deliveryState: DeliveryState = DeliveryState.Sent,
         val localId: String? = null,
+        val deleteOldestOnRetry: Boolean = false,
     ) : IdeaDiscussionItemUi
 
     data class System(

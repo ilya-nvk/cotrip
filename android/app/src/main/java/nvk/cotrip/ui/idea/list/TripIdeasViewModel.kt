@@ -230,6 +230,7 @@ class TripIdeasViewModel @Inject constructor(
                 when (event) {
                     is CommentWsEvent.CommentCreated -> handleCommentCreated(event.payload)
                     is CommentWsEvent.CommentDeleted -> handleCommentDeleted(event.payload)
+                    is CommentWsEvent.CommentRejected -> Unit
                     is CommentWsEvent.Closed -> scheduleReconnect()
                     is CommentWsEvent.Error -> {
                         AppLogger.w(

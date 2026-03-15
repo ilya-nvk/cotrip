@@ -106,6 +106,10 @@ class IdeaRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun deleteComment(commentId: String) {
+        api.deleteComment(commentId).requireSuccess()
+    }
+
     override suspend fun convertIdeaToActivity(ideaId: String, request: ConvertIdeaRequest) {
         api.convertIdeaToActivity(ideaId, request).requireSuccess()
     }
@@ -128,7 +132,13 @@ class IdeaRepositoryImpl @Inject constructor(
 
     override suspend fun refreshIdeas(tripId: String): Result<Unit> {
         return runCatching {
-            val ideas = api.listIdeas(tripId).items
+            val ideas = mutableListOf<IdeaDto>()
+            var cursor: String? = null
+            do {
+                val page = api.listIdeas(tripId = tripId, limit = 100, cursor = cursor)
+                ideas += page.items
+                cursor = page.nextCursor
+            } while (cursor != null)
             safeLocalMutation("refreshIdeas.setIdeas(tripId=$tripId)") {
                 ideasCacheStore.setIdeas(tripId, ideas)
             }
@@ -137,7 +147,13 @@ class IdeaRepositoryImpl @Inject constructor(
 
     override suspend fun refreshComments(ideaId: String): Result<Unit> {
         return runCatching {
-            val comments = api.listComments(ideaId).items
+            val comments = mutableListOf<CommentDto>()
+            var cursor: String? = null
+            do {
+                val page = api.listComments(ideaId = ideaId, limit = 50, cursor = cursor)
+                comments += page.items
+                cursor = page.nextCursor
+            } while (cursor != null)
             safeLocalMutation("refreshComments.setComments(ideaId=$ideaId)") {
                 commentsCacheStore.setComments(ideaId, comments)
             }

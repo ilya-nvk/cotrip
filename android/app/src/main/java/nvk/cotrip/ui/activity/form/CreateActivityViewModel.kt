@@ -20,8 +20,10 @@ import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.network.dto.CreateActivityRequest
 import nvk.cotrip.data.network.dto.ItineraryDayDto
+import nvk.cotrip.data.network.limitReachedDetails
 import nvk.cotrip.data.repository.ItineraryRepository
 import nvk.cotrip.data.repository.TripRepository
+import nvk.cotrip.ui.common.LimitDialogState
 import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
@@ -84,6 +86,8 @@ class CreateActivityViewModel @Inject constructor(
             ActivityFormEvent.OnBackClick -> appNavigator.popBackStack()
             ActivityFormEvent.OnPrimaryClick -> createActivity()
             ActivityFormEvent.OnDeleteClick -> emit(ActivityFormEffect.ShowToastRes(R.string.activity_form_delete_not_available))
+            ActivityFormEvent.OnDismissLimitDialog -> _state.update { it.copy(limitDialog = null) }
+            ActivityFormEvent.OnConfirmDeleteOldestAndRetry -> deleteOldestAndRetry()
             ActivityFormEvent.OnPickDateClick -> Unit
             ActivityFormEvent.OnPickTimeClick -> Unit
             is ActivityFormEvent.OnDateSelected -> selectDate(event.date)
@@ -176,6 +180,56 @@ class CreateActivityViewModel @Inject constructor(
         viewModelScope.launch {
             when (val result = apiCaller.call {
                 withContext(Dispatchers.IO) {
+                    itineraryRepository.createActivity(
+                        dayId = dayId,
+                        request = CreateActivityRequest(
+                            title = snapshot.title.trim(),
+                            timeText = snapshot.timeText.trim().ifBlank { null },
+                            locationName = snapshot.locationInput.trim().ifBlank { null },
+                            link = snapshot.linkInput.trim().ifBlank { null },
+                            costAmount = parseAmount(snapshot.costAmount),
+                            costType = snapshot.costAmount.toCostType(snapshot.costType),
+                            notes = snapshot.notes.trim().ifBlank { null },
+                        )
+                    )
+                }
+            }) {
+                is ApiResult.Success -> {
+                    emit(ActivityFormEffect.ShowToastRes(R.string.activity_form_created_toast))
+                    appNavigator.popBackStack()
+                }
+
+                is ApiResult.Failure -> {
+                    val limit = result.limitReachedDetails()
+                    val oldest = limit?.oldestCandidate
+                    if (oldest?.deletable == true) {
+                        _state.update {
+                            it.copy(
+                                isSaving = false,
+                                limitDialog = LimitDialogState(
+                                    oldestId = oldest.id,
+                                    oldestLabel = oldest.label,
+                                )
+                            )
+                        }
+                    } else {
+                        emit(ActivityFormEffect.ShowToastRes(uiErrorMapper.messageRes(result)))
+                        _state.update { it.copy(isSaving = false) }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun deleteOldestAndRetry() {
+        val dialog = _state.value.limitDialog ?: return
+        val snapshot = _state.value
+        val dayId = selectedDayId ?: return
+        _state.update { it.copy(limitDialog = null, isSaving = true) }
+        viewModelScope.launch {
+            when (val result = apiCaller.call {
+                withContext(Dispatchers.IO) {
+                    itineraryRepository.deleteActivity(dialog.oldestId)
                     itineraryRepository.createActivity(
                         dayId = dayId,
                         request = CreateActivityRequest(

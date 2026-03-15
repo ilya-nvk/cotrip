@@ -89,6 +89,8 @@ class EditActivityViewModel @Inject constructor(
             ActivityFormEvent.OnBackClick -> appNavigator.popBackStack()
             ActivityFormEvent.OnPrimaryClick -> updateActivity()
             ActivityFormEvent.OnDeleteClick -> deleteActivity()
+            ActivityFormEvent.OnDismissLimitDialog,
+            ActivityFormEvent.OnConfirmDeleteOldestAndRetry -> Unit
             ActivityFormEvent.OnPickDateClick -> Unit
             ActivityFormEvent.OnPickTimeClick -> Unit
             is ActivityFormEvent.OnDateSelected -> selectDate(event.date)

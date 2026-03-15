@@ -76,7 +76,11 @@ interface CoTripApi {
     suspend fun createTrip(@Body request: CreateTripRequest): TripDto
 
     @GET("v1/trips")
-    suspend fun listTrips(@Query("status") status: String? = null): ApiListResponse<TripDto>
+    suspend fun listTrips(
+        @Query("status") status: String? = null,
+        @Query("limit") limit: Int? = null,
+        @Query("cursor") cursor: String? = null,
+    ): ApiListResponse<TripDto>
 
     @GET("v1/trips/{tripId}")
     suspend fun getTrip(@Path("tripId") tripId: String): TripDto
@@ -127,6 +131,8 @@ interface CoTripApi {
         @Query("status") status: String? = null,
         @Query("authorId") authorId: String? = null,
         @Query("city") city: String? = null,
+        @Query("limit") limit: Int? = null,
+        @Query("cursor") cursor: String? = null,
     ): ApiListResponse<IdeaDto>
 
     @POST("v1/trips/{tripId}/ideas")
@@ -160,7 +166,11 @@ interface CoTripApi {
     suspend fun rejectIdea(@Path("ideaId") ideaId: String): IdeaDto
 
     @GET("v1/ideas/{ideaId}/comments")
-    suspend fun listComments(@Path("ideaId") ideaId: String): ApiListResponse<CommentDto>
+    suspend fun listComments(
+        @Path("ideaId") ideaId: String,
+        @Query("limit") limit: Int? = null,
+        @Query("cursor") cursor: String? = null,
+    ): ApiListResponse<CommentDto>
 
     @DELETE("v1/comments/{commentId}")
     suspend fun deleteComment(@Path("commentId") commentId: String): Response<Unit>
@@ -168,6 +178,8 @@ interface CoTripApi {
     @GET("v1/trips/{tripId}/expenses")
     suspend fun listExpenses(
         @Path("tripId") tripId: String,
+        @Query("limit") limit: Int? = null,
+        @Query("cursor") cursor: String? = null,
     ): ApiListResponse<ExpenseDto>
 
     @POST("v1/trips/{tripId}/expenses")
@@ -191,6 +203,8 @@ interface CoTripApi {
     @GET("v1/trips/{tripId}/itinerary")
     suspend fun getItinerary(
         @Path("tripId") tripId: String,
+        @Query("limit") limit: Int? = null,
+        @Query("cursor") cursor: String? = null,
     ): ApiListResponse<ItineraryDayDto>
 
     @GET("v1/trips/{tripId}/cities/search")
@@ -275,7 +289,11 @@ interface CoTripApi {
     suspend fun postSyncChanges(@Body request: SyncChangesRequest): SyncChangesResponse
 
     @GET("v1/sync/changes")
-    suspend fun getSyncChanges(@Query("since") since: String): SyncPullResponse
+    suspend fun getSyncChanges(
+        @Query("since") since: String,
+        @Query("limit") limit: Int? = null,
+        @Query("cursor") cursor: String? = null,
+    ): SyncPullResponse
 
     @GET("v1/notifications")
     suspend fun listNotifications(): NotificationListResponse

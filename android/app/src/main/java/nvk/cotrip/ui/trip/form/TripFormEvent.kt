@@ -14,6 +14,8 @@ sealed interface TripFormEvent {
     data class OnCurrencySelect(val currency: TripCurrency) : TripFormEvent
 
     data object OnPrimaryActionClick : TripFormEvent
+    data object OnDismissLimitDialog : TripFormEvent
+    data object OnConfirmDeleteOldestAndRetry : TripFormEvent
 
     data object OnArchiveClick : TripFormEvent
     data object OnDeleteClick : TripFormEvent

@@ -143,6 +143,9 @@ class EditTripViewModel @Inject constructor(
                 if (state.value.isLoading) return
                 deleteTrip()
             }
+
+            TripFormEvent.OnDismissLimitDialog,
+            TripFormEvent.OnConfirmDeleteOldestAndRetry -> Unit
         }
     }
 

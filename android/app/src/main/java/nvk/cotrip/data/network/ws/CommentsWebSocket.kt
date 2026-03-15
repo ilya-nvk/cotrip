@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
@@ -17,6 +18,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 sealed interface CommentWsEvent {
     data class CommentCreated(val payload: CommentCreatedPayload) : CommentWsEvent
     data class CommentDeleted(val payload: CommentDeletedPayload) : CommentWsEvent
+    data class CommentRejected(val payload: CommentRejectedPayload) : CommentWsEvent
     data class Closed(val code: Int, val reason: String) : CommentWsEvent
     data class Error(val cause: Throwable) : CommentWsEvent
 }
@@ -48,6 +50,12 @@ class CommentsWebSocket(
                         val message = runCatching { json.decodeFromString<CommentDeletedMessage>(text) }
                             .getOrNull()
                         message?.let { _events.tryEmit(CommentWsEvent.CommentDeleted(it.payload)) }
+                    }
+                    "comment.rejected" -> {
+                        val message =
+                            runCatching { json.decodeFromString<CommentRejectedMessage>(text) }
+                                .getOrNull()
+                        message?.let { _events.tryEmit(CommentWsEvent.CommentRejected(it.payload)) }
                     }
                 }
             }
@@ -121,6 +129,12 @@ data class CommentDeletedMessage(
 )
 
 @Serializable
+data class CommentRejectedMessage(
+    val type: String = "comment.rejected",
+    val payload: CommentRejectedPayload,
+)
+
+@Serializable
 data class CommentCreatePayload(
     val ideaId: String,
     val body: String,
@@ -143,4 +157,11 @@ data class CommentCreatedPayload(
 data class CommentDeletedPayload(
     val id: String,
     val ideaId: String,
+)
+
+@Serializable
+data class CommentRejectedPayload(
+    val clientMessageId: String? = null,
+    val reason: String,
+    val details: JsonObject? = null,
 )

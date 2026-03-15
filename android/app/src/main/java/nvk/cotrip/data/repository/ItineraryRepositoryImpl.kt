@@ -46,7 +46,7 @@ class ItineraryRepositoryImpl @Inject constructor(
         if (networkStateProvider.isOnline()) {
             ioScope.launch {
                 runCatching {
-                    val itinerary = api.getItinerary(tripId).items
+                    val itinerary = fetchAllItineraryPages(tripId)
                     safeLocalMutation("getItinerary.setItinerary(tripId=$tripId)") {
                         itineraryCacheStore.setItinerary(tripId, itinerary)
                     }
@@ -60,7 +60,7 @@ class ItineraryRepositoryImpl @Inject constructor(
 
     override suspend fun refreshItinerary(tripId: String): Result<Unit> {
         return runCatching {
-            val itinerary = api.getItinerary(tripId).items
+            val itinerary = fetchAllItineraryPages(tripId)
             safeLocalMutation("refreshItinerary.setItinerary(tripId=$tripId)") {
                 itineraryCacheStore.setItinerary(tripId, itinerary)
             }
@@ -228,5 +228,16 @@ class ItineraryRepositoryImpl @Inject constructor(
             }
         }
         return null
+    }
+
+    private suspend fun fetchAllItineraryPages(tripId: String): List<ItineraryDayDto> {
+        val all = mutableListOf<ItineraryDayDto>()
+        var cursor: String? = null
+        do {
+            val page = api.getItinerary(tripId = tripId, limit = 100, cursor = cursor)
+            all += page.items
+            cursor = page.nextCursor
+        } while (cursor != null)
+        return all
     }
 }
