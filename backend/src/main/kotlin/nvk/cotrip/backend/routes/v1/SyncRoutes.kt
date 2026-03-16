@@ -24,14 +24,17 @@ import nvk.cotrip.backend.db.IdeaRepository
 import nvk.cotrip.backend.db.ItineraryDayRepository
 import nvk.cotrip.backend.db.SyncRepository
 import nvk.cotrip.backend.db.TripMemberRepository
+import nvk.cotrip.backend.db.TripDaySeed
 import nvk.cotrip.backend.db.TripRepository
 import nvk.cotrip.backend.db.TripUpdate
+import nvk.cotrip.backend.limits.LimitReachedException
 import java.time.LocalDate
 import java.time.OffsetDateTime
 import java.util.UUID
 
 @Serializable
 data class SyncPushItem(
+    val changeId: String? = null,
     val entity: String,
     val id: String,
     val type: String,
@@ -45,8 +48,10 @@ data class SyncPushRequest(
 
 @Serializable
 data class SyncConflict(
-    val id: String,
+    val changeId: String,
+    val entityId: String,
     val reason: String,
+    val retryable: Boolean = false,
 )
 
 @Serializable
@@ -73,6 +78,63 @@ private data class SyncTripUpsertPayload(
     val status: String? = null,
 )
 
+@Serializable
+private data class SyncTripCreateDayPayload(
+    val id: String,
+    val date: String,
+    val dayNumber: Int,
+)
+
+@Serializable
+private data class SyncTripCreatePayload(
+    val title: String,
+    val description: String? = null,
+    val startDate: String,
+    val endDate: String,
+    val locationLine: String? = null,
+    val coverUrl: String? = null,
+    val currencyCode: String,
+    val days: List<SyncTripCreateDayPayload> = emptyList(),
+)
+
+@Serializable
+private data class SyncIdeaCreatePayload(
+    val tripId: String,
+    val title: String,
+    val city: String? = null,
+    val link: String? = null,
+    val costAmount: Double? = null,
+    val costType: String? = null,
+    val notes: String? = null,
+)
+
+@Serializable
+private data class SyncExpenseCreatePayload(
+    val tripId: String,
+    val title: String,
+    val amount: Double,
+    val currencyCode: String? = null,
+    val status: String,
+    val paidById: String? = null,
+    val date: String? = null,
+    val splitType: String,
+    val note: String? = null,
+    val participants: List<ExpenseParticipantInput> = emptyList(),
+)
+
+@Serializable
+private data class SyncActivityCreatePayload(
+    val dayId: String,
+    val title: String,
+    val timeText: String? = null,
+    val locationName: String? = null,
+    val link: String? = null,
+    val costAmount: Double? = null,
+    val costType: String? = null,
+    val notes: String? = null,
+    val orderIndex: Int? = null,
+)
+
 private const val OP_UPSERT = "upsert"
 private const val OP_DELETE = "delete"
 private const val OP_CREATE = "create"
@@ -80,13 +142,18 @@ private const val OP_CREATE = "create"
 private const val REASON_INVALID_PAYLOAD = "invalid_payload"
 private const val REASON_FORBIDDEN = "forbidden"
 private const val REASON_NOT_FOUND = "not_found"
+private const val REASON_LIMIT_REACHED = "limit_reached"
+private const val REASON_DEPENDENCY_NOT_READY = "dependency_not_ready"
 private const val REASON_UNSUPPORTED_OPERATION = "unsupported_operation"
 private const val REASON_UNSUPPORTED_ENTITY = "unsupported_entity"
 private const val REASON_INTERNAL_ERROR = "internal_error"
 
 private val syncJson = Json { ignoreUnknownKeys = true }
 
-private class SyncApplyException(val reason: String) : RuntimeException(reason)
+private class SyncApplyException(
+    val reason: String,
+    val retryable: Boolean = false,
+) : RuntimeException(reason)
 
 fun Route.syncRoutes() {
     authenticate("auth-jwt") {
@@ -153,23 +220,37 @@ fun Route.syncRoutes() {
             val conflicts = mutableListOf<SyncConflict>()
 
             request.items.forEach { item ->
-                val reason = runCatching {
+                val operationId = operationId(item)
+                val conflict = runCatching {
                     applySyncItem(userId = userId, item = item)
                     null
                 }.getOrElse { error ->
                     when (error) {
-                        is SyncApplyException -> error.reason
-                        else -> REASON_INTERNAL_ERROR
+                        is SyncApplyException -> SyncConflict(
+                            changeId = operationId,
+                            entityId = item.id,
+                            reason = error.reason,
+                            retryable = error.retryable,
+                        )
+                        is LimitReachedException -> SyncConflict(
+                            changeId = operationId,
+                            entityId = item.id,
+                            reason = REASON_LIMIT_REACHED,
+                            retryable = false,
+                        )
+                        else -> SyncConflict(
+                            changeId = operationId,
+                            entityId = item.id,
+                            reason = REASON_INTERNAL_ERROR,
+                            retryable = true,
+                        )
                     }
                 }
 
-                if (reason == null) {
-                    applied += item.id
+                if (conflict == null) {
+                    applied += operationId
                 } else {
-                    conflicts += SyncConflict(
-                        id = item.id,
-                        reason = reason,
-                    )
+                    conflicts += conflict
                 }
             }
 
@@ -180,14 +261,22 @@ fun Route.syncRoutes() {
 
 private fun applySyncItem(userId: String, item: SyncPushItem) {
     val operation = item.type.trim().lowercase()
-    if (operation == OP_CREATE) {
-        throw SyncApplyException(REASON_UNSUPPORTED_OPERATION)
-    }
-
     when (operation) {
+        OP_CREATE -> applyCreate(userId = userId, item = item)
         OP_UPSERT -> applyUpsert(userId = userId, item = item)
         OP_DELETE -> applyDelete(userId = userId, item = item)
         else -> throw SyncApplyException(REASON_UNSUPPORTED_OPERATION)
+    }
+}
+
+private fun applyCreate(userId: String, item: SyncPushItem) {
+    when (normalizeEntity(item.entity)) {
+        "trip" -> applyTripCreate(userId = userId, item = item)
+        "idea" -> applyIdeaCreate(userId = userId, item = item)
+        "activity" -> applyActivityCreate(userId = userId, item = item)
+        "expense" -> applyExpenseCreate(userId = userId, item = item)
+        "itinerary_day" -> throw SyncApplyException(REASON_UNSUPPORTED_OPERATION)
+        else -> throw SyncApplyException(REASON_UNSUPPORTED_ENTITY)
     }
 }
 
@@ -213,12 +302,217 @@ private fun applyDelete(userId: String, item: SyncPushItem) {
     }
 }
 
+private fun applyTripCreate(userId: String, item: SyncPushItem) {
+    val tripId = normalizeUuid(item.id)
+    val existingTrip = TripRepository.getTripById(tripId)
+    if (existingTrip != null) {
+        if (existingTrip.ownerId != userId) {
+            throw SyncApplyException(REASON_FORBIDDEN)
+        }
+        return
+    }
+
+    val payload = decodePayload<SyncTripCreatePayload>(item.payload)
+    val title = payload.title.trim()
+    if (title.isBlank()) {
+        throw SyncApplyException(REASON_INVALID_PAYLOAD)
+    }
+    val currencyCode = payload.currencyCode.trim()
+    if (currencyCode.isBlank()) {
+        throw SyncApplyException(REASON_INVALID_PAYLOAD)
+    }
+    val startDate = parseDate(payload.startDate)
+    val endDate = parseDate(payload.endDate)
+    if (endDate.isBefore(startDate)) {
+        throw SyncApplyException(REASON_INVALID_PAYLOAD)
+    }
+    if (payload.days.isEmpty()) {
+        throw SyncApplyException(REASON_INVALID_PAYLOAD)
+    }
+
+    val daySeeds = payload.days.map { day ->
+        val dayId = normalizeUuid(day.id)
+        if (day.dayNumber <= 0) {
+            throw SyncApplyException(REASON_INVALID_PAYLOAD)
+        }
+        TripDaySeed(
+            id = dayId,
+            date = parseDate(day.date),
+            dayNumber = day.dayNumber,
+        )
+    }
+
+    val uniqueDayIds = daySeeds.map { it.id }.toSet()
+    val uniqueDayNumbers = daySeeds.map { it.dayNumber }.toSet()
+    val uniqueDayDates = daySeeds.map { it.date }.toSet()
+    if (
+        uniqueDayIds.size != daySeeds.size ||
+        uniqueDayNumbers.size != daySeeds.size ||
+        uniqueDayDates.size != daySeeds.size
+    ) {
+        throw SyncApplyException(REASON_INVALID_PAYLOAD)
+    }
+    val isContiguousDayNumbering = daySeeds
+        .sortedBy { it.dayNumber }
+        .withIndex()
+        .all { (index, day) -> day.dayNumber == index + 1 }
+    if (!isContiguousDayNumbering) {
+        throw SyncApplyException(REASON_INVALID_PAYLOAD)
+    }
+
+    TripRepository.createTrip(
+        ownerId = userId,
+        title = title,
+        description = payload.description?.trim()?.takeIf { it.isNotBlank() },
+        startDate = startDate,
+        endDate = endDate,
+        locationLine = payload.locationLine?.trim()?.takeIf { it.isNotBlank() },
+        coverUrl = payload.coverUrl?.trim()?.takeIf { it.isNotBlank() },
+        currencyCode = currencyCode,
+        tripId = tripId,
+        daySeeds = daySeeds,
+    )
+}
+
+private fun applyIdeaCreate(userId: String, item: SyncPushItem) {
+    val ideaId = normalizeUuid(item.id)
+    val existing = IdeaRepository.get(ideaId)
+    if (existing != null) {
+        val canAccess = existing.authorId == userId || TripRepository.isOwner(existing.tripId, userId)
+        if (!canAccess) {
+            throw SyncApplyException(REASON_FORBIDDEN)
+        }
+        return
+    }
+
+    val payload = decodePayload<SyncIdeaCreatePayload>(item.payload)
+    val tripId = normalizeUuid(payload.tripId)
+    val trip = TripRepository.getTripById(tripId)
+        ?: throw SyncApplyException(REASON_DEPENDENCY_NOT_READY, retryable = true)
+    if (!TripRepository.isMember(trip.id, userId)) {
+        throw SyncApplyException(REASON_FORBIDDEN)
+    }
+
+    IdeaRepository.create(
+        tripId = tripId,
+        authorId = userId,
+        title = payload.title.trim(),
+        city = payload.city?.trim()?.takeIf { it.isNotBlank() },
+        link = payload.link?.trim()?.takeIf { it.isNotBlank() },
+        costAmount = payload.costAmount,
+        costType = payload.costType?.trim()?.takeIf { it.isNotBlank() },
+        notes = payload.notes?.trim()?.takeIf { it.isNotBlank() },
+        ideaId = ideaId,
+    )
+}
+
+private fun applyActivityCreate(userId: String, item: SyncPushItem) {
+    val activityId = normalizeUuid(item.id)
+    val existing = ActivityRepository.get(activityId)
+    if (existing != null) {
+        val tripId = DayRepository.findTripIdByDayId(existing.dayId)
+            ?: throw SyncApplyException(REASON_NOT_FOUND)
+        if (!TripRepository.isMember(tripId, userId)) {
+            throw SyncApplyException(REASON_FORBIDDEN)
+        }
+        return
+    }
+
+    val payload = decodePayload<SyncActivityCreatePayload>(item.payload)
+    val dayId = normalizeUuid(payload.dayId)
+    val tripId = DayRepository.findTripIdByDayId(dayId)
+        ?: throw SyncApplyException(REASON_DEPENDENCY_NOT_READY, retryable = true)
+    if (!TripRepository.isMember(tripId, userId)) {
+        throw SyncApplyException(REASON_FORBIDDEN)
+    }
+
+    val orderIndex = payload.orderIndex ?: ActivityRepository.nextOrderIndex(dayId)
+    ActivityRepository.create(
+        dayId = dayId,
+        title = payload.title.trim(),
+        timeText = payload.timeText?.trim()?.takeIf { it.isNotBlank() },
+        locationName = payload.locationName?.trim()?.takeIf { it.isNotBlank() },
+        link = payload.link?.trim()?.takeIf { it.isNotBlank() },
+        costAmount = payload.costAmount,
+        costType = payload.costType?.trim()?.takeIf { it.isNotBlank() },
+        notes = payload.notes?.trim()?.takeIf { it.isNotBlank() },
+        orderIndex = orderIndex,
+        activityId = activityId,
+    )
+}
+
+private fun applyExpenseCreate(userId: String, item: SyncPushItem) {
+    val expenseId = normalizeUuid(item.id)
+    val existing = ExpenseRepository.get(expenseId)
+    if (existing != null) {
+        if (!TripRepository.isMember(existing.tripId, userId)) {
+            throw SyncApplyException(REASON_FORBIDDEN)
+        }
+        return
+    }
+
+    val payload = decodePayload<SyncExpenseCreatePayload>(item.payload)
+    val tripId = normalizeUuid(payload.tripId)
+    val trip = TripRepository.getTripById(tripId)
+        ?: throw SyncApplyException(REASON_DEPENDENCY_NOT_READY, retryable = true)
+    if (!TripRepository.isMember(trip.id, userId)) {
+        throw SyncApplyException(REASON_FORBIDDEN)
+    }
+    val status = payload.status.trim().lowercase()
+    val splitType = payload.splitType.trim().lowercase()
+    if (!isValidExpenseStatus(status) || !isValidSplitType(splitType)) {
+        throw SyncApplyException(REASON_INVALID_PAYLOAD)
+    }
+    if (payload.participants.isEmpty()) {
+        throw SyncApplyException(REASON_INVALID_PAYLOAD)
+    }
+
+    val memberIds = TripMemberRepository.listMemberIds(tripId)
+    val paidById = payload.paidById?.let(::normalizeUuid)
+    if (paidById != null && paidById !in memberIds) {
+        throw SyncApplyException(REASON_INVALID_PAYLOAD)
+    }
+
+    val participants = payload.participants.map { participant ->
+        val participantId = normalizeUuid(participant.userId)
+        if (participantId !in memberIds) {
+            throw SyncApplyException(REASON_INVALID_PAYLOAD)
+        }
+        ExpenseParticipantRow(
+            expenseId = expenseId,
+            userId = participantId,
+            shareAmount = participant.shareAmount,
+            isIncluded = participant.isIncluded,
+            isPaid = participant.isPaid,
+        )
+    }
+
+    val currencyCode = payload.currencyCode?.trim()?.takeIf { it.isNotBlank() } ?: trip.currencyCode
+    if (currencyCode != trip.currencyCode) {
+        throw SyncApplyException(REASON_INVALID_PAYLOAD)
+    }
+
+    ExpenseRepository.create(
+        tripId = tripId,
+        title = payload.title.trim(),
+        amount = payload.amount,
+        currencyCode = currencyCode,
+        status = status,
+        paidById = paidById,
+        expenseDate = payload.date?.let(::parseDate),
+        splitType = splitType,
+        note = payload.note?.trim()?.takeIf { it.isNotBlank() },
+        participants = participants,
+        expenseId = expenseId,
+    )
+}
+
 private fun applyTripUpsert(userId: String, item: SyncPushItem) {
     val tripId = normalizeUuid(item.id)
     val payload = decodePayload<SyncTripUpsertPayload>(item.payload)
 
     val existingTrip = TripRepository.getTripById(tripId)
-        ?: throw SyncApplyException(REASON_NOT_FOUND)
+        ?: throw SyncApplyException(REASON_DEPENDENCY_NOT_READY, retryable = true)
     if (!TripRepository.isOwner(tripId, userId)) {
         throw SyncApplyException(REASON_FORBIDDEN)
     }
@@ -263,8 +557,7 @@ private fun applyTripUpsert(userId: String, item: SyncPushItem) {
 
 private fun applyTripDelete(userId: String, item: SyncPushItem) {
     val tripId = normalizeUuid(item.id)
-    val existing = TripRepository.getTripById(tripId)
-        ?: throw SyncApplyException(REASON_NOT_FOUND)
+    val existing = TripRepository.getTripById(tripId) ?: return
     if (existing.ownerId != userId) {
         throw SyncApplyException(REASON_FORBIDDEN)
     }
@@ -277,7 +570,7 @@ private fun applyTripDelete(userId: String, item: SyncPushItem) {
 private fun applyIdeaUpsert(userId: String, item: SyncPushItem) {
     val ideaId = normalizeUuid(item.id)
     val existing = IdeaRepository.get(ideaId)
-        ?: throw SyncApplyException(REASON_NOT_FOUND)
+        ?: throw SyncApplyException(REASON_DEPENDENCY_NOT_READY, retryable = true)
     val canEdit = TripRepository.isOwner(existing.tripId, userId) || existing.authorId == userId
     if (!canEdit) {
         throw SyncApplyException(REASON_FORBIDDEN)
@@ -300,8 +593,7 @@ private fun applyIdeaUpsert(userId: String, item: SyncPushItem) {
 
 private fun applyIdeaDelete(userId: String, item: SyncPushItem) {
     val ideaId = normalizeUuid(item.id)
-    val existing = IdeaRepository.get(ideaId)
-        ?: throw SyncApplyException(REASON_NOT_FOUND)
+    val existing = IdeaRepository.get(ideaId) ?: return
     val canDelete = TripRepository.isOwner(existing.tripId, userId) || existing.authorId == userId
     if (!canDelete) {
         throw SyncApplyException(REASON_FORBIDDEN)
@@ -315,7 +607,7 @@ private fun applyIdeaDelete(userId: String, item: SyncPushItem) {
 private fun applyDayUpsert(userId: String, item: SyncPushItem) {
     val dayId = normalizeUuid(item.id)
     val tripId = DayRepository.findTripIdByDayId(dayId)
-        ?: throw SyncApplyException(REASON_NOT_FOUND)
+        ?: throw SyncApplyException(REASON_DEPENDENCY_NOT_READY, retryable = true)
     if (!TripRepository.isMember(tripId, userId)) {
         throw SyncApplyException(REASON_FORBIDDEN)
     }
@@ -359,7 +651,7 @@ private fun applyActivityUpsert(userId: String, item: SyncPushItem) {
 
     val activityId = normalizeUuid(item.id)
     val existing = ActivityRepository.get(activityId)
-        ?: throw SyncApplyException(REASON_NOT_FOUND)
+        ?: throw SyncApplyException(REASON_DEPENDENCY_NOT_READY, retryable = true)
     val tripId = DayRepository.findTripIdByDayId(existing.dayId)
         ?: throw SyncApplyException(REASON_NOT_FOUND)
     if (!TripRepository.isMember(tripId, userId)) {
@@ -394,7 +686,7 @@ private fun applyActivityMove(userId: String, activityIdRaw: String, payload: Mo
 
     val targetDayId = normalizeUuid(payload.dayId)
     val targetTripId = DayRepository.findTripIdByDayId(targetDayId)
-        ?: throw SyncApplyException(REASON_NOT_FOUND)
+        ?: throw SyncApplyException(REASON_DEPENDENCY_NOT_READY, retryable = true)
     if (targetTripId != sourceTripId) {
         throw SyncApplyException(REASON_INVALID_PAYLOAD)
     }
@@ -412,8 +704,7 @@ private fun applyActivityMove(userId: String, activityIdRaw: String, payload: Mo
 
 private fun applyActivityDelete(userId: String, item: SyncPushItem) {
     val activityId = normalizeUuid(item.id)
-    val existing = ActivityRepository.get(activityId)
-        ?: throw SyncApplyException(REASON_NOT_FOUND)
+    val existing = ActivityRepository.get(activityId) ?: return
     val tripId = DayRepository.findTripIdByDayId(existing.dayId)
         ?: throw SyncApplyException(REASON_NOT_FOUND)
     if (!TripRepository.isMember(tripId, userId)) {
@@ -428,7 +719,7 @@ private fun applyActivityDelete(userId: String, item: SyncPushItem) {
 private fun applyExpenseUpsert(userId: String, item: SyncPushItem) {
     val expenseId = normalizeUuid(item.id)
     val existing = ExpenseRepository.get(expenseId)
-        ?: throw SyncApplyException(REASON_NOT_FOUND)
+        ?: throw SyncApplyException(REASON_DEPENDENCY_NOT_READY, retryable = true)
     if (!TripRepository.isMember(existing.tripId, userId)) {
         throw SyncApplyException(REASON_FORBIDDEN)
     }
@@ -484,8 +775,7 @@ private fun applyExpenseUpsert(userId: String, item: SyncPushItem) {
 
 private fun applyExpenseDelete(userId: String, item: SyncPushItem) {
     val expenseId = normalizeUuid(item.id)
-    val existing = ExpenseRepository.get(expenseId)
-        ?: throw SyncApplyException(REASON_NOT_FOUND)
+    val existing = ExpenseRepository.get(expenseId) ?: return
     if (!TripRepository.isMember(existing.tripId, userId)) {
         throw SyncApplyException(REASON_FORBIDDEN)
     }
@@ -501,6 +791,10 @@ private fun normalizeEntity(raw: String): String {
         "itinerary_day" -> "itinerary_day"
         else -> raw.trim().lowercase()
     }
+}
+
+private fun operationId(item: SyncPushItem): String {
+    return item.changeId?.trim()?.takeIf { it.isNotBlank() } ?: item.id
 }
 
 private fun normalizeUuid(raw: String): String {

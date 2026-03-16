@@ -66,6 +66,9 @@ CREATE TABLE IF NOT EXISTS ideas (
 
 CREATE INDEX IF NOT EXISTS idx_ideas_trip_status ON ideas(trip_id, status);
 
+ALTER TABLE ideas
+  ADD COLUMN IF NOT EXISTS link text;
+
 CREATE TABLE IF NOT EXISTS idea_comments (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   idea_id uuid NOT NULL REFERENCES ideas(id),
@@ -113,6 +116,9 @@ CREATE TABLE IF NOT EXISTS activities (
 );
 
 CREATE INDEX IF NOT EXISTS idx_activities_day_order ON activities(day_id, order_index);
+
+ALTER TABLE activities
+  ADD COLUMN IF NOT EXISTS link text;
 
 CREATE TABLE IF NOT EXISTS expenses (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

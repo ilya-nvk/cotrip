@@ -6,6 +6,7 @@ import kotlinx.serialization.json.JsonObject
 
 @Serializable
 data class SyncChangeItem(
+    val changeId: String? = null,
     val entity: String,
     val id: String,
     val type: String,
@@ -19,8 +20,10 @@ data class SyncChangesRequest(
 
 @Serializable
 data class SyncConflict(
-    val id: String,
+    val changeId: String,
+    val entityId: String,
     val reason: String,
+    val retryable: Boolean = false,
 )
 
 @Serializable

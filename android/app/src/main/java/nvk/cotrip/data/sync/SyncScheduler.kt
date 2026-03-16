@@ -9,10 +9,10 @@ import androidx.work.WorkManager
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 
-class SyncScheduler @Inject constructor(
+open class SyncScheduler @Inject constructor(
     @ApplicationContext private val context: Context,
 ) {
-    fun schedule() {
+    open fun schedule() {
         val constraints = Constraints.Builder()
             .setRequiredNetworkType(NetworkType.CONNECTED)
             .build()

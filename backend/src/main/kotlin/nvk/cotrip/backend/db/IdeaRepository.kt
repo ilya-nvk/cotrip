@@ -210,6 +210,7 @@ object IdeaRepository {
         costAmount: Double?,
         costType: String?,
         notes: String?,
+        ideaId: String? = null,
     ): IdeaRow = dbQuery { conn ->
         val tripOwnerId = conn.prepareStatement(
             """
@@ -275,19 +276,24 @@ object IdeaRepository {
 
         conn.prepareStatement(
             """
-            INSERT INTO ideas (trip_id, author_id, title, city, link, cost_amount, cost_type, notes, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending')
+            INSERT INTO ideas (id, trip_id, author_id, title, city, link, cost_amount, cost_type, notes, status)
+            VALUES (COALESCE(?, gen_random_uuid()), ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
             RETURNING id, trip_id, author_id, title, city, link, cost_amount, cost_type, notes, status, updated_at
             """.trimIndent()
         ).use { stmt ->
-            stmt.setObject(1, UUID.fromString(tripId))
-            stmt.setObject(2, UUID.fromString(authorId))
-            stmt.setString(3, title)
-            stmt.setString(4, city)
-            stmt.setString(5, link)
-            if (costAmount == null) stmt.setNull(6, java.sql.Types.NUMERIC) else stmt.setDouble(6, costAmount)
-            stmt.setString(7, costType)
-            stmt.setString(8, notes)
+            if (ideaId == null) {
+                stmt.setNull(1, java.sql.Types.OTHER)
+            } else {
+                stmt.setObject(1, UUID.fromString(ideaId))
+            }
+            stmt.setObject(2, UUID.fromString(tripId))
+            stmt.setObject(3, UUID.fromString(authorId))
+            stmt.setString(4, title)
+            stmt.setString(5, city)
+            stmt.setString(6, link)
+            if (costAmount == null) stmt.setNull(7, java.sql.Types.NUMERIC) else stmt.setDouble(7, costAmount)
+            stmt.setString(8, costType)
+            stmt.setString(9, notes)
             stmt.executeQuery().use { rs ->
                 rs.next()
                 mapIdea(rs)

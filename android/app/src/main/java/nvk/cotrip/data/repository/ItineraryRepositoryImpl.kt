@@ -19,11 +19,13 @@ import nvk.cotrip.data.network.dto.TrimOutOfRangeRequest
 import nvk.cotrip.data.network.dto.UpdateActivityRequest
 import nvk.cotrip.data.network.dto.UpdateDayRequest
 import nvk.cotrip.data.network.requireSuccess
+import nvk.cotrip.data.sync.SyncActivityCreatePayload
 import nvk.cotrip.data.sync.SyncEntities
 import nvk.cotrip.data.sync.SyncQueueRepository
 import nvk.cotrip.util.AppLogger
 import retrofit2.HttpException
 import java.io.IOException
+import java.util.UUID
 import javax.inject.Inject
 
 class ItineraryRepositoryImpl @Inject constructor(
@@ -103,7 +105,42 @@ class ItineraryRepositoryImpl @Inject constructor(
     }
 
     override suspend fun createActivity(dayId: String, request: CreateActivityRequest): ActivityDto {
-        val activity = api.createActivity(dayId, request)
+        val activity = try {
+            api.createActivity(dayId, request)
+        } catch (e: IOException) {
+            val orderIndex =
+                resolveLocalOrderIndex(dayId = dayId, requestedOrderIndex = request.orderIndex)
+            val localActivity = ActivityDto(
+                id = UUID.randomUUID().toString(),
+                dayId = dayId,
+                sourceIdeaId = null,
+                title = request.title,
+                timeText = request.timeText,
+                locationName = request.locationName,
+                link = request.link,
+                costAmount = request.costAmount,
+                costType = request.costType,
+                notes = request.notes,
+                orderIndex = orderIndex,
+            )
+            syncQueueRepository.enqueueCreate(
+                entity = SyncEntities.ACTIVITY,
+                id = localActivity.id,
+                payload = SyncActivityCreatePayload(
+                    dayId = dayId,
+                    title = request.title,
+                    timeText = request.timeText,
+                    locationName = request.locationName,
+                    link = request.link,
+                    costAmount = request.costAmount,
+                    costType = request.costType,
+                    notes = request.notes,
+                    orderIndex = request.orderIndex,
+                )
+            )
+            localActivity
+        }
+
         safeLocalMutation("createActivity.updateItinerary(dayId=$dayId, activityId=${activity.id})") {
             val tripId = findTripIdForDay(dayId) ?: return@safeLocalMutation
             itineraryCacheStore.updateItinerary(tripId) { days ->
@@ -239,5 +276,14 @@ class ItineraryRepositoryImpl @Inject constructor(
             cursor = page.nextCursor
         } while (cursor != null)
         return all
+    }
+
+    private suspend fun resolveLocalOrderIndex(dayId: String, requestedOrderIndex: Int?): Int {
+        if (requestedOrderIndex != null) return requestedOrderIndex
+        val tripId = findTripIdForDay(dayId) ?: return 0
+        val itinerary = itineraryCacheStore.getItinerary(tripId)
+        val day = itinerary.firstOrNull { it.id == dayId } ?: return 0
+        val maxOrder = day.activities.maxOfOrNull { it.orderIndex } ?: -1
+        return maxOrder + 1
     }
 }

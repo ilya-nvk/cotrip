@@ -74,6 +74,7 @@ object ActivityRepository {
         costType: String?,
         notes: String?,
         orderIndex: Int,
+        activityId: String? = null,
     ): ActivityRow = dbQuery { conn ->
         conn.prepareStatement(
             """
@@ -136,21 +137,26 @@ object ActivityRepository {
 
         conn.prepareStatement(
             """
-            INSERT INTO activities (day_id, source_idea_id, title, time_text, location_name, link, cost_amount, cost_type, notes, order_index)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO activities (id, day_id, source_idea_id, title, time_text, location_name, link, cost_amount, cost_type, notes, order_index)
+            VALUES (COALESCE(?, gen_random_uuid()), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             RETURNING id, day_id, source_idea_id, title, time_text, location_name, link, cost_amount, cost_type, notes, order_index, created_at
             """.trimIndent()
         ).use { stmt ->
-            stmt.setObject(1, UUID.fromString(dayId))
-            if (sourceIdeaId == null) stmt.setNull(2, java.sql.Types.OTHER) else stmt.setObject(2, UUID.fromString(sourceIdeaId))
-            stmt.setString(3, title)
-            stmt.setString(4, timeText)
-            stmt.setString(5, locationName)
-            stmt.setString(6, link)
-            if (costAmount == null) stmt.setNull(7, java.sql.Types.NUMERIC) else stmt.setDouble(7, costAmount)
-            stmt.setString(8, costType)
-            stmt.setString(9, notes)
-            stmt.setInt(10, orderIndex)
+            if (activityId == null) {
+                stmt.setNull(1, java.sql.Types.OTHER)
+            } else {
+                stmt.setObject(1, UUID.fromString(activityId))
+            }
+            stmt.setObject(2, UUID.fromString(dayId))
+            if (sourceIdeaId == null) stmt.setNull(3, java.sql.Types.OTHER) else stmt.setObject(3, UUID.fromString(sourceIdeaId))
+            stmt.setString(4, title)
+            stmt.setString(5, timeText)
+            stmt.setString(6, locationName)
+            stmt.setString(7, link)
+            if (costAmount == null) stmt.setNull(8, java.sql.Types.NUMERIC) else stmt.setDouble(8, costAmount)
+            stmt.setString(9, costType)
+            stmt.setString(10, notes)
+            stmt.setInt(11, orderIndex)
             stmt.executeQuery().use { rs ->
                 rs.next()
                 mapActivity(rs)

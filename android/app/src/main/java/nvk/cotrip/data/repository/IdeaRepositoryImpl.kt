@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.launch
 import nvk.cotrip.data.cache.IdeaCommentsCacheStore
 import nvk.cotrip.data.cache.IdeasCacheStore
+import nvk.cotrip.data.cache.UserCacheStore
 import nvk.cotrip.data.network.CoTripApi
 import nvk.cotrip.data.network.NetworkStateProvider
 import nvk.cotrip.data.network.dto.CommentDto
@@ -17,10 +18,13 @@ import nvk.cotrip.data.network.dto.IdeaDto
 import nvk.cotrip.data.network.dto.UpdateIdeaRequest
 import nvk.cotrip.data.network.requireSuccess
 import nvk.cotrip.data.sync.SyncEntities
+import nvk.cotrip.data.sync.SyncIdeaCreatePayload
 import nvk.cotrip.data.sync.SyncQueueRepository
 import nvk.cotrip.util.AppLogger
 import retrofit2.HttpException
 import java.io.IOException
+import java.time.OffsetDateTime
+import java.util.UUID
 import javax.inject.Inject
 
 class IdeaRepositoryImpl @Inject constructor(
@@ -28,6 +32,7 @@ class IdeaRepositoryImpl @Inject constructor(
     private val syncQueueRepository: SyncQueueRepository,
     private val ideasCacheStore: IdeasCacheStore,
     private val commentsCacheStore: IdeaCommentsCacheStore,
+    private val userCacheStore: UserCacheStore,
     private val networkStateProvider: NetworkStateProvider,
 ) : IdeaRepository {
 
@@ -63,11 +68,45 @@ class IdeaRepositoryImpl @Inject constructor(
     }
 
     override suspend fun createIdea(tripId: String, request: CreateIdeaRequest): IdeaDto {
-        val idea = api.createIdea(tripId, request)
-        safeLocalMutation("createIdea.upsertIdea(tripId=$tripId, ideaId=${idea.id})") {
-            ideasCacheStore.upsertIdea(tripId, idea)
+        return try {
+            val idea = api.createIdea(tripId, request)
+            safeLocalMutation("createIdea.upsertIdea(tripId=$tripId, ideaId=${idea.id})") {
+                ideasCacheStore.upsertIdea(tripId, idea)
+            }
+            idea
+        } catch (e: IOException) {
+            val localIdea = IdeaDto(
+                id = UUID.randomUUID().toString(),
+                tripId = tripId,
+                authorId = userCacheStore.getUser()?.id ?: "",
+                title = request.title,
+                city = request.city,
+                link = request.link,
+                costAmount = request.costAmount,
+                costType = request.costType,
+                notes = request.notes,
+                status = "pending",
+                updatedAt = OffsetDateTime.now().toString(),
+                commentsCount = 0,
+            )
+            safeLocalMutation("createIdea.offlineUpsert(ideaId=${localIdea.id})") {
+                ideasCacheStore.upsertIdea(tripId, localIdea)
+            }
+            syncQueueRepository.enqueueCreate(
+                entity = SyncEntities.IDEA,
+                id = localIdea.id,
+                payload = SyncIdeaCreatePayload(
+                    tripId = tripId,
+                    title = request.title,
+                    city = request.city,
+                    link = request.link,
+                    costAmount = request.costAmount,
+                    costType = request.costType,
+                    notes = request.notes,
+                ),
+            )
+            localIdea
         }
-        return idea
     }
 
     override suspend fun updateIdea(ideaId: String, request: UpdateIdeaRequest) {
