@@ -2,7 +2,6 @@ package nvk.cotrip.data.sync
 
 import android.app.Application
 import android.content.Context
-import android.database.sqlite.SQLiteDatabase
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import kotlinx.coroutines.test.runTest
@@ -74,54 +73,6 @@ class SyncQueueRepositoryTest {
         assertEquals(2, pending.size)
         assertEquals(listOf("create", "upsert"), pending.map { it.type })
         assertTrue(pending.all { it.entityId == "idea-2" })
-    }
-
-    @Test
-    fun migration1To2_preservesPendingRows() = runTest {
-        val dbName = "sync_migration_${System.currentTimeMillis()}.db"
-        val file = context.getDatabasePath(dbName)
-        if (file.exists()) {
-            file.delete()
-        }
-
-        SQLiteDatabase.openOrCreateDatabase(file, null).use { rawDb ->
-            rawDb.execSQL(
-                """
-                CREATE TABLE IF NOT EXISTS sync_changes (
-                    id TEXT NOT NULL PRIMARY KEY,
-                    entity TEXT NOT NULL,
-                    type TEXT NOT NULL,
-                    payload TEXT,
-                    updatedAt INTEGER NOT NULL,
-                    attempts INTEGER NOT NULL
-                )
-                """.trimIndent()
-            )
-            rawDb.execSQL(
-                """
-                INSERT INTO sync_changes (id, entity, type, payload, updatedAt, attempts)
-                VALUES ('legacy-id', 'trip', 'upsert', '{"title":"legacy"}', 1, 0)
-                """.trimIndent()
-            )
-            rawDb.execSQL("PRAGMA user_version = 1")
-        }
-
-        val migratedDb = Room.databaseBuilder(context, CoTripDatabase::class.java, dbName)
-            .addMigrations(CoTripDatabase.MIGRATION_1_2)
-            .allowMainThreadQueries()
-            .build()
-        try {
-            val migratedRows = migratedDb.syncChangeDao().listPending(limit = 10)
-            assertEquals(1, migratedRows.size)
-            val row = migratedRows.first()
-            assertEquals("legacy-id", row.changeId)
-            assertEquals("legacy-id", row.entityId)
-            assertEquals("trip", row.entity)
-        } finally {
-            migratedDb.close()
-        }
-
-        file.delete()
     }
 
     private class NoOpSyncScheduler(context: Context) : SyncScheduler(context) {

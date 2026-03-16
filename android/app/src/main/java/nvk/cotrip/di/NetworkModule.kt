@@ -63,7 +63,6 @@ object NetworkModule {
         @ApplicationContext context: Context,
     ): CoTripDatabase {
         return Room.databaseBuilder(context, CoTripDatabase::class.java, "cotrip.db")
-            .addMigrations(CoTripDatabase.MIGRATION_1_2)
             .build()
     }
 

@@ -45,16 +45,39 @@ class SyncWorker @AssistedInject constructor(
 
         return try {
             val response = api.postSyncChanges(SyncChangesRequest(items))
-            val applied = response.applied.toSet()
+            val pendingByChangeId = pending.associateBy { it.changeId }
+            val pendingByEntityId = pending.groupBy { it.entityId }
+
+            val appliedTokens = response.applied.toSet()
+            val appliedByChangeId = appliedTokens
+                .filter { it in pendingByChangeId }
+                .toSet()
+            val appliedByEntityIdFallback = appliedTokens
+                .filter { token ->
+                    token !in pendingByChangeId &&
+                            (pendingByEntityId[token]?.size == 1)
+                }
+                .toSet()
+
             val nonRetryableConflicts = response.conflicts.filterNot { it.retryable }
-            val nonRetryableByChangeId = nonRetryableConflicts.map { it.changeId }.toSet()
-            val nonRetryableByEntityId = nonRetryableConflicts.map { it.entityId }.toSet()
+            val nonRetryableByChangeId = nonRetryableConflicts
+                .map { it.changeId }
+                .filter { it in pendingByChangeId }
+                .toSet()
+            val nonRetryableByEntityIdFallback = nonRetryableConflicts
+                .filter { conflict ->
+                    conflict.changeId !in pendingByChangeId &&
+                            (pendingByEntityId[conflict.entityId]?.size == 1)
+                }
+                .map { it.entityId }
+                .toSet()
+
             val toDelete = pending
                 .filter { change ->
-                    change.changeId in applied ||
-                            change.entityId in applied ||
+                    change.changeId in appliedByChangeId ||
+                            change.entityId in appliedByEntityIdFallback ||
                             change.changeId in nonRetryableByChangeId ||
-                            change.entityId in nonRetryableByEntityId
+                            change.entityId in nonRetryableByEntityIdFallback
                 }
                 .map { it.queueId }
 

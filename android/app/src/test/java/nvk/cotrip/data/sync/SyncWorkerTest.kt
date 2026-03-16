@@ -30,6 +30,7 @@ class SyncWorkerTest {
     private lateinit var context: Context
     private lateinit var database: CoTripDatabase
     private lateinit var dao: SyncChangeDao
+    private lateinit var queue: SyncQueueRepository
     private lateinit var api: CoTripApi
     private lateinit var networkStateProvider: NetworkStateProvider
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
@@ -41,6 +42,11 @@ class SyncWorkerTest {
             .allowMainThreadQueries()
             .build()
         dao = database.syncChangeDao()
+        queue = SyncQueueRepository(
+            database = database,
+            scheduler = NoOpSyncScheduler(context),
+            json = json,
+        )
         api = mockk()
         networkStateProvider = mockk()
         every { networkStateProvider.isOnline() } returns true
@@ -87,15 +93,27 @@ class SyncWorkerTest {
 
     @Test
     fun doWork_nonRetryableConflictByChangeId_keepsSiblingForSameEntity() = runTest {
-        insertChange(changeId = "c-create", entityId = "same-entity", type = "create")
-        insertChange(changeId = "c-upsert", entityId = "same-entity", type = "upsert")
+        queue.enqueueCreate(
+            entity = SyncEntities.TRIP,
+            id = "same-entity",
+            payload = mapOf("title" to "created"),
+        )
+        queue.enqueueUpsert(
+            entity = SyncEntities.TRIP,
+            id = "same-entity",
+            payload = mapOf("title" to "updated"),
+        )
+        val beforeSync = dao.listPending(10)
+        assertEquals(2, beforeSync.size)
+        val createChange = beforeSync.first { it.type == "create" }
+        val upsertChange = beforeSync.first { it.type == "upsert" }
 
         coEvery { api.postSyncChanges(any()) } returns SyncChangesResponse(
             applied = emptyList(),
             conflicts = listOf(
                 SyncConflict(
-                    changeId = "c-upsert",
-                    entityId = "same-entity",
+                    changeId = upsertChange.changeId,
+                    entityId = upsertChange.entityId,
                     reason = "invalid_payload",
                     retryable = false,
                 ),
@@ -108,7 +126,7 @@ class SyncWorkerTest {
         assertTrue(result is ListenableWorker.Result.Success)
         val pending = dao.listPending(10)
         assertEquals(1, pending.size)
-        assertEquals("c-create", pending.first().changeId)
+        assertEquals(createChange.changeId, pending.first().changeId)
         assertEquals(1, pending.first().attempts)
     }
 
@@ -156,5 +174,9 @@ class SyncWorkerTest {
             json = json,
             networkStateProvider = networkStateProvider,
         )
+    }
+
+    private class NoOpSyncScheduler(context: Context) : SyncScheduler(context) {
+        override fun schedule() = Unit
     }
 }
