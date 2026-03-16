@@ -77,16 +77,6 @@ class SettingsViewModel @Inject constructor(
                             enabled = true
                         )
                     )
-                ),
-                SettingsNotificationSectionUi(
-                    title = appContext.getString(R.string.settings_notifications_trips),
-                    items = listOf(
-                        SettingsToggleUi(
-                            key = "trips_added",
-                            title = appContext.getString(R.string.settings_notification_added_to_trip),
-                            enabled = true
-                        )
-                    )
                 )
             ),
             showDeleteDialog = false,
