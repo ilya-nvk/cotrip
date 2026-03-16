@@ -16,6 +16,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import nvk.cotrip.backend.module
 import org.junit.jupiter.api.Assumptions.assumeTrue
+import java.sql.DriverManager
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -264,10 +265,17 @@ class SyncRoutesTest {
     }
 
     private fun withApp(block: suspend io.ktor.server.testing.ApplicationTestBuilder.(String) -> Unit) {
-        val dbUrl = System.getenv("DATABASE_URL") ?: "jdbc:postgresql://localhost:5432/cotrip"
-        val dbUser = System.getenv("DATABASE_USER") ?: "cotrip"
-        val dbPassword = System.getenv("DATABASE_PASSWORD") ?: "cotrip"
-        assumeTrue(dbUrl.isNotBlank() && dbUser.isNotBlank())
+        val dbUrl = System.getenv("DATABASE_URL")
+        val dbUser = System.getenv("DATABASE_USER")
+        val dbPassword = System.getenv("DATABASE_PASSWORD") ?: ""
+        assumeTrue(
+            !dbUrl.isNullOrBlank() && !dbUser.isNullOrBlank(),
+            "Set DATABASE_URL and DATABASE_USER to run SyncRoutesTest"
+        )
+        assumeTrue(
+            canConnect(dbUrl = dbUrl, dbUser = dbUser, dbPassword = dbPassword),
+            "Postgres is not reachable for DATABASE_URL"
+        )
 
         testApplication {
             environment {
@@ -298,6 +306,19 @@ class SyncRoutesTest {
             val accessToken = tokenBody["accessToken"]!!.jsonPrimitive.content
             block(accessToken)
         }
+    }
+
+    private fun canConnect(dbUrl: String, dbUser: String, dbPassword: String): Boolean {
+        return runCatching {
+            DriverManager.setLoginTimeout(2)
+            DriverManager.getConnection(dbUrl, dbUser, dbPassword).use { connection ->
+                connection.prepareStatement("SELECT 1").use { statement ->
+                    statement.executeQuery().use { result ->
+                        result.next()
+                    }
+                }
+            }
+        }.isSuccess
     }
 
     private fun randomUuid(): String = java.util.UUID.randomUUID().toString()
