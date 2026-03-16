@@ -29,6 +29,12 @@ data class TripPage(
     val nextCursor: String?,
 )
 
+data class TripDaySeed(
+    val id: String,
+    val date: LocalDate,
+    val dayNumber: Int,
+)
+
 object TripRepository {
     fun createTrip(
         ownerId: String,
@@ -39,6 +45,8 @@ object TripRepository {
         locationLine: String?,
         coverUrl: String?,
         currencyCode: String,
+        tripId: String? = null,
+        daySeeds: List<TripDaySeed>? = null,
     ): TripRow = dbQuery { conn ->
         conn.prepareStatement(
             """
@@ -102,19 +110,24 @@ object TripRepository {
 
         val trip = conn.prepareStatement(
             """
-            INSERT INTO trips (owner_id, title, description, start_date, end_date, location_line, cover_url, currency_code, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active')
+            INSERT INTO trips (id, owner_id, title, description, start_date, end_date, location_line, cover_url, currency_code, status)
+            VALUES (COALESCE(?, gen_random_uuid()), ?, ?, ?, ?, ?, ?, ?, ?, 'active')
             RETURNING id, owner_id, title, description, start_date, end_date, location_line, cover_url, currency_code, status, updated_at
             """.trimIndent()
         ).use { stmt ->
-            stmt.setObject(1, UUID.fromString(ownerId))
-            stmt.setString(2, title)
-            stmt.setString(3, description)
-            stmt.setObject(4, startDate)
-            stmt.setObject(5, endDate)
-            stmt.setString(6, locationLine)
-            stmt.setString(7, coverUrl)
-            stmt.setString(8, currencyCode)
+            if (tripId == null) {
+                stmt.setNull(1, java.sql.Types.OTHER)
+            } else {
+                stmt.setObject(1, UUID.fromString(tripId))
+            }
+            stmt.setObject(2, UUID.fromString(ownerId))
+            stmt.setString(3, title)
+            stmt.setString(4, description)
+            stmt.setObject(5, startDate)
+            stmt.setObject(6, endDate)
+            stmt.setString(7, locationLine)
+            stmt.setString(8, coverUrl)
+            stmt.setString(9, currencyCode)
             stmt.executeQuery().use { rs ->
                 rs.next()
                 mapTrip(rs)
@@ -133,17 +146,43 @@ object TripRepository {
             stmt.executeUpdate()
         }
 
-        conn.prepareStatement(
-            """
-            INSERT INTO itinerary_days (trip_id, date, day_number)
-            SELECT ?, day::date, ROW_NUMBER() OVER (ORDER BY day)
-            FROM generate_series(?, ?, interval '1 day') AS day
-            """.trimIndent()
-        ).use { stmt ->
-            stmt.setObject(1, UUID.fromString(trip.id))
-            stmt.setObject(2, trip.startDate)
-            stmt.setObject(3, trip.endDate)
-            stmt.executeUpdate()
+        val normalizedSeeds = daySeeds
+            ?.sortedWith(compareBy<TripDaySeed> { it.dayNumber }.thenBy { it.date })
+            ?.takeIf { it.isNotEmpty() }
+
+        if (normalizedSeeds != null) {
+            conn.prepareStatement(
+                """
+                INSERT INTO itinerary_days (id, trip_id, date, day_number, is_out_of_range)
+                VALUES (?, ?, ?, ?, ?)
+                """.trimIndent()
+            ).use { stmt ->
+                normalizedSeeds.forEach { seed ->
+                    stmt.setObject(1, UUID.fromString(seed.id))
+                    stmt.setObject(2, UUID.fromString(trip.id))
+                    stmt.setObject(3, seed.date)
+                    stmt.setInt(4, seed.dayNumber)
+                    stmt.setBoolean(
+                        5,
+                        seed.date.isBefore(trip.startDate) || seed.date.isAfter(trip.endDate),
+                    )
+                    stmt.addBatch()
+                }
+                stmt.executeBatch()
+            }
+        } else {
+            conn.prepareStatement(
+                """
+                INSERT INTO itinerary_days (trip_id, date, day_number)
+                SELECT ?, day::date, ROW_NUMBER() OVER (ORDER BY day)
+                FROM generate_series(?, ?, interval '1 day') AS day
+                """.trimIndent()
+            ).use { stmt ->
+                stmt.setObject(1, UUID.fromString(trip.id))
+                stmt.setObject(2, trip.startDate)
+                stmt.setObject(3, trip.endDate)
+                stmt.executeUpdate()
+            }
         }
 
         trip

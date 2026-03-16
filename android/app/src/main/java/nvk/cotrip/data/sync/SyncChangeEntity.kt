@@ -5,8 +5,10 @@ import androidx.room.PrimaryKey
 
 @Entity(tableName = "sync_changes")
 data class SyncChangeEntity(
-    @PrimaryKey val id: String,
+    @PrimaryKey(autoGenerate = true) val queueId: Long = 0,
+    val changeId: String,
     val entity: String,
+    val entityId: String,
     val type: String,
     val payload: String?,
     val updatedAt: Long,

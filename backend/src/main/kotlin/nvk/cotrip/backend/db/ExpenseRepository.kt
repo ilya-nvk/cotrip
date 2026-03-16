@@ -172,6 +172,7 @@ object ExpenseRepository {
         splitType: String,
         note: String?,
         participants: List<ExpenseParticipantRow>,
+        expenseId: String? = null,
     ): ExpenseRow = dbQuery { conn ->
         conn.prepareStatement(
             """
@@ -233,20 +234,25 @@ object ExpenseRepository {
 
         val expense = conn.prepareStatement(
             """
-            INSERT INTO expenses (trip_id, title, amount, currency_code, status, paid_by, expense_date, split_type, note)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO expenses (id, trip_id, title, amount, currency_code, status, paid_by, expense_date, split_type, note)
+            VALUES (COALESCE(?, gen_random_uuid()), ?, ?, ?, ?, ?, ?, ?, ?, ?)
             RETURNING id, trip_id, title, amount, currency_code, status, paid_by, expense_date, split_type, note, updated_at
             """.trimIndent()
         ).use { stmt ->
-            stmt.setObject(1, UUID.fromString(tripId))
-            stmt.setString(2, title)
-            stmt.setDouble(3, amount)
-            stmt.setString(4, currencyCode)
-            stmt.setString(5, status)
-            if (paidById == null) stmt.setNull(6, java.sql.Types.OTHER) else stmt.setObject(6, UUID.fromString(paidById))
-            if (expenseDate == null) stmt.setNull(7, java.sql.Types.DATE) else stmt.setObject(7, expenseDate)
-            stmt.setString(8, splitType)
-            stmt.setString(9, note)
+            if (expenseId == null) {
+                stmt.setNull(1, java.sql.Types.OTHER)
+            } else {
+                stmt.setObject(1, UUID.fromString(expenseId))
+            }
+            stmt.setObject(2, UUID.fromString(tripId))
+            stmt.setString(3, title)
+            stmt.setDouble(4, amount)
+            stmt.setString(5, currencyCode)
+            stmt.setString(6, status)
+            if (paidById == null) stmt.setNull(7, java.sql.Types.OTHER) else stmt.setObject(7, UUID.fromString(paidById))
+            if (expenseDate == null) stmt.setNull(8, java.sql.Types.DATE) else stmt.setObject(8, expenseDate)
+            stmt.setString(9, splitType)
+            stmt.setString(10, note)
             stmt.executeQuery().use { rs ->
                 rs.next()
                 mapExpense(rs)

@@ -62,7 +62,8 @@ object NetworkModule {
     fun provideDatabase(
         @ApplicationContext context: Context,
     ): CoTripDatabase {
-        return Room.databaseBuilder(context, CoTripDatabase::class.java, "cotrip.db").build()
+        return Room.databaseBuilder(context, CoTripDatabase::class.java, "cotrip.db")
+            .build()
     }
 
     @Provides

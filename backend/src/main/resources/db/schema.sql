@@ -185,9 +185,6 @@ CREATE TABLE IF NOT EXISTS ai_suggestions (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
-ALTER TABLE ai_suggestions
-  ADD COLUMN IF NOT EXISTS place text;
-
 CREATE TABLE IF NOT EXISTS notifications (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES users(id),
