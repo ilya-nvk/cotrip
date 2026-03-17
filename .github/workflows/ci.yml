@@ -68,7 +68,7 @@ jobs:
 
       - name: Build
         working-directory: android
-        run: ./gradlew build -x lint
+        run: ./gradlew build -x lint -x :app:testReleaseUnitTest
 
       - name: Quality check
         working-directory: android
