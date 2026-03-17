@@ -45,6 +45,7 @@ class AuthRoutesIntegrationTest {
             }
             attempts++
         }
+        assertEquals(HttpStatusCode.OK, refreshed.status, "First refresh failed after $attempts attempt(s): status=${refreshed.status}")
         val refreshedBody = json.parseToJsonElement(refreshed.body<String>()).jsonObject
         val rotatedRefresh = refreshedBody["refreshToken"]!!.jsonPrimitive.content
 
@@ -59,7 +60,6 @@ class AuthRoutesIntegrationTest {
         }
 
         // THEN
-        assertEquals(HttpStatusCode.OK, refreshed.status, "First refresh failed: status=${refreshed.status}")
         assertEquals(HttpStatusCode.Unauthorized, reuseAttempt.status)
         val reuseCode = json.parseToJsonElement(reuseAttempt.body<String>()).jsonObject["error"]!!.jsonObject["code"]!!.jsonPrimitive.content
         assertEquals("auth_refresh_reuse_detected", reuseCode)

@@ -49,18 +49,30 @@ object PostgresContainerSupport {
         val c = requireNotNull(container)
         val sqlText = loadSchemaSql()
         val statements = splitSqlStatements(sqlText)
-        DriverManager.getConnection(c.jdbcUrl, c.username, c.password).use { conn ->
-            conn.autoCommit = false
-            try {
-                statements.forEach { stmt ->
-                    conn.createStatement().use { it.execute(stmt) }
-                }
-                conn.commit()
-            } finally {
-                conn.autoCommit = true
+        // CREATE EXTENSION requires superuser; try postgres first (official image default), then cotrip without extension (PG13+ has gen_random_uuid())
+        try {
+            DriverManager.getConnection(c.jdbcUrl, "postgres", "postgres").use { conn ->
+                executeSchema(conn, statements)
+            }
+        } catch (_: Exception) {
+            val withoutExtension = statements.filterNot { it.trim().uppercase().startsWith("CREATE EXTENSION") }
+            DriverManager.getConnection(c.jdbcUrl, c.username, c.password).use { conn ->
+                executeSchema(conn, withoutExtension)
             }
         }
         schemaApplied = true
+    }
+
+    private fun executeSchema(conn: java.sql.Connection, statements: List<String>) {
+        conn.autoCommit = false
+        try {
+            statements.forEach { stmt ->
+                conn.createStatement().use { it.execute(stmt) }
+            }
+            conn.commit()
+        } finally {
+            conn.autoCommit = true
+        }
     }
 
     private fun loadSchemaSql(): String {
