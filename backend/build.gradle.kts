@@ -50,6 +50,7 @@ dependencies {
     implementation("com.google.firebase:firebase-admin:9.2.0")
 
     testImplementation(kotlin("test"))
+    testImplementation(kotlin("test-junit5"))
     testImplementation("io.ktor:ktor-server-tests-jvm:$ktorVersion")
     testImplementation("io.ktor:ktor-client-mock-jvm:$ktorVersion")
     testImplementation("io.mockk:mockk:1.13.10")

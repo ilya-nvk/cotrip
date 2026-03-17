@@ -12,9 +12,15 @@ object PostgresContainerSupport {
     @Volatile
     private var container: PostgreSQLContainer<*>? = null
 
+    @Volatile
+    private var schemaApplied: Boolean = false
+
     @Synchronized
     fun ensureStarted() {
-        if (container?.isRunning == true) return
+        if (container?.isRunning == true) {
+            ensureSchema()
+            return
+        }
 
         val dockerAvailable = runCatching { DockerClientFactory.instance().isDockerAvailable() }
             .getOrDefault(false)
@@ -34,6 +40,61 @@ object PostgresContainerSupport {
             withPassword("cotrip")
             start()
         }
+        ensureSchema()
+    }
+
+    private fun ensureSchema() {
+        if (schemaApplied) return
+        val c = requireNotNull(container)
+        val sql = PostgresContainerSupport::class.java.classLoader
+            .getResourceAsStream("db/schema.sql")
+            ?: error("Missing db/schema.sql resource")
+        val sqlText = sql.bufferedReader().use { it.readText() }
+        val statements = splitSqlStatements(sqlText)
+        DriverManager.getConnection(c.jdbcUrl, c.username, c.password).use { conn ->
+            conn.autoCommit = false
+            try {
+                statements.forEach { stmt ->
+                    conn.createStatement().use { it.execute(stmt) }
+                }
+                conn.commit()
+            } finally {
+                conn.autoCommit = true
+            }
+        }
+        schemaApplied = true
+    }
+
+    private fun splitSqlStatements(sql: String): List<String> {
+        val statements = mutableListOf<String>()
+        val current = StringBuilder()
+        var inString = false
+        var stringDelimiter = '\u0000'
+        fun flush() {
+            val value = current.toString().trim()
+            if (value.isNotBlank()) statements += value
+            current.setLength(0)
+        }
+        sql.forEach { ch ->
+            when {
+                !inString && (ch == '\'' || ch == '"') -> {
+                    inString = true
+                    stringDelimiter = ch
+                    current.append(ch)
+                }
+                inString && ch == stringDelimiter -> {
+                    inString = false
+                    stringDelimiter = '\u0000'
+                    current.append(ch)
+                }
+                !inString && ch == ';' -> flush()
+                else -> current.append(ch)
+            }
+        }
+        flush()
+        return statements
+            .map { it.lineSequence().filterNot { line -> line.trim().startsWith("--") }.joinToString("\n").trim() }
+            .filter { it.isNotBlank() }
     }
 
     fun jdbcUrl(): String {
