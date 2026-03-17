@@ -150,7 +150,7 @@ tasks.withType<Test>().configureEach {
 // Avoid running release unit tests in CI; Compose UI tests fail there (Robolectric/RoboMonitoringInstrumentation).
 // Coverage and qualityCheck use testDebugUnitTest only.
 afterEvaluate {
-    tasks.findByName("testReleaseUnitTest")?.let { it.isEnabled = false }
+    tasks.findByName("testReleaseUnitTest")?.let { it.enabled = false }
 }
 
 val jacocoExcludes = listOf(
