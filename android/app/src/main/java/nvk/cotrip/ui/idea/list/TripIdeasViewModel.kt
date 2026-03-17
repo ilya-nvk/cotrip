@@ -4,7 +4,6 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -12,10 +11,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.Json
 import nvk.cotrip.BuildConfig
 import nvk.cotrip.R
 import nvk.cotrip.data.auth.SessionStore
@@ -26,8 +24,9 @@ import nvk.cotrip.data.network.dto.IdeaDto
 import nvk.cotrip.data.network.dto.ItineraryDayDto
 import nvk.cotrip.data.network.ws.CommentCreatedPayload
 import nvk.cotrip.data.network.ws.CommentDeletedPayload
+import nvk.cotrip.data.network.ws.CommentEventsSource
+import nvk.cotrip.data.network.ws.CommentEventsSourceFactory
 import nvk.cotrip.data.network.ws.CommentWsEvent
-import nvk.cotrip.data.network.ws.CommentsWebSocket
 import nvk.cotrip.data.repository.IdeaRepository
 import nvk.cotrip.data.repository.ItineraryRepository
 import nvk.cotrip.data.repository.TripRepository
@@ -38,7 +37,6 @@ import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import nvk.cotrip.ui.trip.form.TripCurrency
 import nvk.cotrip.util.AppLogger
-import okhttp3.OkHttpClient
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -52,8 +50,7 @@ class TripIdeasViewModel @Inject constructor(
     private val ideaRepository: IdeaRepository,
     private val itineraryRepository: ItineraryRepository,
     private val sessionStore: SessionStore,
-    private val okHttpClient: OkHttpClient,
-    private val json: Json,
+    private val commentEventsSourceFactory: CommentEventsSourceFactory,
     private val apiCaller: ApiCaller,
     private val uiErrorMapper: UiErrorMapper,
 ) : ViewModel() {
@@ -63,26 +60,31 @@ class TripIdeasViewModel @Inject constructor(
 
     private var dayOptions: List<IdeaDayOptionUi> = emptyList()
     private var currencySymbol: String = "€"
-    private val commentsSocket = CommentsWebSocket(okHttpClient, json)
+    private var commentEventsSource: CommentEventsSource? = null
     private var reconnectJob: Job? = null
 
     private val _state = MutableStateFlow<TripIdeasState>(TripIdeasState.Loading)
     val state = _state.asStateFlow()
 
-    private val _effects = MutableSharedFlow<TripIdeasEffect>()
+    private val _effects = MutableSharedFlow<TripIdeasEffect>(extraBufferCapacity = 8)
     val effects = _effects.asSharedFlow()
     private val isRefreshing = MutableStateFlow(false)
 
     init {
+        val token = sessionStore.getAccessToken().orEmpty()
+        if (token.isNotBlank()) {
+            commentEventsSource = commentEventsSourceFactory.create().also {
+                it.connect(BuildConfig.API_BASE_URL, tripId, token)
+            }
+        }
         observeSocket()
-        connectSocket()
         observeData()
         refreshIdeas(isUserRefresh = false)
     }
 
     override fun onCleared() {
         reconnectJob?.cancel()
-        commentsSocket.disconnect()
+        commentEventsSource?.disconnect()
         super.onCleared()
     }
 
@@ -148,11 +150,9 @@ class TripIdeasViewModel @Inject constructor(
                 isRefreshing.value = true
             }
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    tripRepository.getTrip(tripId).first()
-                    ideaRepository.refreshIdeas(tripId).getOrThrow()
-                    itineraryRepository.refreshItinerary(tripId).getOrThrow()
-                }
+                tripRepository.getTrip(tripId).first()
+                ideaRepository.refreshIdeas(tripId).getOrThrow()
+                itineraryRepository.refreshItinerary(tripId).getOrThrow()
             }) {
                 is ApiResult.Success -> Unit
                 is ApiResult.Failure -> emit(
@@ -188,12 +188,10 @@ class TripIdeasViewModel @Inject constructor(
         _state.value = current.copy(dayPicker = null)
         viewModelScope.launch {
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    ideaRepository.convertIdeaToActivity(
-                        ideaId,
-                        ConvertIdeaRequest(dayId = day.id)
-                    )
-                }
+                ideaRepository.convertIdeaToActivity(
+                    ideaId,
+                    ConvertIdeaRequest(dayId = day.id)
+                )
             }) {
                 is ApiResult.Success -> {
                     val latest = _state.value as? TripIdeasState.Content ?: return@launch
@@ -202,9 +200,7 @@ class TripIdeasViewModel @Inject constructor(
                             if (idea.id == ideaId) idea.copy(addedDay = day.dayNumber) else idea
                         }
                     )
-                    withContext(Dispatchers.IO) {
-                        itineraryRepository.refreshItinerary(tripId).getOrThrow()
-                    }
+                    itineraryRepository.refreshItinerary(tripId).getOrThrow()
                     emit(TripIdeasEffect.ShowToastRes(R.string.ideas_added_to_itinerary_toast))
                 }
 
@@ -221,12 +217,13 @@ class TripIdeasViewModel @Inject constructor(
         val token = sessionStore.getAccessToken().orEmpty()
         if (token.isBlank()) return
         reconnectJob?.cancel()
-        commentsSocket.connect(BuildConfig.API_BASE_URL, tripId, token)
+        commentEventsSource?.disconnect()
+        commentEventsSource?.connect(BuildConfig.API_BASE_URL, tripId, token)
     }
 
     private fun observeSocket() {
         viewModelScope.launch {
-            commentsSocket.events.collect { event ->
+            (commentEventsSource?.events ?: emptyFlow()).collect { event ->
                 when (event) {
                     is CommentWsEvent.CommentCreated -> handleCommentCreated(event.payload)
                     is CommentWsEvent.CommentDeleted -> handleCommentDeleted(event.payload)

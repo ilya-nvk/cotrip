@@ -4,7 +4,6 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -14,7 +13,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import nvk.cotrip.R
 import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
@@ -66,7 +64,7 @@ class CreateIdeaViewModel @Inject constructor(
     )
     override val state = _state.asStateFlow()
 
-    private val _effects = MutableSharedFlow<IdeaFormEffect>()
+    private val _effects = MutableSharedFlow<IdeaFormEffect>(extraBufferCapacity = 8)
     override val effects = _effects.asSharedFlow()
 
     init {
@@ -107,12 +105,10 @@ class CreateIdeaViewModel @Inject constructor(
     private fun loadTripMeta() {
         viewModelScope.launch {
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    val trip = tripRepository.getTrip(tripId).first()
-                    TripMeta(
-                        currencySymbol = currencySymbolFor(trip.currencyCode)
-                    )
-                }
+                val trip = tripRepository.getTrip(tripId).first()
+                TripMeta(
+                    currencySymbol = currencySymbolFor(trip.currencyCode)
+                )
             }) {
                 is ApiResult.Success -> {
                     val meta = result.data
@@ -148,9 +144,7 @@ class CreateIdeaViewModel @Inject constructor(
         citySearchJob = viewModelScope.launch {
             delay(300)
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    itineraryRepository.searchPlaces(tripId = tripId, query = query, limit = 8)
-                }
+                itineraryRepository.searchPlaces(tripId = tripId, query = query, limit = 8)
             }) {
                 is ApiResult.Success -> {
                     val suggestions = result.data.map {
@@ -194,19 +188,17 @@ class CreateIdeaViewModel @Inject constructor(
         _state.update { it.copy(isSaving = true) }
         viewModelScope.launch {
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    ideaRepository.createIdea(
-                        tripId = tripId,
-                        request = CreateIdeaRequest(
-                            title = snapshot.title.trim(),
-                            city = snapshot.city.trim().ifBlank { null },
-                            link = snapshot.link.trim().ifBlank { null },
-                            costAmount = parseAmount(snapshot.costAmount),
-                            costType = snapshot.costAmount.toCostType(snapshot.costType),
-                            notes = snapshot.notes.trim().ifBlank { null },
-                        )
+                ideaRepository.createIdea(
+                    tripId = tripId,
+                    request = CreateIdeaRequest(
+                        title = snapshot.title.trim(),
+                        city = snapshot.city.trim().ifBlank { null },
+                        link = snapshot.link.trim().ifBlank { null },
+                        costAmount = parseAmount(snapshot.costAmount),
+                        costType = snapshot.costAmount.toCostType(snapshot.costType),
+                        notes = snapshot.notes.trim().ifBlank { null },
                     )
-                }
+                )
             }) {
                 is ApiResult.Success -> {
                     emit(IdeaFormEffect.ShowToastRes(R.string.idea_form_created_toast))
@@ -241,20 +233,18 @@ class CreateIdeaViewModel @Inject constructor(
         _state.update { it.copy(limitDialog = null, isSaving = true) }
         viewModelScope.launch {
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    ideaRepository.deleteIdea(dialog.oldestId)
-                    ideaRepository.createIdea(
-                        tripId = tripId,
-                        request = CreateIdeaRequest(
-                            title = snapshot.title.trim(),
-                            city = snapshot.city.trim().ifBlank { null },
-                            link = snapshot.link.trim().ifBlank { null },
-                            costAmount = parseAmount(snapshot.costAmount),
-                            costType = snapshot.costAmount.toCostType(snapshot.costType),
-                            notes = snapshot.notes.trim().ifBlank { null },
-                        )
+                ideaRepository.deleteIdea(dialog.oldestId)
+                ideaRepository.createIdea(
+                    tripId = tripId,
+                    request = CreateIdeaRequest(
+                        title = snapshot.title.trim(),
+                        city = snapshot.city.trim().ifBlank { null },
+                        link = snapshot.link.trim().ifBlank { null },
+                        costAmount = parseAmount(snapshot.costAmount),
+                        costType = snapshot.costAmount.toCostType(snapshot.costType),
+                        notes = snapshot.notes.trim().ifBlank { null },
                     )
-                }
+                )
             }) {
                 is ApiResult.Success -> {
                     emit(IdeaFormEffect.ShowToastRes(R.string.idea_form_created_toast))

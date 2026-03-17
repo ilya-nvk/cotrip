@@ -48,7 +48,7 @@ class RouteSuggestionsViewModel @Inject constructor(
     private val selectedBudgets: List<String> =
         decodeCsvArg(savedStateHandle[Destination.RouteSuggestions.ARG_BUDGET_OPTIONS])
 
-    private val _effects = MutableSharedFlow<RouteSuggestionsEffect>()
+    private val _effects = MutableSharedFlow<RouteSuggestionsEffect>(extraBufferCapacity = 8)
     val effects = _effects.asSharedFlow()
 
     private val _state = MutableStateFlow<RouteSuggestionsState>(

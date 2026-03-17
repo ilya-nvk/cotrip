@@ -6,7 +6,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -14,7 +13,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import nvk.cotrip.R
 import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
@@ -50,7 +48,7 @@ class TripExpensesViewModel @Inject constructor(
     private val _state = MutableStateFlow<TripExpensesState>(TripExpensesState.Loading)
     val state = _state.asStateFlow()
 
-    private val _effects = MutableSharedFlow<TripExpensesEffect>()
+    private val _effects = MutableSharedFlow<TripExpensesEffect>(extraBufferCapacity = 8)
     val effects = _effects.asSharedFlow()
 
     private val membersState = MutableStateFlow<List<MemberDto>>(emptyList())
@@ -172,14 +170,12 @@ class TripExpensesViewModel @Inject constructor(
                 isRefreshing.value = true
             }
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    tripRepository.getTrip(tripId).first()
-                    expenseRepository.refreshExpenses(tripId).getOrThrow()
-                    val members = tripRepository.tripMembers(tripId).first()
-                    val me = checkNotNull(userRepository.me.first())
-                    membersState.value = members
-                    meIdState.value = me.id
-                }
+                tripRepository.getTrip(tripId).first()
+                expenseRepository.refreshExpenses(tripId).getOrThrow()
+                val members = tripRepository.tripMembers(tripId).first()
+                val me = checkNotNull(userRepository.me.first())
+                membersState.value = members
+                meIdState.value = me.id
             }) {
                 is ApiResult.Success -> Unit
                 is ApiResult.Failure -> {

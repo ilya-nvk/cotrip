@@ -4,7 +4,6 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -15,7 +14,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import nvk.cotrip.R
 import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
@@ -75,12 +73,12 @@ class TripItineraryViewModel @Inject constructor(
     )
     val state = _state.asStateFlow()
 
-    private val _effects = MutableSharedFlow<TripItineraryEffect>()
+    private val _effects = MutableSharedFlow<TripItineraryEffect>(extraBufferCapacity = 8)
     val effects = _effects.asSharedFlow()
 
     init {
         if (isCreationFlow) {
-            viewModelScope.launch(Dispatchers.IO) {
+            viewModelScope.launch {
                 runCatching { pendingTripCreationStore.setPendingTripId(tripId) }
                     .onFailure { AppLogger.w(TAG, "Failed to persist pending tripId=$tripId", it) }
             }
@@ -149,9 +147,7 @@ class TripItineraryViewModel @Inject constructor(
             _state.update { it.copy(isRefreshing = true) }
             AppLogger.i(TAG, "cancelTripCreation started for tripId=$tripId")
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    tripRepository.deleteTrip(tripId)
-                }
+                tripRepository.deleteTrip(tripId)
             }) {
                 is ApiResult.Success -> {
                     AppLogger.i(TAG, "cancelTripCreation succeeded for tripId=$tripId")
@@ -230,10 +226,8 @@ class TripItineraryViewModel @Inject constructor(
                 _state.update { it.copy(isRefreshing = true) }
             }
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    tripRepository.getTrip(tripId).first()
-                    itineraryRepository.refreshItinerary(tripId).getOrThrow()
-                }
+                tripRepository.getTrip(tripId).first()
+                itineraryRepository.refreshItinerary(tripId).getOrThrow()
             }) {
                 is ApiResult.Success -> Unit
                 is ApiResult.Failure -> {
@@ -312,9 +306,7 @@ class TripItineraryViewModel @Inject constructor(
         citySearchJob = viewModelScope.launch {
             delay(300)
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    itineraryRepository.searchCities(tripId = tripId, query = query, limit = 8)
-                }
+                itineraryRepository.searchCities(tripId = tripId, query = query, limit = 8)
             }) {
                 is ApiResult.Success -> {
                     val suggestions = result.data.map {
@@ -403,12 +395,10 @@ class TripItineraryViewModel @Inject constructor(
                 }
             }
 
-            val latestDays = withContext(Dispatchers.IO) {
-                runCatching {
-                    itineraryRepository.refreshItinerary(tripId).getOrThrow()
-                    itineraryRepository.getItinerary(tripId).first()
-                }.getOrNull()
-            }.orEmpty()
+            val latestDays = runCatching {
+                itineraryRepository.refreshItinerary(tripId).getOrThrow()
+                itineraryRepository.getItinerary(tripId).first()
+            }.getOrNull().orEmpty()
             val resolvedDay = latestDays.firstOrNull { it.date == picker.dayDate }
                 ?: latestDays.firstOrNull { it.dayNumber == picker.dayNumber }
             if (resolvedDay != null && resolvedDay.id != targetDayId) {
@@ -440,17 +430,15 @@ class TripItineraryViewModel @Inject constructor(
                 }
             }
 
-            val appliedOnServer = withContext(Dispatchers.IO) {
-                runCatching {
-                    itineraryRepository.refreshItinerary(tripId).getOrThrow()
-                    itineraryRepository.getItinerary(tripId).first().any { day ->
-                        (day.id == targetDayId ||
-                            day.date == picker.dayDate ||
-                            day.dayNumber == picker.dayNumber) &&
-                            day.city?.trim()?.equals(selectedCityName.trim(), ignoreCase = true) == true
-                    }
-                }.getOrDefault(false)
-            }
+            val appliedOnServer = runCatching {
+                itineraryRepository.refreshItinerary(tripId).getOrThrow()
+                itineraryRepository.getItinerary(tripId).first().any { day ->
+                    (day.id == targetDayId ||
+                        day.date == picker.dayDate ||
+                        day.dayNumber == picker.dayNumber) &&
+                        day.city?.trim()?.equals(selectedCityName.trim(), ignoreCase = true) == true
+                }
+            }.getOrDefault(false)
 
             if (appliedOnServer) {
                 AppLogger.i(TAG, "selectCity confirmed on server for dayId=$targetDayId")
@@ -491,14 +479,12 @@ class TripItineraryViewModel @Inject constructor(
             "selectCityForFollowingDays started tripId=$tripId fromDay=${picker.dayNumber} city=$selectedCityName"
         )
         viewModelScope.launch {
-            val latestDays = withContext(Dispatchers.IO) {
-                runCatching {
-                    itineraryRepository.refreshItinerary(tripId).getOrThrow()
-                    itineraryRepository.getItinerary(tripId).first()
-                        .filter { !it.isOutOfRange && it.dayNumber >= picker.dayNumber }
-                        .sortedBy { it.dayNumber }
-                }.getOrNull()
-            }.orEmpty()
+            val latestDays = runCatching {
+                itineraryRepository.refreshItinerary(tripId).getOrThrow()
+                itineraryRepository.getItinerary(tripId).first()
+                    .filter { !it.isOutOfRange && it.dayNumber >= picker.dayNumber }
+                    .sortedBy { it.dayNumber }
+            }.getOrNull().orEmpty()
 
             if (latestDays.isEmpty()) {
                 emitToast(R.string.common_error_message)
@@ -528,9 +514,7 @@ class TripItineraryViewModel @Inject constructor(
                     fromDayNumber = picker.dayNumber,
                     cityName = selectedCityName,
                 )
-                withContext(Dispatchers.IO) {
-                    runCatching { itineraryRepository.refreshItinerary(tripId).getOrThrow() }
-                }
+                runCatching { itineraryRepository.refreshItinerary(tripId).getOrThrow() }
                 emitToast(R.string.itinerary_choose_city_applied_following_toast)
             } else if (firstFailure != null) {
                 emitToast(uiErrorMapper.messageRes(checkNotNull(firstFailure)))
@@ -545,9 +529,7 @@ class TripItineraryViewModel @Inject constructor(
         request: UpdateDayRequest,
     ): ApiResult<Unit> {
         return apiCaller.call {
-            withContext(Dispatchers.IO) {
-                itineraryRepository.updateDay(dayId = dayId, request = request)
-            }
+            itineraryRepository.updateDay(dayId = dayId, request = request)
         }
     }
 
@@ -574,9 +556,7 @@ class TripItineraryViewModel @Inject constructor(
                 }
             )
         }
-        withContext(Dispatchers.IO) {
-            runCatching { itineraryRepository.refreshItinerary(tripId).getOrThrow() }
-        }
+        runCatching { itineraryRepository.refreshItinerary(tripId).getOrThrow() }
     }
 
     private fun applySelectedCityForFollowingDaysLocally(
@@ -623,10 +603,8 @@ class TripItineraryViewModel @Inject constructor(
     }
 
     private suspend fun clearPendingCreationTrip() {
-        withContext(Dispatchers.IO) {
-            runCatching { pendingTripCreationStore.clearPendingTripId(tripId) }
-                .onFailure { AppLogger.w(TAG, "Failed to clear pending tripId=$tripId", it) }
-        }
+        runCatching { pendingTripCreationStore.clearPendingTripId(tripId) }
+            .onFailure { AppLogger.w(TAG, "Failed to clear pending tripId=$tripId", it) }
     }
 
     private companion object {

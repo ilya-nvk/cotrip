@@ -27,6 +27,6 @@ jobs:
         working-directory: backend
         run: ./gradlew build
 
-      - name: Run Unit Tests
+      - name: Run Backend Quality Gate
         working-directory: backend
-        run: ./gradlew test
+        run: ./gradlew qualityCheck

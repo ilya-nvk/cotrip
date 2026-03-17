@@ -8,29 +8,30 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
-import io.ktor.server.config.MapApplicationConfig
-import io.ktor.server.testing.testApplication
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import nvk.cotrip.backend.module
-import org.junit.jupiter.api.Assumptions.assumeTrue
-import java.sql.DriverManager
+import nvk.cotrip.backend.testing.PostgresIntegrationTest
+import nvk.cotrip.backend.testing.TestApplicationSupport
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
+@PostgresIntegrationTest
 class SyncRoutesTest {
     private val json = Json { ignoreUnknownKeys = true }
 
     @Test
-    fun syncCreateTripAndActivity_areAppliedInOneBatch() = withApp { token ->
+    fun given_tripAndActivityChanges_when_postSyncChanges_then_bothAppliedInOneBatch() = withApp { session ->
+        // GIVEN
+        val token = session.accessToken
         val tripId = randomUuid()
         val day1 = randomUuid()
         val day2 = randomUuid()
         val activityId = randomUuid()
 
+        // WHEN
         val response = client.post("/v1/sync/changes") {
             contentType(ContentType.Application.Json)
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -71,6 +72,7 @@ class SyncRoutesTest {
             )
         }
 
+        // THEN
         assertEquals(HttpStatusCode.OK, response.status)
         val body = json.parseToJsonElement(response.body<String>()).jsonObject
         val applied = body["applied"]!!.jsonArray.map { it.jsonPrimitive.content }.toSet()
@@ -80,11 +82,14 @@ class SyncRoutesTest {
     }
 
     @Test
-    fun syncCreateWithoutChangeId_appliedFallsBackToEntityId() = withApp { token ->
+    fun given_createWithoutChangeId_when_postSyncChanges_then_appliedUsesEntityId() = withApp { session ->
+        // GIVEN
+        val token = session.accessToken
         val tripId = randomUuid()
         val day1 = randomUuid()
         val day2 = randomUuid()
 
+        // WHEN
         val response = client.post("/v1/sync/changes") {
             contentType(ContentType.Application.Json)
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -113,6 +118,7 @@ class SyncRoutesTest {
             )
         }
 
+        // THEN
         assertEquals(HttpStatusCode.OK, response.status)
         val body = json.parseToJsonElement(response.body<String>()).jsonObject
         val applied = body["applied"]!!.jsonArray.map { it.jsonPrimitive.content }
@@ -122,7 +128,11 @@ class SyncRoutesTest {
     }
 
     @Test
-    fun syncCreateDependencyMissing_returnsRetryableConflict() = withApp { token ->
+    fun given_activityWithMissingDay_when_postSyncChanges_then_retryableConflictReturned() = withApp { session ->
+        // GIVEN
+        val token = session.accessToken
+
+        // WHEN
         val response = client.post("/v1/sync/changes") {
             contentType(ContentType.Application.Json)
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -146,6 +156,7 @@ class SyncRoutesTest {
             )
         }
 
+        // THEN
         assertEquals(HttpStatusCode.OK, response.status)
         val body = json.parseToJsonElement(response.body<String>()).jsonObject
         val conflicts = body["conflicts"]!!.jsonArray
@@ -157,7 +168,9 @@ class SyncRoutesTest {
     }
 
     @Test
-    fun syncDuplicateCreate_isIdempotentAndApplied() = withApp { token ->
+    fun given_duplicateCreate_when_postSyncChangesTwice_then_bothAppliedIdempotent() = withApp { session ->
+        // GIVEN
+        val token = session.accessToken
         val tripId = randomUuid()
         val day1 = randomUuid()
         val day2 = randomUuid()
@@ -174,6 +187,7 @@ class SyncRoutesTest {
             }
         """.trimIndent()
 
+        // WHEN
         repeat(2) { index ->
             val response = client.post("/v1/sync/changes") {
                 contentType(ContentType.Application.Json)
@@ -194,6 +208,7 @@ class SyncRoutesTest {
                     """.trimIndent()
                 )
             }
+            // THEN (each call)
             assertEquals(HttpStatusCode.OK, response.status)
             val body = json.parseToJsonElement(response.body<String>()).jsonObject
             val applied = body["applied"]!!.jsonArray.map { it.jsonPrimitive.content }
@@ -204,11 +219,14 @@ class SyncRoutesTest {
     }
 
     @Test
-    fun syncMixedBatch_returnsAppliedAndConflictTogether() = withApp { token ->
+    fun given_validTripAndInvalidExpense_when_postSyncChanges_then_appliedAndConflictReturned() = withApp { session ->
+        // GIVEN
+        val token = session.accessToken
         val tripId = randomUuid()
         val day1 = randomUuid()
         val day2 = randomUuid()
 
+        // WHEN
         val response = client.post("/v1/sync/changes") {
             contentType(ContentType.Application.Json)
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -252,6 +270,7 @@ class SyncRoutesTest {
             )
         }
 
+        // THEN
         assertEquals(HttpStatusCode.OK, response.status)
         val body = json.parseToJsonElement(response.body<String>()).jsonObject
         val applied = body["applied"]!!.jsonArray.map { it.jsonPrimitive.content }.toSet()
@@ -264,61 +283,22 @@ class SyncRoutesTest {
         assertTrue(!conflict["retryable"]!!.jsonPrimitive.content.toBoolean())
     }
 
-    private fun withApp(block: suspend io.ktor.server.testing.ApplicationTestBuilder.(String) -> Unit) {
-        val dbUrl = System.getenv("DATABASE_URL")
-        val dbUser = System.getenv("DATABASE_USER")
-        val dbPassword = System.getenv("DATABASE_PASSWORD") ?: ""
-        assumeTrue(
-            !dbUrl.isNullOrBlank() && !dbUser.isNullOrBlank(),
-            "Set DATABASE_URL and DATABASE_USER to run SyncRoutesTest"
-        )
-        assumeTrue(
-            canConnect(dbUrl = dbUrl, dbUser = dbUser, dbPassword = dbPassword),
-            "Postgres is not reachable for DATABASE_URL"
-        )
-
-        testApplication {
-            environment {
-                config = MapApplicationConfig(
-                    "ktor.db.url" to dbUrl,
-                    "ktor.db.user" to dbUser,
-                    "ktor.db.password" to dbPassword,
-                    "ktor.devAuthEnabled" to "true",
-                )
-            }
-            application {
-                module()
-            }
-
-            val tokenResponse = client.post("/v1/auth/dev") {
-                contentType(ContentType.Application.Json)
-                setBody(
-                    """
-                    {
-                      "googleId": "sync-test-${System.currentTimeMillis()}",
-                      "name": "Sync Test"
-                    }
-                    """.trimIndent()
-                )
-            }
-            assertEquals(HttpStatusCode.OK, tokenResponse.status)
-            val tokenBody = json.parseToJsonElement(tokenResponse.body<String>()).jsonObject
-            val accessToken = tokenBody["accessToken"]!!.jsonPrimitive.content
-            block(accessToken)
+    @Test
+    fun given_invalidJsonBody_when_postSyncChanges_then_badRequest() = withApp { session ->
+        // GIVEN / WHEN
+        val response = client.post("/v1/sync/changes") {
+            contentType(ContentType.Application.Json)
+            header(HttpHeaders.Authorization, "Bearer ${session.accessToken}")
+            setBody("invalid json body")
         }
+        // THEN
+        assertEquals(HttpStatusCode.BadRequest, response.status)
     }
 
-    private fun canConnect(dbUrl: String, dbUser: String, dbPassword: String): Boolean {
-        return runCatching {
-            DriverManager.setLoginTimeout(2)
-            DriverManager.getConnection(dbUrl, dbUser, dbPassword).use { connection ->
-                connection.prepareStatement("SELECT 1").use { statement ->
-                    statement.executeQuery().use { result ->
-                        result.next()
-                    }
-                }
-            }
-        }.isSuccess
+    private fun withApp(
+        block: suspend io.ktor.server.testing.ApplicationTestBuilder.(TestApplicationSupport.DevSession) -> Unit,
+    ) {
+        TestApplicationSupport.withApp(block)
     }
 
     private fun randomUuid(): String = java.util.UUID.randomUUID().toString()

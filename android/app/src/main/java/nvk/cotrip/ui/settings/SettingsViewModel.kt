@@ -5,7 +5,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -13,7 +12,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import nvk.cotrip.R
 import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
@@ -87,7 +85,7 @@ class SettingsViewModel @Inject constructor(
     )
     val state = _state.asStateFlow()
 
-    private val _effects = MutableSharedFlow<SettingsEffect>()
+    private val _effects = MutableSharedFlow<SettingsEffect>(extraBufferCapacity = 8)
     val effects = _effects.asSharedFlow()
 
     init {
@@ -165,10 +163,8 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    userRepository.refreshMe().getOrThrow()
-                    checkNotNull(userRepository.me.first())
-                }
+                userRepository.refreshMe().getOrThrow()
+                checkNotNull(userRepository.me.first())
             }) {
                 is ApiResult.Success -> {
                     val user = result.data
@@ -198,10 +194,8 @@ class SettingsViewModel @Inject constructor(
     private fun loadNotificationSettings() {
         viewModelScope.launch {
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    notificationRepository.refreshSettings().getOrThrow()
-                    notificationRepository.settings.first()
-                }
+                notificationRepository.refreshSettings().getOrThrow()
+                notificationRepository.settings.first()
             }) {
                 is ApiResult.Success -> applyNotificationSettings(result.data)
                 is ApiResult.Failure ->
@@ -237,10 +231,8 @@ class SettingsViewModel @Inject constructor(
                 }
             }
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    notificationRepository.updateSettings(payload).getOrThrow()
-                    notificationRepository.settings.first()
-                }
+                notificationRepository.updateSettings(payload).getOrThrow()
+                notificationRepository.settings.first()
             }) {
                 is ApiResult.Success -> applyNotificationSettings(result.data)
                 is ApiResult.Failure -> {
@@ -260,14 +252,12 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update { it.copy(isSaving = true) }
             val result = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    userRepository.updateMe(
-                        UpdateUserRequest(
-                            name = name,
-                            photoUrl = snapshot.profile.photoUrl ?: "",
-                        )
+                userRepository.updateMe(
+                    UpdateUserRequest(
+                        name = name,
+                        photoUrl = snapshot.profile.photoUrl ?: "",
                     )
-                }
+                )
             }
             when (result) {
                 is ApiResult.Success -> {
@@ -299,7 +289,7 @@ class SettingsViewModel @Inject constructor(
     private fun deleteProfile() {
         viewModelScope.launch {
             _state.update { it.copy(showDeleteDialog = false, isSaving = true) }
-            val result = apiCaller.call { withContext(Dispatchers.IO) { userRepository.deleteMe() } }
+            val result = apiCaller.call { userRepository.deleteMe() }
             when (result) {
                 is ApiResult.Success -> {
                     userRepository.clearSession()
@@ -326,7 +316,7 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update { it.copy(isSaving = true) }
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) { imageUploadRepository.uploadImage(uriString) }
+                imageUploadRepository.uploadImage(uriString)
             }) {
                 is ApiResult.Success -> {
                     _state.update { current ->

@@ -58,7 +58,8 @@ class SyncWorkerTest {
     }
 
     @Test
-    fun doWork_removesAppliedAndNonRetryableConflicts_andKeepsRetryable() = runTest {
+    fun given_pendingChanges_when_doWorkReturnsAppliedAndConflicts_then_removesAppliedAndNonRetryableKeepsRetryable() = runTest {
+        // GIVEN
         insertChange(changeId = "c-applied", entityId = "entity-1")
         insertChange(changeId = "c-non-retry", entityId = "entity-2")
         insertChange(changeId = "c-retry", entityId = "entity-3")
@@ -81,9 +82,11 @@ class SyncWorkerTest {
             ),
         )
 
+        // WHEN
         val worker = createWorker()
         val result = worker.doWork()
 
+        // THEN
         assertTrue(result is ListenableWorker.Result.Success)
         val pending = dao.listPending(10)
         assertEquals(1, pending.size)
@@ -92,7 +95,8 @@ class SyncWorkerTest {
     }
 
     @Test
-    fun doWork_nonRetryableConflictByChangeId_keepsSiblingForSameEntity() = runTest {
+    fun given_twoChangesSameEntity_when_nonRetryableConflictByChangeId_then_keepsSiblingForSameEntity() = runTest {
+        // GIVEN
         queue.enqueueCreate(
             entity = SyncEntities.TRIP,
             id = "same-entity",
@@ -120,9 +124,11 @@ class SyncWorkerTest {
             ),
         )
 
+        // WHEN
         val worker = createWorker()
         val result = worker.doWork()
 
+        // THEN
         assertTrue(result is ListenableWorker.Result.Success)
         val pending = dao.listPending(10)
         assertEquals(1, pending.size)
@@ -131,7 +137,8 @@ class SyncWorkerTest {
     }
 
     @Test
-    fun doWork_legacyAppliedByEntityIdFallback_deletesUniqueEntityOperation() = runTest {
+    fun given_legacyAppliedByEntityIdFallback_when_doWork_then_deletesUniqueEntityOperation() = runTest {
+        // GIVEN
         insertChange(changeId = "c-trip", entityId = "trip-1")
 
         coEvery { api.postSyncChanges(any()) } returns SyncChangesResponse(
@@ -139,9 +146,11 @@ class SyncWorkerTest {
             conflicts = emptyList(),
         )
 
+        // WHEN
         val worker = createWorker()
         val result = worker.doWork()
 
+        // THEN
         assertTrue(result is ListenableWorker.Result.Success)
         val pending = dao.listPending(10)
         assertTrue(pending.isEmpty())

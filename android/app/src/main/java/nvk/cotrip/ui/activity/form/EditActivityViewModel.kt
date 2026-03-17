@@ -4,7 +4,6 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -14,7 +13,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import nvk.cotrip.R
 import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
@@ -80,7 +78,7 @@ class EditActivityViewModel @Inject constructor(
     )
     override val state = _state.asStateFlow()
 
-    private val _effects = MutableSharedFlow<ActivityFormEffect>()
+    private val _effects = MutableSharedFlow<ActivityFormEffect>(extraBufferCapacity = 8)
     override val effects = _effects.asSharedFlow()
 
     init {
@@ -117,9 +115,7 @@ class EditActivityViewModel @Inject constructor(
     private fun loadActivity() {
         viewModelScope.launch {
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    findActivity(activityId)
-                }
+                findActivity(activityId)
             }) {
                 is ApiResult.Success -> {
                     val info = result.data
@@ -190,28 +186,26 @@ class EditActivityViewModel @Inject constructor(
         _state.update { it.copy(isSaving = true) }
         viewModelScope.launch {
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    val targetDayId = selectedDayId
-                    val original = originalDayId
-                    if (!targetDayId.isNullOrBlank() && targetDayId != original) {
-                        itineraryRepository.moveActivity(
-                            activityId = activityId,
-                            request = MoveActivityRequest(dayId = targetDayId)
-                        )
-                    }
-                    itineraryRepository.updateActivity(
+                val targetDayId = selectedDayId
+                val original = originalDayId
+                if (!targetDayId.isNullOrBlank() && targetDayId != original) {
+                    itineraryRepository.moveActivity(
                         activityId = activityId,
-                        request = UpdateActivityRequest(
-                            title = snapshot.title.trim(),
-                            timeText = snapshot.timeText.trim().ifBlank { null },
-                            locationName = snapshot.locationInput.trim().ifBlank { null },
-                            link = snapshot.linkInput.trim().ifBlank { null },
-                            costAmount = parseAmount(snapshot.costAmount),
-                            costType = snapshot.costAmount.toCostType(snapshot.costType),
-                            notes = snapshot.notes.trim().ifBlank { null },
-                        )
+                        request = MoveActivityRequest(dayId = targetDayId)
                     )
                 }
+                itineraryRepository.updateActivity(
+                    activityId = activityId,
+                    request = UpdateActivityRequest(
+                        title = snapshot.title.trim(),
+                        timeText = snapshot.timeText.trim().ifBlank { null },
+                        locationName = snapshot.locationInput.trim().ifBlank { null },
+                        link = snapshot.linkInput.trim().ifBlank { null },
+                        costAmount = parseAmount(snapshot.costAmount),
+                        costType = snapshot.costAmount.toCostType(snapshot.costType),
+                        notes = snapshot.notes.trim().ifBlank { null },
+                    )
+                )
             }) {
                 is ApiResult.Success -> {
                     emit(ActivityFormEffect.ShowToastRes(R.string.activity_form_saved_toast))
@@ -247,9 +241,7 @@ class EditActivityViewModel @Inject constructor(
         locationSearchJob = viewModelScope.launch {
             delay(300)
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    itineraryRepository.searchPlaces(tripId = trip, query = query, limit = 8)
-                }
+                itineraryRepository.searchPlaces(tripId = trip, query = query, limit = 8)
             }) {
                 is ApiResult.Success -> {
                     val mapped = result.data.map {
@@ -290,7 +282,7 @@ class EditActivityViewModel @Inject constructor(
     private fun deleteActivity() {
         viewModelScope.launch {
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) { itineraryRepository.deleteActivity(activityId) }
+                itineraryRepository.deleteActivity(activityId)
             }) {
                 is ApiResult.Success -> {
                     emit(ActivityFormEffect.ShowToastRes(R.string.activity_form_deleted_toast))

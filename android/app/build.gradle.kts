@@ -1,4 +1,9 @@
+import org.gradle.testing.jacoco.tasks.JacocoCoverageVerification
+import org.gradle.testing.jacoco.tasks.JacocoReport
+import java.math.BigDecimal
 import java.util.Properties
+import org.gradle.api.tasks.testing.Test
+import org.gradle.testing.jacoco.plugins.JacocoTaskExtension
 
 plugins {
     alias(libs.plugins.androidApplication)
@@ -6,6 +11,7 @@ plugins {
     alias(libs.plugins.kotlinKapt)
     alias(libs.plugins.kotlinSerialization)
     alias(libs.plugins.hilt)
+    jacoco
 }
 
 if (file("google-services.json").exists()) {
@@ -125,10 +131,110 @@ dependencies {
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
     testImplementation("org.robolectric:robolectric:4.11.1")
     testImplementation("io.mockk:mockk:1.13.10")
+    testImplementation(libs.androidx.compose.ui.test.junit4)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
 
 kapt {
     correctErrorTypes = true
+}
+
+jacoco {
+    toolVersion = "0.8.11"
+}
+
+tasks.withType<Test>().configureEach {
+    extensions.configure(JacocoTaskExtension::class.java) {
+        isIncludeNoLocationClasses = true
+        excludes = listOf("jdk.internal.*")
+    }
+}
+
+val jacocoExcludes = listOf(
+    "**/R.class",
+    "**/R$*.class",
+    "**/BuildConfig.*",
+    "**/Manifest*.*",
+    "**/*Test*.*",
+    "**/*_Factory*",
+    "**/*_MembersInjector*",
+    "**/*_HiltModules*",
+    "**/*Hilt*.*",
+    "**/Dagger*.*",
+    "**/*_Impl*.*",
+    "**/*\$Companion*",
+    "**/*\$serializer*",
+    "**/di/**",
+    "nvk/cotrip/data/network/dto/**",
+    "nvk/cotrip/ui/theme/**",
+)
+
+val coverageClassDirectories = files(
+    fileTree(layout.buildDirectory.dir("tmp/kotlin-classes/debug")) {
+        include("nvk/cotrip/**")
+        exclude(jacocoExcludes)
+    },
+    fileTree(layout.buildDirectory.dir("intermediates/javac/debug/classes")) {
+        include("nvk/cotrip/**")
+        exclude(jacocoExcludes)
+    },
+)
+
+tasks.register<JacocoReport>("jacocoDebugUnitTestReport") {
+    dependsOn("testDebugUnitTest")
+
+    classDirectories.setFrom(coverageClassDirectories)
+    sourceDirectories.setFrom(files("src/main/java", "src/main/kotlin"))
+    executionData.setFrom(
+        fileTree(layout.buildDirectory) {
+            include(
+                "jacoco/testDebugUnitTest.exec",
+                "outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec",
+            )
+        }
+    )
+
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+        csv.required.set(false)
+    }
+}
+
+tasks.register<JacocoCoverageVerification>("jacocoDebugCoverageVerification") {
+    dependsOn("testDebugUnitTest")
+
+    classDirectories.setFrom(coverageClassDirectories)
+    sourceDirectories.setFrom(files("src/main/java", "src/main/kotlin"))
+    executionData.setFrom(
+        fileTree(layout.buildDirectory) {
+            include(
+                "jacoco/testDebugUnitTest.exec",
+                "outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec",
+            )
+        }
+    )
+
+    violationRules {
+        rule {
+            limit {
+                counter = "LINE"
+                value = "COVEREDRATIO"
+                minimum = BigDecimal("0.70")
+            }
+            limit {
+                counter = "BRANCH"
+                value = "COVEREDRATIO"
+                minimum = BigDecimal("0.60")
+            }
+        }
+    }
+}
+
+tasks.register("qualityCheck") {
+    group = "verification"
+    description = "Runs Android JVM tests and coverage verification."
+    dependsOn("testDebugUnitTest", "jacocoDebugUnitTestReport", "jacocoDebugCoverageVerification")
 }

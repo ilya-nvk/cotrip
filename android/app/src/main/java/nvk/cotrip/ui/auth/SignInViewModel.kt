@@ -10,7 +10,6 @@ import com.google.android.gms.auth.api.signin.GoogleSignInStatusCodes
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.common.api.CommonStatusCodes
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -19,7 +18,6 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import nvk.cotrip.R
 import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
@@ -131,16 +129,12 @@ class SignInViewModel @Inject constructor(
 
         viewModelScope.launch {
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    authRepository.signInWithGoogle(idToken)
-                }
+                authRepository.signInWithGoogle(idToken)
             }) {
                 is ApiResult.Success -> {
                     Log.d(TAG, "sign in success")
                     refreshScheduler.scheduleImmediate()
-                    withContext(Dispatchers.IO) {
-                        pushTokenSyncManager.syncCurrentToken()
-                    }
+                    runCatching { pushTokenSyncManager.syncCurrentToken() }
                     navigator.navigate(Destination.Trips) {
                         popUpTo(Destination.SignIn.route) { inclusive = true }
                         launchSingleTop = true

@@ -20,7 +20,10 @@ data class GoogleTokenInfo(
 )
 
 object GoogleTokenVerifier {
-    private val client = HttpClient(CIO) {
+    internal var httpClientForTest: HttpClient? = null
+    private val client: HttpClient
+        get() = httpClientForTest ?: defaultClient
+    private val defaultClient = HttpClient(CIO) {
         install(ContentNegotiation) {
             json(Json { ignoreUnknownKeys = true })
         }

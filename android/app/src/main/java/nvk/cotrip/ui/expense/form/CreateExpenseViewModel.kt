@@ -4,7 +4,6 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -12,7 +11,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import nvk.cotrip.R
 import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
@@ -72,7 +70,7 @@ class CreateExpenseViewModel @Inject constructor(
     )
     override val state = _state.asStateFlow()
 
-    private val _effects = MutableSharedFlow<ExpenseFormEffect>()
+    private val _effects = MutableSharedFlow<ExpenseFormEffect>(extraBufferCapacity = 8)
     override val effects = _effects.asSharedFlow()
 
     init {
@@ -135,16 +133,14 @@ class CreateExpenseViewModel @Inject constructor(
     private fun loadMembers() {
         viewModelScope.launch {
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    val trip = tripRepository.getTrip(tripId).first()
-                    val members = tripRepository.tripMembers(tripId).first()
-                    val me = checkNotNull(userRepository.me.first())
-                    MembersPayload(
-                        members = members,
-                        currencyCode = trip.currencyCode,
-                        meId = me.id
-                    )
-                }
+                val trip = tripRepository.getTrip(tripId).first()
+                val members = tripRepository.tripMembers(tripId).first()
+                val me = checkNotNull(userRepository.me.first())
+                MembersPayload(
+                    members = members,
+                    currencyCode = trip.currencyCode,
+                    meId = me.id
+                )
             }) {
                 is ApiResult.Success -> {
                     val payload = result.data
@@ -219,22 +215,20 @@ class CreateExpenseViewModel @Inject constructor(
         _state.update { it.copy(isSaving = true) }
         viewModelScope.launch {
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    expenseRepository.createExpense(
-                        tripId = tripId,
-                        request = ExpenseCreateRequest(
-                            title = snapshot.title.trim(),
-                            amount = amount,
-                            currencyCode = currencyCode,
-                            status = snapshot.status.toApiStatus(),
-                            paidById = snapshot.paidById,
-                            date = if (snapshot.status == ExpenseFormStatus.Paid) selectedDate?.toString() else null,
-                            splitType = snapshot.splitType.toApiSplitType(),
-                            note = snapshot.note.trim().ifBlank { null },
-                            participants = buildParticipants(snapshot)
-                        )
+                expenseRepository.createExpense(
+                    tripId = tripId,
+                    request = ExpenseCreateRequest(
+                        title = snapshot.title.trim(),
+                        amount = amount,
+                        currencyCode = currencyCode,
+                        status = snapshot.status.toApiStatus(),
+                        paidById = snapshot.paidById,
+                        date = if (snapshot.status == ExpenseFormStatus.Paid) selectedDate?.toString() else null,
+                        splitType = snapshot.splitType.toApiSplitType(),
+                        note = snapshot.note.trim().ifBlank { null },
+                        participants = buildParticipants(snapshot)
                     )
-                }
+                )
             }) {
                 is ApiResult.Success -> {
                     emit(ExpenseFormEffect.ShowToastRes(R.string.expense_form_created_toast))
@@ -269,23 +263,21 @@ class CreateExpenseViewModel @Inject constructor(
         _state.update { it.copy(limitDialog = null, isSaving = true) }
         viewModelScope.launch {
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    expenseRepository.deleteExpense(dialog.oldestId)
-                    expenseRepository.createExpense(
-                        tripId = tripId,
-                        request = ExpenseCreateRequest(
-                            title = snapshot.title.trim(),
-                            amount = parseAmount(snapshot.amount) ?: 0.0,
-                            currencyCode = currencyCode,
-                            status = snapshot.status.toApiStatus(),
-                            paidById = snapshot.paidById,
-                            date = if (snapshot.status == ExpenseFormStatus.Paid) selectedDate?.toString() else null,
-                            splitType = snapshot.splitType.toApiSplitType(),
-                            note = snapshot.note.trim().ifBlank { null },
-                            participants = buildParticipants(snapshot)
-                        )
+                expenseRepository.deleteExpense(dialog.oldestId)
+                expenseRepository.createExpense(
+                    tripId = tripId,
+                    request = ExpenseCreateRequest(
+                        title = snapshot.title.trim(),
+                        amount = parseAmount(snapshot.amount) ?: 0.0,
+                        currencyCode = currencyCode,
+                        status = snapshot.status.toApiStatus(),
+                        paidById = snapshot.paidById,
+                        date = if (snapshot.status == ExpenseFormStatus.Paid) selectedDate?.toString() else null,
+                        splitType = snapshot.splitType.toApiSplitType(),
+                        note = snapshot.note.trim().ifBlank { null },
+                        participants = buildParticipants(snapshot)
                     )
-                }
+                )
             }) {
                 is ApiResult.Success -> {
                     emit(ExpenseFormEffect.ShowToastRes(R.string.expense_form_created_toast))

@@ -9,6 +9,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -34,9 +35,10 @@ import nvk.cotrip.data.network.dto.ItineraryDayDto
 import nvk.cotrip.data.network.dto.MemberDto
 import nvk.cotrip.data.network.parseLimitReachedDetails
 import nvk.cotrip.data.network.ws.CommentCreatedPayload
+import nvk.cotrip.data.network.ws.CommentEventsSource
+import nvk.cotrip.data.network.ws.CommentEventsSourceFactory
 import nvk.cotrip.data.network.ws.CommentRejectedPayload
 import nvk.cotrip.data.network.ws.CommentWsEvent
-import nvk.cotrip.data.network.ws.CommentsWebSocket
 import nvk.cotrip.data.repository.IdeaRepository
 import nvk.cotrip.data.repository.ItineraryRepository
 import nvk.cotrip.data.repository.NotificationRepository
@@ -73,7 +75,7 @@ class IdeaDetailsViewModel @Inject constructor(
     private val notificationRepository: NotificationRepository,
     private val systemNotificationManager: SystemNotificationManager,
     private val sessionStore: SessionStore,
-    private val okHttpClient: okhttp3.OkHttpClient,
+    private val commentEventsSourceFactory: CommentEventsSourceFactory,
     private val json: Json,
     private val apiCaller: ApiCaller,
     private val uiErrorMapper: UiErrorMapper,
@@ -84,7 +86,7 @@ class IdeaDetailsViewModel @Inject constructor(
     private val ideaId: String =
         checkNotNull(savedStateHandle[Destination.IdeaDetails.ARG_IDEA_ID])
 
-    private val commentsSocket = CommentsWebSocket(okHttpClient, json)
+    private var commentEventsSource: CommentEventsSource? = null
     private var reconnectJob: Job? = null
     private var reconnectAttempt: Int = 0
     private val pendingComments = linkedMapOf<String, PendingComment>()
@@ -118,10 +120,16 @@ class IdeaDetailsViewModel @Inject constructor(
     )
     val state = _state.asStateFlow()
 
-    private val _effects = MutableSharedFlow<IdeaDetailsEffect>()
+    private val _effects = MutableSharedFlow<IdeaDetailsEffect>(extraBufferCapacity = 8)
     val effects = _effects.asSharedFlow()
 
     init {
+        val token = sessionStore.getAccessToken().orEmpty()
+        if (token.isNotBlank()) {
+            commentEventsSource = commentEventsSourceFactory.create().also {
+                it.connect(BuildConfig.API_BASE_URL, tripId, token)
+            }
+        }
         observeSocket()
         connectSocket()
         observeDetails()
@@ -132,7 +140,7 @@ class IdeaDetailsViewModel @Inject constructor(
         reconnectJob?.cancel()
         pendingTimeoutJobs.values.forEach { it.cancel() }
         pendingTimeoutJobs.clear()
-        commentsSocket.disconnect()
+        commentEventsSource?.disconnect()
         super.onCleared()
     }
 
@@ -244,13 +252,11 @@ class IdeaDetailsViewModel @Inject constructor(
     private fun refreshDetails(showErrorToast: Boolean) {
         viewModelScope.launch {
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    tripRepository.refreshTrips().getOrThrow()
-                    tripRepository.tripMembers(tripId).first()
-                    itineraryRepository.refreshItinerary(tripId).getOrThrow()
-                    ideaRepository.refreshIdeas(tripId).getOrThrow()
-                    ideaRepository.refreshComments(ideaId).getOrThrow()
-                }
+                tripRepository.refreshTrips().getOrThrow()
+                tripRepository.tripMembers(tripId).first()
+                itineraryRepository.refreshItinerary(tripId).getOrThrow()
+                ideaRepository.refreshIdeas(tripId).getOrThrow()
+                ideaRepository.refreshComments(ideaId).getOrThrow()
             }) {
                 is ApiResult.Success -> Unit
                 is ApiResult.Failure -> if (showErrorToast) {
@@ -267,14 +273,18 @@ class IdeaDetailsViewModel @Inject constructor(
             return
         }
         reconnectJob?.cancel()
-        commentsSocket.connect(BuildConfig.API_BASE_URL, tripId, token)
+        if (commentEventsSource == null) {
+            commentEventsSource = commentEventsSourceFactory.create()
+        }
+        commentEventsSource?.disconnect()
+        commentEventsSource?.connect(BuildConfig.API_BASE_URL, tripId, token)
         reconnectAttempt = 0
         refreshCommentsSilently()
     }
 
     private fun observeSocket() {
         viewModelScope.launch {
-            commentsSocket.events.collect { event ->
+            (commentEventsSource?.events ?: emptyFlow()).collect { event ->
                 when (event) {
                     is CommentWsEvent.CommentCreated -> handleCommentCreated(event.payload)
                     is CommentWsEvent.CommentDeleted -> handleCommentDeleted(event.payload.id)
@@ -382,14 +392,10 @@ class IdeaDetailsViewModel @Inject constructor(
         _state.update { it.copy(dayPicker = null) }
         viewModelScope.launch {
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    ideaRepository.convertIdeaToActivity(ideaId, ConvertIdeaRequest(dayId = day.id))
-                }
+                ideaRepository.convertIdeaToActivity(ideaId, ConvertIdeaRequest(dayId = day.id))
             }) {
                 is ApiResult.Success -> {
-                    withContext(Dispatchers.IO) {
-                        itineraryRepository.refreshItinerary(tripId).getOrThrow()
-                    }
+                    itineraryRepository.refreshItinerary(tripId).getOrThrow()
                     _state.update { it.copy(addedDay = day.dayNumber) }
                     emit(IdeaDetailsEffect.ShowToastRes(R.string.idea_details_added_toast))
                 }
@@ -428,7 +434,7 @@ class IdeaDetailsViewModel @Inject constructor(
 
         viewModelScope.launch {
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) { ideaRepository.deleteComment(oldestId) }
+                ideaRepository.deleteComment(oldestId)
             }) {
                 is ApiResult.Success -> {
                     val refreshed = pendingComments[localId] ?: return@launch
@@ -480,11 +486,11 @@ class IdeaDetailsViewModel @Inject constructor(
 
     private fun sendPendingComment(localId: String) {
         val pending = pendingComments[localId] ?: return
-        val sent = commentsSocket.sendCreate(
+        val sent = commentEventsSource?.sendCreate(
             ideaId = ideaId,
             body = pending.text,
             clientMessageId = localId
-        )
+        ) ?: false
         if (!sent) {
             markPendingFailed(localId)
             scheduleReconnect()
@@ -577,12 +583,10 @@ class IdeaDetailsViewModel @Inject constructor(
         _state.update { it.copy(isUpdatingStatus = true) }
         viewModelScope.launch {
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    if (approved) {
-                        ideaRepository.approveIdea(ideaId)
-                    } else {
-                        ideaRepository.rejectIdea(ideaId)
-                    }
+                if (approved) {
+                    ideaRepository.approveIdea(ideaId)
+                } else {
+                    ideaRepository.rejectIdea(ideaId)
                 }
             }) {
                 is ApiResult.Success -> {
@@ -607,7 +611,7 @@ class IdeaDetailsViewModel @Inject constructor(
     private fun deleteIdea() {
         viewModelScope.launch {
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) { ideaRepository.deleteIdea(ideaId) }
+                ideaRepository.deleteIdea(ideaId)
             }) {
                 is ApiResult.Success -> {
                     emit(IdeaDetailsEffect.ShowToastRes(R.string.idea_details_deleted_toast))

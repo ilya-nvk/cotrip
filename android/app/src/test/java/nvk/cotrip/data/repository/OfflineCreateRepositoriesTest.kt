@@ -75,7 +75,8 @@ class OfflineCreateRepositoriesTest {
     }
 
     @Test
-    fun tripRepository_createTripOffline_createsLocalTripAndQueueItem() = runTest {
+    fun given_apiOffline_when_createTrip_then_createsLocalTripAndQueueItem() = runTest {
+        // GIVEN
         val api = mockk<CoTripApi>()
         coEvery { api.createTrip(any()) } throws IOException("offline")
         val tripsStore = FakeTripsCacheStore()
@@ -94,6 +95,7 @@ class OfflineCreateRepositoriesTest {
             networkStateProvider = networkStateProvider,
         )
 
+        // WHEN
         val tripId = repository.createTrip(
             CreateTripRequest(
                 title = "Offline Trip",
@@ -106,6 +108,7 @@ class OfflineCreateRepositoriesTest {
             )
         )
 
+        // THEN
         assertTrue(tripsStore.getTrips().any { it.id == tripId })
         assertEquals(3, itineraryStore.getItinerary(tripId).size)
         val pending = database.syncChangeDao().listPending(10)
@@ -116,7 +119,8 @@ class OfflineCreateRepositoriesTest {
     }
 
     @Test
-    fun ideaRepository_createIdeaOffline_createsLocalIdeaAndQueueItem() = runTest {
+    fun given_apiOffline_when_createIdea_then_createsLocalIdeaAndQueueItem() = runTest {
+        // GIVEN
         val api = mockk<CoTripApi>()
         coEvery { api.createIdea(any(), any()) } throws IOException("offline")
         val ideasStore = FakeIdeasCacheStore()
@@ -132,6 +136,7 @@ class OfflineCreateRepositoriesTest {
             networkStateProvider = networkStateProvider,
         )
 
+        // WHEN
         val idea = repository.createIdea(
             tripId = "trip-idea-1",
             request = CreateIdeaRequest(
@@ -144,6 +149,7 @@ class OfflineCreateRepositoriesTest {
             )
         )
 
+        // THEN
         assertTrue(ideasStore.getIdeas("trip-idea-1").any { it.id == idea.id })
         val pending = database.syncChangeDao().listPending(10)
         assertEquals(1, pending.size)
@@ -153,7 +159,8 @@ class OfflineCreateRepositoriesTest {
     }
 
     @Test
-    fun expenseRepository_createExpenseOffline_createsLocalExpenseAndQueueItem() = runTest {
+    fun given_apiOffline_when_createExpense_then_createsLocalExpenseAndQueueItem() = runTest {
+        // GIVEN
         val api = mockk<CoTripApi>()
         coEvery { api.createExpense(any(), any()) } throws IOException("offline")
         val expensesStore = FakeExpensesCacheStore()
@@ -164,6 +171,7 @@ class OfflineCreateRepositoriesTest {
             networkStateProvider = networkStateProvider,
         )
 
+        // WHEN
         val expense = repository.createExpense(
             tripId = "trip-expense-1",
             request = ExpenseCreateRequest(
@@ -184,6 +192,7 @@ class OfflineCreateRepositoriesTest {
             )
         )
 
+        // THEN
         assertTrue(expensesStore.getExpenses("trip-expense-1").any { it.id == expense.id })
         val pending = database.syncChangeDao().listPending(10)
         assertEquals(1, pending.size)
@@ -193,7 +202,8 @@ class OfflineCreateRepositoriesTest {
     }
 
     @Test
-    fun itineraryRepository_createActivityOffline_createsLocalActivityAndQueueItem() = runTest {
+    fun given_apiOffline_when_createActivity_then_createsLocalActivityAndQueueItem() = runTest {
+        // GIVEN
         val api = mockk<CoTripApi>()
         coEvery { api.createActivity(any(), any()) } throws IOException("offline")
         val itineraryStore = FakeItineraryCacheStore()
@@ -231,6 +241,7 @@ class OfflineCreateRepositoriesTest {
             networkStateProvider = networkStateProvider,
         )
 
+        // WHEN
         val created = repository.createActivity(
             dayId = dayId,
             request = CreateActivityRequest(
@@ -239,6 +250,7 @@ class OfflineCreateRepositoriesTest {
             )
         )
 
+        // THEN
         val storedDay = itineraryStore.getItinerary(tripId).first { it.id == dayId }
         assertTrue(storedDay.activities.any { it.id == created.id })
         assertEquals(1, created.orderIndex)

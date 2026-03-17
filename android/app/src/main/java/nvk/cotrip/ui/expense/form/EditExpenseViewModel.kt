@@ -4,7 +4,6 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -12,7 +11,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import nvk.cotrip.R
 import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
@@ -70,7 +68,7 @@ class EditExpenseViewModel @Inject constructor(
     )
     override val state = _state.asStateFlow()
 
-    private val _effects = MutableSharedFlow<ExpenseFormEffect>()
+    private val _effects = MutableSharedFlow<ExpenseFormEffect>(extraBufferCapacity = 8)
     override val effects = _effects.asSharedFlow()
 
     init {
@@ -133,16 +131,14 @@ class EditExpenseViewModel @Inject constructor(
     private fun loadExpense() {
         viewModelScope.launch {
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    val expense = expenseRepository.getExpense(expenseId).first()
-                    val trip = tripRepository.getTrip(tripId).first()
-                    val members = tripRepository.tripMembers(tripId).first()
-                    ExpensePayload(
-                        expense = expense,
-                        members = members,
-                        currencyCode = trip.currencyCode
-                    )
-                }
+                val expense = expenseRepository.getExpense(expenseId).first()
+                val trip = tripRepository.getTrip(tripId).first()
+                val members = tripRepository.tripMembers(tripId).first()
+                ExpensePayload(
+                    expense = expense,
+                    members = members,
+                    currencyCode = trip.currencyCode
+                )
             }) {
                 is ApiResult.Success -> {
                     val payload = result.data
@@ -220,21 +216,19 @@ class EditExpenseViewModel @Inject constructor(
         _state.update { it.copy(isSaving = true) }
         viewModelScope.launch {
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    expenseRepository.updateExpense(
-                        expenseId = expenseId,
-                        request = ExpenseUpdateRequest(
-                            title = snapshot.title.trim(),
-                            amount = amount,
-                            status = snapshot.status.toApiStatus(),
-                            paidById = snapshot.paidById,
-                            date = if (snapshot.status == ExpenseFormStatus.Paid) selectedDate?.toString() else null,
-                            splitType = snapshot.splitType.toApiSplitType(),
-                            note = snapshot.note.trim().ifBlank { null },
-                            participants = buildParticipants(snapshot)
-                        )
+                expenseRepository.updateExpense(
+                    expenseId = expenseId,
+                    request = ExpenseUpdateRequest(
+                        title = snapshot.title.trim(),
+                        amount = amount,
+                        status = snapshot.status.toApiStatus(),
+                        paidById = snapshot.paidById,
+                        date = if (snapshot.status == ExpenseFormStatus.Paid) selectedDate?.toString() else null,
+                        splitType = snapshot.splitType.toApiSplitType(),
+                        note = snapshot.note.trim().ifBlank { null },
+                        participants = buildParticipants(snapshot)
                     )
-                }
+                )
             }) {
                 is ApiResult.Success -> {
                     emit(ExpenseFormEffect.ShowToastRes(R.string.expense_form_saved_toast))
@@ -252,7 +246,7 @@ class EditExpenseViewModel @Inject constructor(
     private fun deleteExpense() {
         viewModelScope.launch {
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) { expenseRepository.deleteExpense(expenseId) }
+                expenseRepository.deleteExpense(expenseId)
             }) {
                 is ApiResult.Success -> {
                     emit(ExpenseFormEffect.ShowToastRes(R.string.expense_form_deleted_toast))

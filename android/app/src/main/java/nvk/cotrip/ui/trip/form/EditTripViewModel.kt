@@ -4,7 +4,6 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -12,7 +11,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import nvk.cotrip.R
 import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
@@ -44,7 +42,7 @@ class EditTripViewModel @Inject constructor(
     private val _state = MutableStateFlow(TripFormState(isLoading = true))
     val state = _state.asStateFlow()
 
-    private val _effects = MutableSharedFlow<TripFormEffect>()
+    private val _effects = MutableSharedFlow<TripFormEffect>(extraBufferCapacity = 8)
     val effects = _effects.asSharedFlow()
     private var originalStartDate: LocalDate? = null
     private var originalEndDate: LocalDate? = null
@@ -154,13 +152,13 @@ class EditTripViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
             val result = apiCaller.call {
-                withContext(Dispatchers.IO) { tripRepository.getTrip(id).first() }
+                tripRepository.getTrip(id).first()
             }
             when (result) {
                 is ApiResult.Success -> {
                     val trip = result.data
                     val meId = runCatching {
-                        withContext(Dispatchers.IO) { userRepository.me.first()?.id }
+                        userRepository.me.first()?.id
                     }.getOrNull()
                     if (meId == null || trip.ownerId != meId) {
                         _state.update { it.copy(isLoading = false) }
@@ -240,20 +238,18 @@ class EditTripViewModel @Inject constructor(
             _state.update { it.copy(isLoading = true) }
 
             val result = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    tripRepository.updateTrip(
-                        tripId = tripId,
-                        request = UpdateTripRequest(
-                            title = s.name,
-                            description = s.description.takeIf { it.isNotBlank() },
-                            startDate = startDate.toString(),
-                            endDate = endDate.toString(),
-                            locationLine = null,
-                            coverUrl = s.coverUri,
-                            currencyCode = s.currency.code,
-                        )
+                tripRepository.updateTrip(
+                    tripId = tripId,
+                    request = UpdateTripRequest(
+                        title = s.name,
+                        description = s.description.takeIf { it.isNotBlank() },
+                        startDate = startDate.toString(),
+                        endDate = endDate.toString(),
+                        locationLine = null,
+                        coverUrl = s.coverUri,
+                        currencyCode = s.currency.code,
                     )
-                }
+                )
             }
 
             when (result) {
@@ -305,7 +301,7 @@ class EditTripViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
             val result = apiCaller.call {
-                withContext(Dispatchers.IO) { tripRepository.archiveTrip(tripId) }
+                tripRepository.archiveTrip(tripId)
             }
             when (result) {
                 is ApiResult.Success -> {
@@ -325,7 +321,7 @@ class EditTripViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
             val result = apiCaller.call {
-                withContext(Dispatchers.IO) { tripRepository.deleteTrip(tripId) }
+                tripRepository.deleteTrip(tripId)
             }
             when (result) {
                 is ApiResult.Success -> {
@@ -349,7 +345,7 @@ class EditTripViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, coverPreviewUri = uriString) }
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) { imageUploadRepository.uploadImage(uriString) }
+                imageUploadRepository.uploadImage(uriString)
             }) {
                 is ApiResult.Success -> {
                     _state.update {

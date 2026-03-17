@@ -38,6 +38,6 @@ jobs:
         working-directory: android
         run: ./gradlew build -x lint
 
-      - name: Run Unit Tests
+      - name: Run Android Quality Gate
         working-directory: android
-        run: ./gradlew test
+        run: ./gradlew :app:qualityCheck

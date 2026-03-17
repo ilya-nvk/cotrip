@@ -6,7 +6,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -14,7 +13,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import nvk.cotrip.R
 import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
@@ -61,7 +59,7 @@ class ExpenseDetailsViewModel @Inject constructor(
     private val _state = MutableStateFlow<ExpenseDetailsState>(ExpenseDetailsState.Loading)
     val state = _state.asStateFlow()
 
-    private val _effects = MutableSharedFlow<ExpenseDetailsEffect>()
+    private val _effects = MutableSharedFlow<ExpenseDetailsEffect>(extraBufferCapacity = 8)
     val effects = _effects.asSharedFlow()
 
     init {
@@ -122,11 +120,9 @@ class ExpenseDetailsViewModel @Inject constructor(
     private fun refreshExpense(showErrorToast: Boolean) {
         viewModelScope.launch {
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    tripRepository.refreshTrips().getOrThrow()
-                    tripRepository.tripMembers(tripId).first()
-                    expenseRepository.refreshExpenses(tripId).getOrThrow()
-                }
+                tripRepository.refreshTrips().getOrThrow()
+                tripRepository.tripMembers(tripId).first()
+                expenseRepository.refreshExpenses(tripId).getOrThrow()
             }) {
                 is ApiResult.Success -> Unit
                 is ApiResult.Failure -> {
@@ -194,9 +190,7 @@ class ExpenseDetailsViewModel @Inject constructor(
     private fun updateExpense(request: ExpenseUpdateRequest) {
         viewModelScope.launch {
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    expenseRepository.updateExpense(expenseId, request)
-                }
+                expenseRepository.updateExpense(expenseId, request)
             }) {
                 is ApiResult.Success -> refreshExpense(showErrorToast = false)
                 is ApiResult.Failure -> {

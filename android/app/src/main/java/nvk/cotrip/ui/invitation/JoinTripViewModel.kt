@@ -5,7 +5,6 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -13,7 +12,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import nvk.cotrip.R
 import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
@@ -54,7 +52,7 @@ class JoinTripViewModel @Inject constructor(
     )
     val state = _state.asStateFlow()
 
-    private val _effects = MutableSharedFlow<JoinTripEffect>()
+    private val _effects = MutableSharedFlow<JoinTripEffect>(extraBufferCapacity = 8)
     val effects = _effects.asSharedFlow()
 
     private val deepLinkValue: String? =
@@ -101,16 +99,14 @@ class JoinTripViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
             val preflight = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    runCatching { tripRepository.refreshTrips() }
-                    val joinedIds = tripRepository.trips.first().mapTo(mutableSetOf()) { it.id }
-                    when (target) {
-                        is JoinTarget.InviteToken -> {
-                            val invite = inviteRepository.getInvite(target.token).first()
-                            joinedIds.contains(invite.tripId)
-                        }
-                        is JoinTarget.TripId -> joinedIds.contains(target.tripId)
+                runCatching { tripRepository.refreshTrips() }
+                val joinedIds = tripRepository.trips.first().mapTo(mutableSetOf()) { it.id }
+                when (target) {
+                    is JoinTarget.InviteToken -> {
+                        val invite = inviteRepository.getInvite(target.token).first()
+                        joinedIds.contains(invite.tripId)
                     }
+                    is JoinTarget.TripId -> joinedIds.contains(target.tripId)
                 }
             }
 
@@ -131,24 +127,23 @@ class JoinTripViewModel @Inject constructor(
             }
 
             val result = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    val tripId = when (target) {
-                        is JoinTarget.InviteToken -> inviteRepository.acceptInvite(target.token)
-                        is JoinTarget.TripId -> inviteRepository.joinTripById(target.tripId)
-                    }.ifBlank {
-                        when (target) {
-                            is JoinTarget.InviteToken -> error("acceptInvite returned empty tripId")
-                            is JoinTarget.TripId -> target.tripId
-                        }
+                val tripId = when (target) {
+                    is JoinTarget.InviteToken -> inviteRepository.acceptInvite(target.token)
+                    is JoinTarget.TripId -> inviteRepository.joinTripById(target.tripId)
+                }.ifBlank {
+                    when (target) {
+                        is JoinTarget.InviteToken -> error("acceptInvite returned empty tripId")
+                        is JoinTarget.TripId -> target.tripId
                     }
-                    runCatching { tripRepository.refreshTrips() }
-                    tripId
                 }
+                runCatching { tripRepository.refreshTrips() }
+                tripId
             }
 
             when (result) {
                 is ApiResult.Success -> {
                     val tripId = result.data
+                    _state.update { it.copy(isLoading = false) }
                     emit(JoinTripEffect.ShowToastRes(R.string.join_trip_success))
                     appNavigator.navigate(Destination.TripDetails(tripId)) {
                         popUpTo(Destination.Trips.route) { inclusive = false }

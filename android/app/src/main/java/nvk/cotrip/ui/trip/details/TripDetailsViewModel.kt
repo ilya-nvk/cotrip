@@ -6,7 +6,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -17,7 +16,6 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import nvk.cotrip.R
 import nvk.cotrip.data.network.ApiCaller
@@ -68,7 +66,7 @@ class TripDetailsViewModel @Inject constructor(
         MutableStateFlow<TripDetailsState>(TripDetailsState.Loading)
     val state = _state.asStateFlow()
 
-    private val _effects = MutableSharedFlow<TripDetailsEffect>()
+    private val _effects = MutableSharedFlow<TripDetailsEffect>(extraBufferCapacity = 8)
     val effects = _effects.asSharedFlow()
 
     init {
@@ -230,12 +228,10 @@ class TripDetailsViewModel @Inject constructor(
         weatherBootstrapInFlight = true
         viewModelScope.launch {
             runCatching {
-                withContext(Dispatchers.IO) {
-                    loadWeatherCard(
-                        trip = loaded.trip,
-                        cachedItinerary = loaded.itinerary,
-                    )
-                }
+                loadWeatherCard(
+                    trip = loaded.trip,
+                    cachedItinerary = loaded.itinerary,
+                )
             }.onSuccess { weather ->
                 latestWeather = weather
                 val current = _state.value as? TripDetailsState.Content
@@ -253,9 +249,7 @@ class TripDetailsViewModel @Inject constructor(
     private fun primeTripCache() {
         viewModelScope.launch {
             runCatching {
-                withContext(Dispatchers.IO) {
-                    tripRepository.getTrip(tripId).first()
-                }
+                tripRepository.getTrip(tripId).first()
             }.onFailure { error ->
                 AppLogger.w(TAG, "primeTripCache failed for tripId=$tripId", error)
             }
@@ -271,52 +265,50 @@ class TripDetailsViewModel @Inject constructor(
                 }
             }
             val result = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    // Best-effort: list refresh may fail while direct trip fetch still works.
-                    runCatching { tripRepository.refreshTrips().getOrThrow() }
-                        .onFailure {
-                            AppLogger.w(
-                                TAG,
-                                "refreshTrips failed for tripId=$tripId",
-                                it
-                            )
-                        }
-                    // Mandatory: details screen depends on this trip being in cache.
-                    val trip = tripRepository.getTrip(tripId).first()
-                    runCatching { tripRepository.tripMembers(tripId).first() }
-                        .onFailure {
-                            AppLogger.w(
-                                TAG,
-                                "tripMembers refresh failed for tripId=$tripId",
-                                it
-                            )
-                        }
-                    runCatching { ideaRepository.refreshIdeas(tripId).getOrThrow() }
-                        .onFailure {
-                            AppLogger.w(
-                                TAG,
-                                "refreshIdeas failed for tripId=$tripId",
-                                it
-                            )
-                        }
-                    runCatching { expenseRepository.refreshExpenses(tripId).getOrThrow() }
-                        .onFailure {
-                            AppLogger.w(
-                                TAG,
-                                "refreshExpenses failed for tripId=$tripId",
-                                it
-                            )
-                        }
-                    runCatching { itineraryRepository.refreshItinerary(tripId).getOrThrow() }
-                        .onFailure {
-                            AppLogger.w(
-                                TAG,
-                                "refreshItinerary failed for tripId=$tripId",
-                                it
-                            )
-                        }
-                    loadWeatherCard(trip)
-                }
+                // Best-effort: list refresh may fail while direct trip fetch still works.
+                runCatching { tripRepository.refreshTrips().getOrThrow() }
+                    .onFailure {
+                        AppLogger.w(
+                            TAG,
+                            "refreshTrips failed for tripId=$tripId",
+                            it
+                        )
+                    }
+                // Mandatory: details screen depends on this trip being in cache.
+                val trip = tripRepository.getTrip(tripId).first()
+                runCatching { tripRepository.tripMembers(tripId).first() }
+                    .onFailure {
+                        AppLogger.w(
+                            TAG,
+                            "tripMembers refresh failed for tripId=$tripId",
+                            it
+                        )
+                    }
+                runCatching { ideaRepository.refreshIdeas(tripId).getOrThrow() }
+                    .onFailure {
+                        AppLogger.w(
+                            TAG,
+                            "refreshIdeas failed for tripId=$tripId",
+                            it
+                        )
+                    }
+                runCatching { expenseRepository.refreshExpenses(tripId).getOrThrow() }
+                    .onFailure {
+                        AppLogger.w(
+                            TAG,
+                            "refreshExpenses failed for tripId=$tripId",
+                            it
+                        )
+                    }
+                runCatching { itineraryRepository.refreshItinerary(tripId).getOrThrow() }
+                    .onFailure {
+                        AppLogger.w(
+                            TAG,
+                            "refreshItinerary failed for tripId=$tripId",
+                            it
+                        )
+                    }
+                loadWeatherCard(trip)
             }
 
             when (result) {
