@@ -75,6 +75,7 @@ val mainSourceSet = sourceSets["main"]
 val testTask = tasks.named<Test>("test")
 val testExecData = testTask.map { test ->
     test.extensions.getByType(JacocoTaskExtension::class.java).destinationFile
+        ?: file("build/jacoco/test.exec")
 }
 
 val jacocoClassDirs = mainSourceSet.output.asFileTree.matching {
