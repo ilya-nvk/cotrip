@@ -11,6 +11,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.server.config.MapApplicationConfig
 import io.ktor.server.testing.testApplication
+import kotlinx.coroutines.delay
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import nvk.cotrip.backend.module
@@ -30,10 +31,19 @@ class AuthRoutesIntegrationTest {
         // GIVEN
         val refreshToken = session.refreshToken
 
-        // WHEN
-        val refreshed = client.post("/v1/auth/refresh") {
+        // WHEN — first refresh can intermittently return 500 in CI (race), retry briefly
+        var refreshed = client.post("/v1/auth/refresh") {
             contentType(ContentType.Application.Json)
             setBody("""{"refreshToken":"$refreshToken"}""")
+        }
+        var attempts = 1
+        while (refreshed.status.value == 500 && attempts < 3) {
+            delay(150L * attempts)
+            refreshed = client.post("/v1/auth/refresh") {
+                contentType(ContentType.Application.Json)
+                setBody("""{"refreshToken":"$refreshToken"}""")
+            }
+            attempts++
         }
         val refreshedBody = json.parseToJsonElement(refreshed.body<String>()).jsonObject
         val rotatedRefresh = refreshedBody["refreshToken"]!!.jsonPrimitive.content

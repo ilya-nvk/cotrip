@@ -3,6 +3,7 @@ package nvk.cotrip.backend.testing
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.testcontainers.DockerClientFactory
 import org.testcontainers.containers.PostgreSQLContainer
+import java.io.File
 import java.sql.DriverManager
 
 object PostgresContainerSupport {
@@ -46,10 +47,7 @@ object PostgresContainerSupport {
     private fun ensureSchema() {
         if (schemaApplied) return
         val c = requireNotNull(container)
-        val sql = PostgresContainerSupport::class.java.classLoader
-            .getResourceAsStream("db/schema.sql")
-            ?: error("Missing db/schema.sql resource")
-        val sqlText = sql.bufferedReader().use { it.readText() }
+        val sqlText = loadSchemaSql()
         val statements = splitSqlStatements(sqlText)
         DriverManager.getConnection(c.jdbcUrl, c.username, c.password).use { conn ->
             conn.autoCommit = false
@@ -63,6 +61,17 @@ object PostgresContainerSupport {
             }
         }
         schemaApplied = true
+    }
+
+    private fun loadSchemaSql(): String {
+        PostgresContainerSupport::class.java.classLoader
+            .getResourceAsStream("db/schema.sql")
+            ?.use { return it.bufferedReader().readText() }
+        for (path in listOf("src/main/resources/db/schema.sql", "backend/src/main/resources/db/schema.sql")) {
+            val file = File(path)
+            if (file.isFile) return file.readText()
+        }
+        error("Missing db/schema.sql: not on classpath and not found at src/main/resources/db/schema.sql or backend/src/main/resources/db/schema.sql")
     }
 
     private fun splitSqlStatements(sql: String): List<String> {
