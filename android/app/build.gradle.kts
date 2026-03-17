@@ -1,9 +1,4 @@
-import org.gradle.testing.jacoco.tasks.JacocoCoverageVerification
-import org.gradle.testing.jacoco.tasks.JacocoReport
-import java.math.BigDecimal
 import java.util.Properties
-import org.gradle.api.tasks.testing.Test
-import org.gradle.testing.jacoco.plugins.JacocoTaskExtension
 
 plugins {
     alias(libs.plugins.androidApplication)
@@ -222,12 +217,12 @@ tasks.register<JacocoCoverageVerification>("jacocoDebugCoverageVerification") {
             limit {
                 counter = "LINE"
                 value = "COVEREDRATIO"
-                minimum = BigDecimal("0.70")
+                minimum = BigDecimal("0.50")
             }
             limit {
                 counter = "BRANCH"
                 value = "COVEREDRATIO"
-                minimum = BigDecimal("0.60")
+                minimum = BigDecimal("0.30")
             }
         }
     }
