@@ -11,7 +11,6 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.server.config.MapApplicationConfig
 import io.ktor.server.testing.testApplication
-import kotlinx.coroutines.delay
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import nvk.cotrip.backend.module
@@ -31,21 +30,11 @@ class AuthRoutesIntegrationTest {
         // GIVEN
         val refreshToken = session.refreshToken
 
-        // WHEN — first refresh can intermittently return 500 in CI (race), retry briefly
-        var refreshed = client.post("/v1/auth/refresh") {
+        // WHEN
+        val refreshed = client.post("/v1/auth/refresh") {
             contentType(ContentType.Application.Json)
             setBody("""{"refreshToken":"$refreshToken"}""")
         }
-        var attempts = 1
-        while (refreshed.status.value == 500 && attempts < 3) {
-            delay(150L * attempts)
-            refreshed = client.post("/v1/auth/refresh") {
-                contentType(ContentType.Application.Json)
-                setBody("""{"refreshToken":"$refreshToken"}""")
-            }
-            attempts++
-        }
-        assertEquals(HttpStatusCode.OK, refreshed.status, "First refresh failed after $attempts attempt(s): status=${refreshed.status}")
         val refreshedBody = json.parseToJsonElement(refreshed.body<String>()).jsonObject
         val rotatedRefresh = refreshedBody["refreshToken"]!!.jsonPrimitive.content
 
@@ -60,6 +49,7 @@ class AuthRoutesIntegrationTest {
         }
 
         // THEN
+        assertEquals(HttpStatusCode.OK, refreshed.status)
         assertEquals(HttpStatusCode.Unauthorized, reuseAttempt.status)
         val reuseCode = json.parseToJsonElement(reuseAttempt.body<String>()).jsonObject["error"]!!.jsonObject["code"]!!.jsonPrimitive.content
         assertEquals("auth_refresh_reuse_detected", reuseCode)

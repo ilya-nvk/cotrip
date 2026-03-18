@@ -3,7 +3,6 @@ package nvk.cotrip.backend.testing
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.testcontainers.DockerClientFactory
 import org.testcontainers.containers.PostgreSQLContainer
-import java.io.File
 import java.sql.DriverManager
 
 object PostgresContainerSupport {
@@ -37,8 +36,8 @@ object PostgresContainerSupport {
 
         container = PostgreSQLContainer("postgres:16-alpine").apply {
             withDatabaseName("cotrip_test")
-            withUsername("cotrip")
-            withPassword("cotrip")
+            // Use default user (test/test): in the image it is created as superuser,
+            // so CREATE EXTENSION pgcrypto works. Custom user (e.g. cotrip) may not be superuser in CI.
             start()
         }
         ensureSchema()
@@ -47,43 +46,23 @@ object PostgresContainerSupport {
     private fun ensureSchema() {
         if (schemaApplied) return
         val c = requireNotNull(container)
-        val sqlText = loadSchemaSql()
+        val sql = PostgresContainerSupport::class.java.classLoader
+            .getResourceAsStream("db/schema.sql")
+            ?: error("Missing db/schema.sql resource")
+        val sqlText = sql.bufferedReader().use { it.readText() }
         val statements = splitSqlStatements(sqlText)
-        // CREATE EXTENSION requires superuser; try postgres first (official image default), then cotrip without extension (PG13+ has gen_random_uuid())
-        try {
-            DriverManager.getConnection(c.jdbcUrl, "postgres", "postgres").use { conn ->
-                executeSchema(conn, statements)
-            }
-        } catch (_: Exception) {
-            val withoutExtension = statements.filterNot { it.trim().uppercase().startsWith("CREATE EXTENSION") }
-            DriverManager.getConnection(c.jdbcUrl, c.username, c.password).use { conn ->
-                executeSchema(conn, withoutExtension)
+        DriverManager.getConnection(c.jdbcUrl, c.username, c.password).use { conn ->
+            conn.autoCommit = false
+            try {
+                statements.forEach { stmt ->
+                    conn.createStatement().use { it.execute(stmt) }
+                }
+                conn.commit()
+            } finally {
+                conn.autoCommit = true
             }
         }
         schemaApplied = true
-    }
-
-    private fun executeSchema(conn: java.sql.Connection, statements: List<String>) {
-        conn.autoCommit = false
-        try {
-            statements.forEach { stmt ->
-                conn.createStatement().use { it.execute(stmt) }
-            }
-            conn.commit()
-        } finally {
-            conn.autoCommit = true
-        }
-    }
-
-    private fun loadSchemaSql(): String {
-        PostgresContainerSupport::class.java.classLoader
-            .getResourceAsStream("db/schema.sql")
-            ?.use { return it.bufferedReader().readText() }
-        for (path in listOf("src/main/resources/db/schema.sql", "backend/src/main/resources/db/schema.sql")) {
-            val file = File(path)
-            if (file.isFile) return file.readText()
-        }
-        error("Missing db/schema.sql: not on classpath and not found at src/main/resources/db/schema.sql or backend/src/main/resources/db/schema.sql")
     }
 
     private fun splitSqlStatements(sql: String): List<String> {
