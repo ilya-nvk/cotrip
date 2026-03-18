@@ -141,7 +141,7 @@ fun Route.ideaRoutes() {
                 notes = request.notes,
             )
 
-            val actorName = UserRepository.findById(userId)?.name ?: "Someone"
+            val actorName = UserRepository.findById(userId)?.name.orEmpty()
             NotificationService.notifyIdeaCreated(
                 tripId = tripId,
                 ideaId = idea.id,
@@ -221,7 +221,7 @@ fun Route.ideaRoutes() {
             }
 
             if (ideaChanged(existing, updated)) {
-                val actorName = UserRepository.findById(userId)?.name ?: "Someone"
+                val actorName = UserRepository.findById(userId)?.name.orEmpty()
                 val systemComment = CommentRepository.createSystem(
                     ideaId = updated.id,
                     authorId = userId,
@@ -383,7 +383,7 @@ fun Route.ideaRoutes() {
                 orderIndex = orderIndex,
             )
 
-            val actorName = UserRepository.findById(userId)?.name ?: "Someone"
+            val actorName = UserRepository.findById(userId)?.name.orEmpty()
             val systemComment = CommentRepository.createSystem(
                 ideaId = idea.id,
                 authorId = userId,

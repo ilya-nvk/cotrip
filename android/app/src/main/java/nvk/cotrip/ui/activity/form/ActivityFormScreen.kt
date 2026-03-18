@@ -38,6 +38,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.flow.collectLatest
 import nvk.cotrip.R
+import nvk.cotrip.ui.common.appUiLocale
 import nvk.cotrip.ui.components.CoTripDivider
 import nvk.cotrip.ui.components.CoTripIconButton
 import nvk.cotrip.ui.components.CoTripListItem
@@ -54,7 +55,6 @@ import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 @Composable
 fun CreateActivityScreen(
@@ -77,7 +77,7 @@ private fun ActivityFormScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
-    val dateFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy", Locale.getDefault())
+    val dateFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy", appUiLocale())
 
     LaunchedEffect(viewModel) {
         viewModel.effects.collectLatest { effect ->

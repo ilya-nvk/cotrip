@@ -4,6 +4,7 @@ import android.content.Context
 import nvk.cotrip.R
 import nvk.cotrip.data.network.dto.WeatherForecastDto
 import nvk.cotrip.data.network.dto.WeatherForecastResponseDto
+import nvk.cotrip.ui.common.appUiLocale
 import nvk.cotrip.ui.theme.CoTripIcons
 import nvk.cotrip.ui.theme.WeatherCloudy
 import nvk.cotrip.ui.theme.WeatherRainy
@@ -11,7 +12,6 @@ import nvk.cotrip.ui.theme.WeatherSunny
 import java.time.LocalDate
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 object TripForecastUiMapper {
     fun mapDays(context: Context, response: WeatherForecastResponseDto): List<ForecastDayUi> {
@@ -47,7 +47,7 @@ object TripForecastUiMapper {
         val availableTo = response.availableTo?.let { date ->
             runCatching {
                 LocalDate.parse(date).format(
-                    DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.getDefault())
+                    DateTimeFormatter.ofPattern("MMM d, yyyy", appUiLocale())
                 )
             }.getOrDefault(date)
         }
@@ -66,12 +66,12 @@ object TripForecastUiMapper {
             today -> context.getString(R.string.trip_forecast_day_today)
             today.plusDays(1) -> context.getString(R.string.trip_forecast_day_tomorrow)
             else -> parsedDate.format(
-                DateTimeFormatter.ofPattern("EEE, MMM d", Locale.getDefault())
+                DateTimeFormatter.ofPattern("EEE, MMM d", appUiLocale())
             )
         }
         val subtitle = parsedDate
             ?.takeIf { it == today || it == today.plusDays(1) }
-            ?.format(DateTimeFormatter.ofPattern("EEE, MMM d", Locale.getDefault()))
+            ?.format(DateTimeFormatter.ofPattern("EEE, MMM d", appUiLocale()))
         val icon = when {
             iconCode?.startsWith("01") == true -> CoTripIcons.WeatherSunny
             iconCode?.startsWith("09") == true || iconCode?.startsWith("10") == true -> CoTripIcons.WeatherRain
@@ -96,7 +96,7 @@ object TripForecastUiMapper {
             iconTint = tint,
             temp = tempText,
             description = description?.replaceFirstChar { char ->
-                if (char.isLowerCase()) char.titlecase(Locale.getDefault()) else char.toString()
+                if (char.isLowerCase()) char.titlecase(appUiLocale()) else char.toString()
             } ?: context.getString(R.string.trip_forecast_description_missing),
         )
     }
@@ -104,7 +104,7 @@ object TripForecastUiMapper {
     private fun formatUpdatedAt(raw: String): String {
         return runCatching {
             val parsed = OffsetDateTime.parse(raw)
-            parsed.format(DateTimeFormatter.ofPattern("MMM d, yyyy HH:mm", Locale.getDefault()))
+            parsed.format(DateTimeFormatter.ofPattern("MMM d, yyyy HH:mm", appUiLocale()))
         }.getOrDefault(raw)
     }
 

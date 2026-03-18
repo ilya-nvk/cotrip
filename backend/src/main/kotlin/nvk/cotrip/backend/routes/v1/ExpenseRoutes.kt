@@ -185,7 +185,7 @@ fun Route.expenseRoutes() {
                 participants = participants,
             )
 
-            val actorName = UserRepository.findById(userId)?.name ?: "Someone"
+            val actorName = UserRepository.findById(userId)?.name.orEmpty()
             NotificationService.notifyExpenseCreated(
                 tripId = tripId,
                 expenseId = expense.id,
@@ -300,7 +300,7 @@ fun Route.expenseRoutes() {
 
             val statusBecamePaid = existing.status != "paid" && updated.status == "paid"
             if (statusBecamePaid) {
-                val actorName = UserRepository.findById(userId)?.name ?: "Someone"
+                val actorName = UserRepository.findById(userId)?.name.orEmpty()
                 NotificationService.notifyExpenseSettlement(
                     tripId = updated.tripId,
                     expenseId = updated.id,

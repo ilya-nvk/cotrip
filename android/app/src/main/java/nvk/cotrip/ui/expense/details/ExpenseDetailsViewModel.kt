@@ -26,12 +26,12 @@ import nvk.cotrip.data.repository.ExpenseRepository
 import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.data.repository.UserRepository
 import nvk.cotrip.ui.common.UiErrorMapper
+import nvk.cotrip.ui.common.appUiLocale
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import nvk.cotrip.ui.trip.form.TripCurrency
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
-import java.util.Locale
 import javax.inject.Inject
 
 @HiltViewModel
@@ -255,7 +255,7 @@ private fun ExpenseDto.toState(
     }
 
     val dateText = date?.let { LocalDate.parse(it) }
-        ?.format(DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.getDefault()))
+        ?.format(DateTimeFormatter.ofPattern("MMM d, yyyy", appUiLocale()))
 
     return ExpenseDetailsState.Content(
         tripId = tripId,
@@ -298,7 +298,7 @@ private fun formatMoney(amount: Double, currencySymbol: String): String {
     val display = if (amount % 1.0 == 0.0) {
         amount.toInt().toString()
     } else {
-        String.format(Locale.getDefault(), "%.2f", amount)
+        String.format(appUiLocale(), "%.2f", amount)
     }
     return "$currencySymbol$display"
 }
@@ -311,7 +311,7 @@ private fun initialsFromName(name: String): String {
     val parts = name.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
     return when {
         parts.isEmpty() -> "?"
-        parts.size == 1 -> parts[0].take(2).uppercase(Locale.getDefault())
-        else -> ("${parts[0].first()}${parts[1].first()}").uppercase(Locale.getDefault())
+        parts.size == 1 -> parts[0].take(2).uppercase(appUiLocale())
+        else -> ("${parts[0].first()}${parts[1].first()}").uppercase(appUiLocale())
     }
 }

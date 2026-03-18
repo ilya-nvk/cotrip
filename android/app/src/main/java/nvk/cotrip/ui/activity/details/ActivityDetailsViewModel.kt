@@ -24,12 +24,12 @@ import nvk.cotrip.data.network.dto.TripDto
 import nvk.cotrip.data.repository.ItineraryRepository
 import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.ui.common.UiErrorMapper
+import nvk.cotrip.ui.common.appUiLocale
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import nvk.cotrip.ui.trip.form.TripCurrency
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
-import java.util.Locale
 import javax.inject.Inject
 
 @HiltViewModel
@@ -200,7 +200,7 @@ class ActivityDetailsViewModel @Inject constructor(
 
 private fun formatDay(date: String): String {
     val parsed = LocalDate.parse(date)
-    return parsed.format(DateTimeFormatter.ofPattern("EEE, MMM d", Locale.getDefault()))
+    return parsed.format(DateTimeFormatter.ofPattern("EEE, MMM d", appUiLocale()))
 }
 
 private fun currencySymbolFor(code: String): String {
@@ -211,7 +211,7 @@ private fun formatCost(amount: Double, currencySymbol: String): String {
     val display = if (amount % 1.0 == 0.0) {
         amount.toInt().toString()
     } else {
-        String.format(Locale.getDefault(), "%.2f", amount)
+        String.format(appUiLocale(), "%.2f", amount)
     }
     return "$currencySymbol$display"
 }

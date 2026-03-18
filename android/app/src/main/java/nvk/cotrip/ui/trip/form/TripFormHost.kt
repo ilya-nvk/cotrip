@@ -46,6 +46,7 @@ import coil.compose.AsyncImage
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collectLatest
 import nvk.cotrip.R
+import nvk.cotrip.ui.common.appUiLocale
 import nvk.cotrip.ui.components.CoTripDashedDivider
 import nvk.cotrip.ui.components.CoTripDropdownField
 import nvk.cotrip.ui.components.CoTripIconButton
@@ -62,7 +63,6 @@ import nvk.cotrip.ui.theme.TextSecondary
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 private const val KEY_SPACER = "spacer"
 
@@ -468,7 +468,7 @@ private fun DateField(
 @Composable
 private fun formatDateOrPlaceholder(date: LocalDate?): String {
     if (date == null) return stringResource(R.string.trip_form_date_placeholder)
-    return DateTimeFormatter.ofPattern("dd.MM.yyyy", Locale.getDefault()).format(date)
+    return DateTimeFormatter.ofPattern("dd.MM.yyyy", appUiLocale()).format(date)
 }
 
 private fun LocalDate.toEpochMillisAtStartOfDay(): Long {
