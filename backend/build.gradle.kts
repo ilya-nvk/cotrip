@@ -65,6 +65,9 @@ kotlin {
 tasks.test {
     useJUnitPlatform()
     finalizedBy("jacocoTestReport")
+    // In CI, run test classes sequentially to avoid exhausting Postgres max_connections
+    // (all integration tests share one Testcontainers instance; each test app opens a connection pool).
+    maxParallelForks = if (System.getenv("CI") == "true") 1 else (Runtime.getRuntime().availableProcessors() / 2).coerceAtLeast(1)
 }
 
 jacoco {
