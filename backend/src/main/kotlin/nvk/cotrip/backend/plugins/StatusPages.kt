@@ -3,8 +3,10 @@ package nvk.cotrip.backend.plugins
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
+import io.ktor.server.plugins.BadRequestException
 import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.response.respond
+import kotlinx.serialization.SerializationException
 import nvk.cotrip.backend.limits.LimitReachedException
 import nvk.cotrip.backend.limits.toDetailsJson
 
@@ -24,6 +26,20 @@ fun Application.configureStatusPages() {
         }
 
         exception<IllegalArgumentException> { call, cause ->
+            call.respond(
+                HttpStatusCode.BadRequest,
+                mapOf("error" to mapOf("code" to "bad_request", "message" to cause.message))
+            )
+        }
+
+        exception<BadRequestException> { call, cause ->
+            call.respond(
+                HttpStatusCode.BadRequest,
+                mapOf("error" to mapOf("code" to "bad_request", "message" to cause.message))
+            )
+        }
+
+        exception<SerializationException> { call, cause ->
             call.respond(
                 HttpStatusCode.BadRequest,
                 mapOf("error" to mapOf("code" to "bad_request", "message" to cause.message))

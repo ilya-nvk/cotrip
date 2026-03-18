@@ -4,7 +4,6 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -14,7 +13,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import nvk.cotrip.R
 import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
@@ -66,7 +64,7 @@ class EditIdeaViewModel @Inject constructor(
     )
     override val state = _state.asStateFlow()
 
-    private val _effects = MutableSharedFlow<IdeaFormEffect>()
+    private val _effects = MutableSharedFlow<IdeaFormEffect>(extraBufferCapacity = 8)
     override val effects = _effects.asSharedFlow()
 
     init {
@@ -106,19 +104,17 @@ class EditIdeaViewModel @Inject constructor(
     private fun loadIdea() {
         viewModelScope.launch {
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    val idea = ideaRepository.getIdea(ideaId).first()
-                    val trip = tripRepository.getTrip(tripId).first()
-                    LoadedIdea(
-                        title = idea.title,
-                        city = idea.city.orEmpty(),
-                        link = idea.link.orEmpty(),
-                        costAmount = idea.costAmount?.let { formatAmount(it) }.orEmpty(),
-                        costType = idea.costType.toIdeaCostType(),
-                        notes = idea.notes.orEmpty(),
-                        currencySymbol = currencySymbolFor(trip.currencyCode),
-                    )
-                }
+                val idea = ideaRepository.getIdea(ideaId).first()
+                val trip = tripRepository.getTrip(tripId).first()
+                LoadedIdea(
+                    title = idea.title,
+                    city = idea.city.orEmpty(),
+                    link = idea.link.orEmpty(),
+                    costAmount = idea.costAmount?.let { formatAmount(it) }.orEmpty(),
+                    costType = idea.costType.toIdeaCostType(),
+                    notes = idea.notes.orEmpty(),
+                    currencySymbol = currencySymbolFor(trip.currencyCode),
+                )
             }) {
                 is ApiResult.Success -> {
                     val loaded = result.data
@@ -167,9 +163,7 @@ class EditIdeaViewModel @Inject constructor(
         citySearchJob = viewModelScope.launch {
             delay(300)
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    itineraryRepository.searchPlaces(tripId = tripId, query = query, limit = 8)
-                }
+                itineraryRepository.searchPlaces(tripId = tripId, query = query, limit = 8)
             }) {
                 is ApiResult.Success -> {
                     val suggestions = result.data.map {
@@ -213,19 +207,17 @@ class EditIdeaViewModel @Inject constructor(
         _state.update { it.copy(isSaving = true) }
         viewModelScope.launch {
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    ideaRepository.updateIdea(
-                        ideaId = ideaId,
-                        request = UpdateIdeaRequest(
-                            title = snapshot.title.trim(),
-                            city = snapshot.city.trim().ifBlank { null },
-                            link = snapshot.link.trim().ifBlank { null },
-                            costAmount = parseAmount(snapshot.costAmount),
-                            costType = snapshot.costAmount.toCostType(snapshot.costType),
-                            notes = snapshot.notes.trim().ifBlank { null },
-                        )
+                ideaRepository.updateIdea(
+                    ideaId = ideaId,
+                    request = UpdateIdeaRequest(
+                        title = snapshot.title.trim(),
+                        city = snapshot.city.trim().ifBlank { null },
+                        link = snapshot.link.trim().ifBlank { null },
+                        costAmount = parseAmount(snapshot.costAmount),
+                        costType = snapshot.costAmount.toCostType(snapshot.costType),
+                        notes = snapshot.notes.trim().ifBlank { null },
                     )
-                }
+                )
             }) {
                 is ApiResult.Success -> {
                     emit(IdeaFormEffect.ShowToastRes(R.string.idea_form_saved_toast))
@@ -243,7 +235,7 @@ class EditIdeaViewModel @Inject constructor(
     private fun deleteIdea() {
         viewModelScope.launch {
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) { ideaRepository.deleteIdea(ideaId) }
+                ideaRepository.deleteIdea(ideaId)
             }) {
                 is ApiResult.Success -> {
                     emit(IdeaFormEffect.ShowToastRes(R.string.idea_form_deleted_toast))

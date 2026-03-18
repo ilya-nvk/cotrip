@@ -1,7 +1,14 @@
+import org.gradle.api.tasks.testing.Test
+import org.gradle.testing.jacoco.plugins.JacocoTaskExtension
+import org.gradle.testing.jacoco.tasks.JacocoCoverageVerification
+import org.gradle.testing.jacoco.tasks.JacocoReport
+import java.math.BigDecimal
+
 plugins {
     kotlin("jvm") version "1.9.22"
     id("org.jetbrains.kotlin.plugin.serialization") version "1.9.22"
     id("com.github.johnrengelman.shadow") version "8.1.1"
+    jacoco
     application
 }
 
@@ -43,7 +50,12 @@ dependencies {
     implementation("com.google.firebase:firebase-admin:9.2.0")
 
     testImplementation(kotlin("test"))
+    testImplementation(kotlin("test-junit5"))
     testImplementation("io.ktor:ktor-server-tests-jvm:$ktorVersion")
+    testImplementation("io.ktor:ktor-client-mock-jvm:$ktorVersion")
+    testImplementation("io.mockk:mockk:1.13.10")
+    testImplementation("org.testcontainers:junit-jupiter:1.19.7")
+    testImplementation("org.testcontainers:postgresql:1.19.7")
 }
 
 kotlin {
@@ -52,6 +64,83 @@ kotlin {
 
 tasks.test {
     useJUnitPlatform()
+    finalizedBy("jacocoTestReport")
+    // In CI, run test classes sequentially to avoid exhausting Postgres max_connections
+    // (all integration tests share one Testcontainers instance; each test app opens a connection pool).
+    maxParallelForks = if (System.getenv("CI") == "true") 1 else (Runtime.getRuntime().availableProcessors() / 2).coerceAtLeast(1)
+}
+
+jacoco {
+    toolVersion = "0.8.11"
+}
+
+val mainSourceSet = sourceSets["main"]
+val testTask = tasks.named<Test>("test")
+val testExecData = testTask.map { test ->
+    test.extensions.getByType(JacocoTaskExtension::class.java).destinationFile
+        ?: file("build/jacoco/test.exec")
+}
+
+// Keep report and verification on the same scope so CI summary and gates are comparable.
+val jacocoCoverageClassDirs = mainSourceSet.output.asFileTree.matching {
+    exclude(
+        "**/ApplicationKt.class",
+        "**/plugins/Logging*.class",
+        "**/DatabaseFactory*.class",
+        "**/routes/**",
+        "**/db/**",
+        "**/plugins/**",
+        "**/notifications/FirebasePushService*.class",
+        "**/ws/CommentEventsPublisher*.class",
+        "**/ws/CommentsHub*.class",
+        "**/*\$Companion.class",
+        "**/*\$serializer.class",
+        "**/*\$\$serializer.class",
+        "**/*\$WhenMappings.class",
+        "**/*\$inlined\$*.class",
+    )
+}
+
+tasks.named<JacocoReport>("jacocoTestReport") {
+    dependsOn(testTask)
+
+    executionData.setFrom(files(testExecData))
+    sourceDirectories.setFrom(mainSourceSet.allSource.srcDirs)
+    classDirectories.setFrom(jacocoCoverageClassDirs)
+
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+        csv.required.set(false)
+    }
+}
+
+tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
+    dependsOn(testTask)
+    executionData.setFrom(files(testExecData))
+    sourceDirectories.setFrom(mainSourceSet.allSource.srcDirs)
+    classDirectories.setFrom(jacocoCoverageClassDirs)
+
+    violationRules {
+        rule {
+            limit {
+                counter = "LINE"
+                value = "COVEREDRATIO"
+                minimum = BigDecimal("0.50")
+            }
+            limit {
+                counter = "BRANCH"
+                value = "COVEREDRATIO"
+                minimum = BigDecimal("0.40")
+            }
+        }
+    }
+}
+
+tasks.register("qualityCheck") {
+    group = "verification"
+    description = "Runs backend tests and coverage verification."
+    dependsOn("test", "jacocoTestReport", "jacocoTestCoverageVerification")
 }
 
 tasks.withType<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>().configureEach {

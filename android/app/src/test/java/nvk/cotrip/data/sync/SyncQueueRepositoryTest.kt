@@ -44,20 +44,25 @@ class SyncQueueRepositoryTest {
     }
 
     @Test
-    fun enqueueDelete_afterPendingCreate_compactsQueue() = runTest {
+    fun given_pendingCreateForSameId_when_enqueueDelete_then_queueCompactsToEmpty() = runTest {
+        // GIVEN
         queue.enqueueCreate(
             entity = SyncEntities.IDEA,
             id = "idea-1",
             payload = mapOf("title" to "draft")
         )
+
+        // WHEN
         queue.enqueueDelete(entity = SyncEntities.IDEA, id = "idea-1")
 
+        // THEN
         val pending = dao.listPending(limit = 50)
         assertTrue(pending.isEmpty())
     }
 
     @Test
-    fun enqueueCreateThenUpsert_keepsBothOperations() = runTest {
+    fun given_createThenUpsertForSameEntity_when_listPending_then_keepsBothOperations() = runTest {
+        // GIVEN
         queue.enqueueCreate(
             entity = SyncEntities.IDEA,
             id = "idea-2",
@@ -69,7 +74,10 @@ class SyncQueueRepositoryTest {
             payload = UpdateIdeaRequest(title = "edited")
         )
 
+        // WHEN
         val pending = dao.listPending(limit = 50)
+
+        // THEN
         assertEquals(2, pending.size)
         assertEquals(listOf("create", "upsert"), pending.map { it.type })
         assertTrue(pending.all { it.entityId == "idea-2" })

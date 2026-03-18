@@ -57,6 +57,8 @@ import nvk.cotrip.ui.theme.TextSecondary
 
 private const val KEY_NOTES_MAX_LINES = 20
 
+internal fun normalizeActivityLink(link: String?): String? = link?.trim().takeUnless { it.isNullOrEmpty() }
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ActivityDetailsScreen(
@@ -177,6 +179,8 @@ fun ActivityDetailsScreen(
             }
 
             is ActivityDetailsState.Content -> {
+                val normalizedLink = normalizeActivityLink(uiState.link)
+                val hasLink = normalizedLink != null
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -238,9 +242,9 @@ fun ActivityDetailsScreen(
                     SectionLabel(text = stringResource(R.string.activity_details_link_label))
                     InfoRow(
                         icon = CoTripIcons.Link,
-                        title = uiState.link ?: stringResource(R.string.activity_details_empty),
+                        title = normalizedLink ?: stringResource(R.string.activity_details_empty),
                         subtitle = null,
-                        trailing = if (uiState.link != null) {
+                        trailing = if (hasLink) {
                             {
                                 CoTripIconButton(
                                     icon = CoTripIcons.OpenInNew,
@@ -249,7 +253,7 @@ fun ActivityDetailsScreen(
                                 )
                             }
                         } else null,
-                        titleColor = if (uiState.link != null) PrimaryBlue else TextMedium
+                        titleColor = if (hasLink) PrimaryBlue else TextMedium
                     )
 
                     Divider()

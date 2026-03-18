@@ -4,7 +4,6 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -14,7 +13,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import nvk.cotrip.R
 import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
@@ -77,7 +75,7 @@ class CreateActivityViewModel @Inject constructor(
     )
     override val state = _state.asStateFlow()
 
-    private val _effects = MutableSharedFlow<ActivityFormEffect>()
+    private val _effects = MutableSharedFlow<ActivityFormEffect>(extraBufferCapacity = 8)
     override val effects = _effects.asSharedFlow()
 
     init {
@@ -120,21 +118,19 @@ class CreateActivityViewModel @Inject constructor(
     private fun loadTripMeta() {
         viewModelScope.launch {
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    val trip = tripRepository.getTrip(tripId).first()
-                    val itinerary = itineraryRepository.getItinerary(tripId).first()
-                        .sortedBy { it.dayNumber }
-                    val availableDays = itinerary.filter { !it.isOutOfRange }
-                    val firstDay = availableDays.firstOrNull()
-                    val dayMap = availableDays.associateBy { LocalDate.parse(it.date) }
-                    TripMeta(
-                        currencySymbol = currencySymbolFor(trip.currencyCode),
-                        startDate = LocalDate.parse(trip.startDate),
-                        endDate = LocalDate.parse(trip.endDate),
-                        firstDay = firstDay,
-                        dayByDate = dayMap
-                    )
-                }
+                val trip = tripRepository.getTrip(tripId).first()
+                val itinerary = itineraryRepository.getItinerary(tripId).first()
+                    .sortedBy { it.dayNumber }
+                val availableDays = itinerary.filter { !it.isOutOfRange }
+                val firstDay = availableDays.firstOrNull()
+                val dayMap = availableDays.associateBy { LocalDate.parse(it.date) }
+                TripMeta(
+                    currencySymbol = currencySymbolFor(trip.currencyCode),
+                    startDate = LocalDate.parse(trip.startDate),
+                    endDate = LocalDate.parse(trip.endDate),
+                    firstDay = firstDay,
+                    dayByDate = dayMap
+                )
             }) {
                 is ApiResult.Success -> {
                     val meta = result.data
@@ -191,20 +187,18 @@ class CreateActivityViewModel @Inject constructor(
         _state.update { it.copy(isSaving = true) }
         viewModelScope.launch {
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    itineraryRepository.createActivity(
-                        dayId = dayId,
-                        request = CreateActivityRequest(
-                            title = snapshot.title.trim(),
-                            timeText = snapshot.timeText.trim().ifBlank { null },
-                            locationName = snapshot.locationInput.trim().ifBlank { null },
-                            link = snapshot.linkInput.trim().ifBlank { null },
-                            costAmount = parseAmount(snapshot.costAmount),
-                            costType = snapshot.costAmount.toCostType(snapshot.costType),
-                            notes = snapshot.notes.trim().ifBlank { null },
-                        )
+                itineraryRepository.createActivity(
+                    dayId = dayId,
+                    request = CreateActivityRequest(
+                        title = snapshot.title.trim(),
+                        timeText = snapshot.timeText.trim().ifBlank { null },
+                        locationName = snapshot.locationInput.trim().ifBlank { null },
+                        link = snapshot.linkInput.trim().ifBlank { null },
+                        costAmount = parseAmount(snapshot.costAmount),
+                        costType = snapshot.costAmount.toCostType(snapshot.costType),
+                        notes = snapshot.notes.trim().ifBlank { null },
                     )
-                }
+                )
             }) {
                 is ApiResult.Success -> {
                     emit(ActivityFormEffect.ShowToastRes(R.string.activity_form_created_toast))
@@ -240,21 +234,19 @@ class CreateActivityViewModel @Inject constructor(
         _state.update { it.copy(limitDialog = null, isSaving = true) }
         viewModelScope.launch {
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    itineraryRepository.deleteActivity(dialog.oldestId)
-                    itineraryRepository.createActivity(
-                        dayId = dayId,
-                        request = CreateActivityRequest(
-                            title = snapshot.title.trim(),
-                            timeText = snapshot.timeText.trim().ifBlank { null },
-                            locationName = snapshot.locationInput.trim().ifBlank { null },
-                            link = snapshot.linkInput.trim().ifBlank { null },
-                            costAmount = parseAmount(snapshot.costAmount),
-                            costType = snapshot.costAmount.toCostType(snapshot.costType),
-                            notes = snapshot.notes.trim().ifBlank { null },
-                        )
+                itineraryRepository.deleteActivity(dialog.oldestId)
+                itineraryRepository.createActivity(
+                    dayId = dayId,
+                    request = CreateActivityRequest(
+                        title = snapshot.title.trim(),
+                        timeText = snapshot.timeText.trim().ifBlank { null },
+                        locationName = snapshot.locationInput.trim().ifBlank { null },
+                        link = snapshot.linkInput.trim().ifBlank { null },
+                        costAmount = parseAmount(snapshot.costAmount),
+                        costType = snapshot.costAmount.toCostType(snapshot.costType),
+                        notes = snapshot.notes.trim().ifBlank { null },
                     )
-                }
+                )
             }) {
                 is ApiResult.Success -> {
                     emit(ActivityFormEffect.ShowToastRes(R.string.activity_form_created_toast))
@@ -289,9 +281,7 @@ class CreateActivityViewModel @Inject constructor(
         locationSearchJob = viewModelScope.launch {
             delay(300)
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    itineraryRepository.searchPlaces(tripId = tripId, query = query, limit = 8)
-                }
+                itineraryRepository.searchPlaces(tripId = tripId, query = query, limit = 8)
             }) {
                 is ApiResult.Success -> {
                     val mapped = result.data.map {

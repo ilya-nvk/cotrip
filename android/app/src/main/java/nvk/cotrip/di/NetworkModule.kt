@@ -13,6 +13,8 @@ import nvk.cotrip.data.auth.DataStoreSessionStore
 import nvk.cotrip.data.auth.SessionStore
 import nvk.cotrip.data.network.AuthInterceptor
 import nvk.cotrip.data.network.AuthRefreshApi
+import nvk.cotrip.data.network.ws.CommentEventsSourceFactory
+import nvk.cotrip.data.network.ws.CommentsWebSocket
 import nvk.cotrip.data.network.CacheControlInterceptor
 import nvk.cotrip.data.network.CoTripApi
 import nvk.cotrip.data.network.KotlinxSerializationConverterFactory
@@ -136,6 +138,15 @@ object NetworkModule {
             .addConverterFactory(KotlinxSerializationConverterFactory.create(json, contentType))
             .client(authRefreshOkHttpClient)
             .build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideCommentEventsSourceFactory(
+        okHttpClient: OkHttpClient,
+        json: Json,
+    ): CommentEventsSourceFactory = object : CommentEventsSourceFactory {
+        override fun create() = CommentsWebSocket(okHttpClient, json)
     }
 
     @Provides

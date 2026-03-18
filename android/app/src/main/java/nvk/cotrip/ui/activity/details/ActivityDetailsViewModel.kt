@@ -4,7 +4,6 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,7 +15,6 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import nvk.cotrip.R
 import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
@@ -52,7 +50,7 @@ class ActivityDetailsViewModel @Inject constructor(
     )
     val state = _state.asStateFlow()
 
-    private val _effects = MutableSharedFlow<ActivityDetailsEffect>()
+    private val _effects = MutableSharedFlow<ActivityDetailsEffect>(extraBufferCapacity = 8)
     val effects = _effects.asSharedFlow()
     private var currentTripId: String? = null
 
@@ -107,12 +105,10 @@ class ActivityDetailsViewModel @Inject constructor(
     private fun refreshActivity(showErrorToast: Boolean) {
         viewModelScope.launch {
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    tripRepository.refreshTrips().getOrThrow()
-                    val tripIds = tripRepository.trips.first().map { it.id }
-                    tripIds.forEach { tripId ->
-                        itineraryRepository.refreshItinerary(tripId).getOrThrow()
-                    }
+                tripRepository.refreshTrips().getOrThrow()
+                val tripIds = tripRepository.trips.first().map { it.id }
+                tripIds.forEach { tripId ->
+                    itineraryRepository.refreshItinerary(tripId).getOrThrow()
                 }
             }) {
                 is ApiResult.Success -> Unit
@@ -131,9 +127,7 @@ class ActivityDetailsViewModel @Inject constructor(
         if (currentTripId == null) return
         viewModelScope.launch {
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    itineraryRepository.deleteActivity(activityId)
-                }
+                itineraryRepository.deleteActivity(activityId)
             }) {
                 is ApiResult.Success -> {
                     emitToast(R.string.activity_details_deleted_toast)

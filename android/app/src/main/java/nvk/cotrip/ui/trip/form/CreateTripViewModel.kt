@@ -46,7 +46,7 @@ class CreateTripViewModel @Inject constructor(
     private val _state = MutableStateFlow(TripFormState())
     val state = _state.asStateFlow()
 
-    private val _effects = MutableSharedFlow<TripFormEffect>()
+    private val _effects = MutableSharedFlow<TripFormEffect>(extraBufferCapacity = 8)
     val effects = _effects.asSharedFlow()
 
     fun onEvent(event: TripFormEvent) {
@@ -176,9 +176,7 @@ class CreateTripViewModel @Inject constructor(
             )
 
             val result = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    tripRepository.createTrip(request)
-                }
+                tripRepository.createTrip(request)
             }
 
             when (result) {
@@ -242,11 +240,9 @@ class CreateTripViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update { it.copy(limitDialog = null, isLoading = true) }
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    tripRepository.deleteTrip(dialog.oldestId)
-                    val request = buildCreateTripRequest(state.value)
-                    tripRepository.createTrip(request)
-                }
+                tripRepository.deleteTrip(dialog.oldestId)
+                val request = buildCreateTripRequest(state.value)
+                tripRepository.createTrip(request)
             }) {
                 is ApiResult.Success -> {
                     markTripCreationPending(result.data)
@@ -302,10 +298,8 @@ class CreateTripViewModel @Inject constructor(
     }
 
     private suspend fun markTripCreationPending(tripId: String) {
-        withContext(Dispatchers.IO) {
-            runCatching { pendingTripCreationStore.setPendingTripId(tripId) }
-                .onFailure { AppLogger.w(TAG, "Failed to mark pending tripId=$tripId", it) }
-        }
+        runCatching { pendingTripCreationStore.setPendingTripId(tripId) }
+            .onFailure { AppLogger.w(TAG, "Failed to mark pending tripId=$tripId", it) }
     }
 
     private fun uploadCover(uriString: String) {
@@ -313,7 +307,7 @@ class CreateTripViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, coverPreviewUri = uriString) }
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) { imageUploadRepository.uploadImage(uriString) }
+                imageUploadRepository.uploadImage(uriString)
             }) {
                 is ApiResult.Success -> {
                     _state.update {

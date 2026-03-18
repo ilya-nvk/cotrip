@@ -4,14 +4,12 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import nvk.cotrip.R
 import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
@@ -43,7 +41,7 @@ class OutOfRangeDaysViewModel @Inject constructor(
     private val _state = MutableStateFlow<OutOfRangeDaysState>(OutOfRangeDaysState.Loading)
     val state = _state.asStateFlow()
 
-    private val _effects = MutableSharedFlow<OutOfRangeDaysEffect>()
+    private val _effects = MutableSharedFlow<OutOfRangeDaysEffect>(extraBufferCapacity = 8)
     val effects = _effects.asSharedFlow()
 
     init {
@@ -66,16 +64,14 @@ class OutOfRangeDaysViewModel @Inject constructor(
     private fun loadOutOfRangeDays() {
         viewModelScope.launch {
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    val trip = tripRepository.getTrip(tripId).first()
-                    itineraryRepository.refreshItinerary(tripId).getOrThrow()
-                    val itinerary = itineraryRepository.getItinerary(tripId).first()
-                    LoadedOutOfRange(
-                        tripStart = LocalDate.parse(trip.startDate),
-                        tripEnd = LocalDate.parse(trip.endDate),
-                        days = itinerary
-                    )
-                }
+                val trip = tripRepository.getTrip(tripId).first()
+                itineraryRepository.refreshItinerary(tripId).getOrThrow()
+                val itinerary = itineraryRepository.getItinerary(tripId).first()
+                LoadedOutOfRange(
+                    tripStart = LocalDate.parse(trip.startDate),
+                    tripEnd = LocalDate.parse(trip.endDate),
+                    days = itinerary
+                )
             }) {
                 is ApiResult.Success -> {
                     val loaded = result.data
@@ -109,15 +105,13 @@ class OutOfRangeDaysViewModel @Inject constructor(
 
         viewModelScope.launch {
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    itineraryRepository.trimOutOfRange(
-                        tripId = tripId,
-                        request = TrimOutOfRangeRequest(
-                            action = action,
-                            dayIds = ids,
-                        )
+                itineraryRepository.trimOutOfRange(
+                    tripId = tripId,
+                    request = TrimOutOfRangeRequest(
+                        action = action,
+                        dayIds = ids,
                     )
-                }
+                )
             }) {
                 is ApiResult.Success -> {
                     val toast = when (action) {

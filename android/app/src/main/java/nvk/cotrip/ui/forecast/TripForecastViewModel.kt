@@ -6,14 +6,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.network.dto.ItineraryDayDto
@@ -44,7 +42,7 @@ class TripForecastViewModel @Inject constructor(
     private val _state = MutableStateFlow<TripForecastState>(TripForecastState.Loading)
     val state = _state.asStateFlow()
 
-    private val _effects = MutableSharedFlow<TripForecastEffect>()
+    private val _effects = MutableSharedFlow<TripForecastEffect>(extraBufferCapacity = 8)
     val effects = _effects.asSharedFlow()
 
     init {
@@ -94,47 +92,45 @@ class TripForecastViewModel @Inject constructor(
             }
 
             val result = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    val trip = tripRepository.getTrip(tripId).first()
-                    itineraryRepository.refreshItinerary(tripId).getOrThrow()
-                    val itinerary = itineraryRepository.getItinerary(tripId).first()
-                    val cityOptions = collectCityOptions(itinerary)
-                    val selectedCity = selectCity(itinerary, current?.city)
-                    if (selectedCity == null) {
-                        WeatherLoadResult(
-                            city = "",
-                            cityOptions = cityOptions,
-                            response = WeatherForecastResponseDto(items = emptyList()),
-                            hasSelectedCity = false,
-                        )
-                    } else {
-                        val shouldRefresh =
-                            forceRefresh ||
-                                    isUserRefresh ||
-                                    current == null ||
-                                    current.days.isEmpty() ||
-                                    !current.city.equals(selectedCity.city, ignoreCase = true)
-                        if (shouldRefresh) {
-                            weatherRepository.refreshWeather(
-                                tripId = tripId,
-                                city = selectedCity.city,
-                                start = trip.startDate,
-                                end = trip.endDate,
-                            ).getOrThrow()
-                        }
-                        val response = weatherRepository.getWeather(
+                val trip = tripRepository.getTrip(tripId).first()
+                itineraryRepository.refreshItinerary(tripId).getOrThrow()
+                val itinerary = itineraryRepository.getItinerary(tripId).first()
+                val cityOptions = collectCityOptions(itinerary)
+                val selectedCity = selectCity(itinerary, current?.city)
+                if (selectedCity == null) {
+                    WeatherLoadResult(
+                        city = "",
+                        cityOptions = cityOptions,
+                        response = WeatherForecastResponseDto(items = emptyList()),
+                        hasSelectedCity = false,
+                    )
+                } else {
+                    val shouldRefresh =
+                        forceRefresh ||
+                            isUserRefresh ||
+                            current == null ||
+                            current.days.isEmpty() ||
+                            !current.city.equals(selectedCity.city, ignoreCase = true)
+                    if (shouldRefresh) {
+                        weatherRepository.refreshWeather(
                             tripId = tripId,
                             city = selectedCity.city,
                             start = trip.startDate,
                             end = trip.endDate,
-                        ).first()
-                        WeatherLoadResult(
-                            city = selectedCity.city,
-                            cityOptions = cityOptions,
-                            response = response,
-                            hasSelectedCity = true,
-                        )
+                        ).getOrThrow()
                     }
+                    val response = weatherRepository.getWeather(
+                        tripId = tripId,
+                        city = selectedCity.city,
+                        start = trip.startDate,
+                        end = trip.endDate,
+                    ).first()
+                    WeatherLoadResult(
+                        city = selectedCity.city,
+                        cityOptions = cityOptions,
+                        response = response,
+                        hasSelectedCity = true,
+                    )
                 }
             }
 

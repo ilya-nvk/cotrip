@@ -1,5 +1,6 @@
 package nvk.cotrip.data.network.ws
 
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.serialization.Serializable
@@ -23,17 +24,28 @@ sealed interface CommentWsEvent {
     data class Error(val cause: Throwable) : CommentWsEvent
 }
 
+interface CommentEventsSource {
+    val events: Flow<CommentWsEvent>
+    fun connect(baseUrl: String, tripId: String, token: String)
+    fun disconnect()
+    fun sendCreate(ideaId: String, body: String, clientMessageId: String? = null): Boolean
+}
+
+interface CommentEventsSourceFactory {
+    fun create(): CommentEventsSource
+}
+
 class CommentsWebSocket(
     private val okHttpClient: OkHttpClient,
     private val json: Json,
-) {
+) : CommentEventsSource {
     private val _events = MutableSharedFlow<CommentWsEvent>(extraBufferCapacity = 32)
-    val events = _events.asSharedFlow()
+    override val events = _events.asSharedFlow()
 
     private var webSocket: WebSocket? = null
     private val connected = AtomicBoolean(false)
 
-    fun connect(baseUrl: String, tripId: String, token: String) {
+    override fun connect(baseUrl: String, tripId: String, token: String) {
         if (connected.getAndSet(true)) return
         val wsUrl = buildWsUrl(baseUrl, tripId, token)
         val request = Request.Builder().url(wsUrl).build()
@@ -78,7 +90,7 @@ class CommentsWebSocket(
         })
     }
 
-    fun sendCreate(ideaId: String, body: String, clientMessageId: String? = null): Boolean {
+    override fun sendCreate(ideaId: String, body: String, clientMessageId: String?): Boolean {
         val socket = webSocket ?: return false
         val message = CommentCreateMessage(
             payload = CommentCreatePayload(
@@ -90,7 +102,7 @@ class CommentsWebSocket(
         return socket.send(json.encodeToString(message))
     }
 
-    fun disconnect() {
+    override fun disconnect() {
         connected.set(false)
         webSocket?.close(1000, "client_closed")
         webSocket = null

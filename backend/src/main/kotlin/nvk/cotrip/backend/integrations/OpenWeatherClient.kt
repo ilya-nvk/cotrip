@@ -31,11 +31,13 @@ data class OpenWeatherDailyForecast(
 )
 
 object OpenWeatherClient {
-    private val httpClient = HttpClient(CIO) {
+    internal var httpClientForTest: HttpClient? = null
+    private val defaultClient = HttpClient(CIO) {
         install(ContentNegotiation) {
             json(Json { ignoreUnknownKeys = true })
         }
     }
+    private val httpClient: HttpClient get() = httpClientForTest ?: defaultClient
 
     suspend fun searchCities(
         apiKey: String,

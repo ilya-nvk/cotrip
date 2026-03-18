@@ -4,13 +4,11 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import nvk.cotrip.R
 import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
@@ -37,7 +35,7 @@ class InvitePeopleViewModel @Inject constructor(
     private val _state = MutableStateFlow<InvitePeopleState>(InvitePeopleState.Loading)
     val state = _state.asStateFlow()
 
-    private val _effects = MutableSharedFlow<InvitePeopleEffect>()
+    private val _effects = MutableSharedFlow<InvitePeopleEffect>(extraBufferCapacity = 8)
     val effects = _effects.asSharedFlow()
 
     init {
@@ -68,9 +66,7 @@ class InvitePeopleViewModel @Inject constructor(
     private fun loadInvite() {
         viewModelScope.launch {
             val result = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    inviteRepository.createInvite(tripId)
-                }
+                inviteRepository.createInvite(tripId)
             }
 
             when (result) {

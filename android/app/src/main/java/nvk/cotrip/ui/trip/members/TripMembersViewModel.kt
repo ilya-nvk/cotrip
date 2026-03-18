@@ -4,7 +4,6 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -12,7 +11,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import nvk.cotrip.R
 import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
@@ -39,7 +37,7 @@ class TripMembersViewModel @Inject constructor(
     private val _state = MutableStateFlow<TripMembersState>(TripMembersState.Loading)
     val state = _state.asStateFlow()
 
-    private val _effects = MutableSharedFlow<TripMembersEffect>()
+    private val _effects = MutableSharedFlow<TripMembersEffect>(extraBufferCapacity = 8)
     val effects = _effects.asSharedFlow()
 
     init {
@@ -102,10 +100,8 @@ class TripMembersViewModel @Inject constructor(
                 _state.value = current.copy(isLoadingAction = true)
             }
             when (val result = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    tripRepository.refreshTrips().getOrThrow()
-                    tripRepository.tripMembers(tripId).first()
-                }
+                tripRepository.refreshTrips().getOrThrow()
+                tripRepository.tripMembers(tripId).first()
             }) {
                 is ApiResult.Success -> {
                     val latest = _state.value as? TripMembersState.Content
@@ -132,9 +128,7 @@ class TripMembersViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = snapshot.copy(isLoadingAction = true)
             val result = apiCaller.call {
-                withContext(Dispatchers.IO) {
-                    tripRepository.removeMember(tripId, memberId)
-                }
+                tripRepository.removeMember(tripId, memberId)
             }
             when (result) {
                 is ApiResult.Success -> {
