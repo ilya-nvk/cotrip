@@ -7,9 +7,13 @@ import java.io.BufferedReader
 import java.sql.Connection
 
 object DatabaseFactory {
-    private lateinit var dataSource: HikariDataSource
+    @Volatile
+    private var dataSource: HikariDataSource? = null
 
+    @Synchronized
     fun init(config: DbConfig) {
+        close()
+
         val hikariConfig = HikariConfig().apply {
             jdbcUrl = config.url
             username = config.user
@@ -20,13 +24,26 @@ object DatabaseFactory {
             validate()
         }
 
-        dataSource = HikariDataSource(hikariConfig)
-        applySchema()
+        val created = HikariDataSource(hikariConfig)
+        try {
+            applySchema(created)
+            dataSource = created
+        } catch (ex: Exception) {
+            runCatching { created.close() }
+            throw ex
+        }
+    }
+
+    @Synchronized
+    fun close() {
+        dataSource?.close()
+        dataSource = null
     }
 
     fun dataSource(): HikariDataSource = dataSource
+        ?: error("DatabaseFactory is not initialized")
 
-    private fun applySchema() {
+    private fun applySchema(dataSource: HikariDataSource) {
         val resource = javaClass.classLoader.getResourceAsStream("db/schema.sql")
             ?: error("Missing db/schema.sql resource")
         val sql = resource.bufferedReader().use(BufferedReader::readText)

@@ -58,6 +58,7 @@ object TestApplicationSupport {
                     "ktor.db.url" to PostgresContainerSupport.jdbcUrl(),
                     "ktor.db.user" to PostgresContainerSupport.username(),
                     "ktor.db.password" to PostgresContainerSupport.password(),
+                    "ktor.db.poolSize" to "2",
                     "ktor.devAuthEnabled" to "true",
                     "ktor.jwt.secret" to "test-secret",
                 )

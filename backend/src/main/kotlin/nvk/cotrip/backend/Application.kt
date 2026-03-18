@@ -49,6 +49,7 @@ fun Application.module() {
         log.info("CoTrip backend ready")
     }
     environment.monitor.subscribe(ApplicationStopping) {
+        DatabaseFactory.close()
         log.info("CoTrip backend stopping")
     }
 }

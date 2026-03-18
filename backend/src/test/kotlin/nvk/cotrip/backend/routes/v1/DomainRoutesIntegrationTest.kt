@@ -34,7 +34,7 @@ class DomainRoutesIntegrationTest {
     private val json = TestApplicationSupport.json
 
     @Test
-    fun given_authenticatedUser_when_updateMeThenDeleteMe_then_meReturnsNotFound() = TestApplicationSupport.withApp { session ->
+    fun given_authenticatedUser_when_updateMeThenDeleteMe_then_meReturnsUnauthorized() = TestApplicationSupport.withApp { session ->
         // GIVEN
         val accessToken = session.accessToken
 
@@ -61,7 +61,7 @@ class DomainRoutesIntegrationTest {
         assertEquals("Updated Name", updatedBody["name"]!!.jsonPrimitive.content)
         assertEquals("https://example.test/u.png", updatedBody["photoUrl"]!!.jsonPrimitive.content)
         assertEquals(HttpStatusCode.NoContent, deleted.status)
-        assertEquals(HttpStatusCode.NotFound, afterDelete.status)
+        assertEquals(HttpStatusCode.Unauthorized, afterDelete.status)
     }
 
     @Test

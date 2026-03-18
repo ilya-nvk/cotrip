@@ -71,19 +71,34 @@ object AuthTokenService {
 
             val now = OffsetDateTime.now()
             if (lookup.sessionRevokedAt != null || lookup.sessionExpiresAt <= now) {
-                revokeSession(conn, lookup.sessionId, "session_inactive")
-                throw AuthFlowException("auth_refresh_invalid", "Invalid refresh token")
+                revokeAndFail(
+                    conn = conn,
+                    sessionId = lookup.sessionId,
+                    revokeReason = "session_inactive",
+                    code = "auth_refresh_invalid",
+                    message = "Invalid refresh token",
+                )
             }
             if (lookup.replacedBy != null) {
-                revokeSession(conn, lookup.sessionId, "refresh_reuse")
-                throw AuthFlowException("auth_refresh_reuse_detected", "Refresh token reuse detected")
+                revokeAndFail(
+                    conn = conn,
+                    sessionId = lookup.sessionId,
+                    revokeReason = "refresh_reuse",
+                    code = "auth_refresh_reuse_detected",
+                    message = "Refresh token reuse detected",
+                )
             }
             if (lookup.refreshRevokedAt != null) {
                 throw AuthFlowException("auth_refresh_invalid", "Invalid refresh token")
             }
             if (lookup.refreshExpiresAt <= now) {
-                revokeSession(conn, lookup.sessionId, "refresh_expired")
-                throw AuthFlowException("auth_refresh_invalid", "Invalid refresh token")
+                revokeAndFail(
+                    conn = conn,
+                    sessionId = lookup.sessionId,
+                    revokeReason = "refresh_expired",
+                    code = "auth_refresh_invalid",
+                    message = "Invalid refresh token",
+                )
             }
 
             val newSessionExpiry = now.plusDays(config.refreshTtlDays.toLong())
@@ -104,8 +119,13 @@ object AuthTokenService {
                 now = now,
             )
             if (!rotated) {
-                revokeSession(conn, lookup.sessionId, "refresh_race")
-                throw AuthFlowException("auth_refresh_invalid", "Invalid refresh token")
+                revokeAndFail(
+                    conn = conn,
+                    sessionId = lookup.sessionId,
+                    revokeReason = "refresh_race",
+                    code = "auth_refresh_invalid",
+                    message = "Invalid refresh token",
+                )
             }
 
             IssuedTokenContext(
@@ -256,6 +276,19 @@ object AuthTokenService {
         }
 
         return sessionUpdated
+    }
+
+    private fun revokeAndFail(
+        conn: Connection,
+        sessionId: UUID,
+        revokeReason: String,
+        code: String,
+        message: String,
+    ): Nothing {
+        revokeSession(conn, sessionId, revokeReason)
+        // Persist revocation before bubbling AuthFlowException to dbQuery (which triggers rollback).
+        conn.commit()
+        throw AuthFlowException(code, message)
     }
 
     private fun updateSessionExpiry(
