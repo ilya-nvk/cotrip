@@ -41,7 +41,9 @@ jobs:
           chmod +x .github/scripts/test-coverage-summary.sh
           .github/scripts/test-coverage-summary.sh "Backend" \
             backend/build/test-results/test \
-            backend/build/reports/jacoco/test/jacocoTestReport.xml
+            backend/build/reports/jacoco/test/jacocoTestReport.xml \
+            50 \
+            40
 
       - name: Quality check
         working-directory: backend
@@ -93,7 +95,9 @@ jobs:
           chmod +x .github/scripts/test-coverage-summary.sh
           .github/scripts/test-coverage-summary.sh "Android" \
             android/app/build/test-results/testDebugUnitTest \
-            android/app/build/reports/jacoco/jacocoDebugUnitTestReport/jacocoDebugUnitTestReport.xml
+            android/app/build/reports/jacoco/jacocoDebugUnitTestReport/jacocoDebugUnitTestReport.xml \
+            50 \
+            30
 
       - name: Quality check
         working-directory: android

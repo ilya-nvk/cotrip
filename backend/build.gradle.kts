@@ -81,7 +81,20 @@ val testExecData = testTask.map { test ->
         ?: file("build/jacoco/test.exec")
 }
 
-val jacocoClassDirs = mainSourceSet.output.asFileTree.matching {
+// Report coverage for almost all production code and hide Kotlin synthetic classes
+// that otherwise skew the denominator without improving signal.
+val jacocoReportClassDirs = mainSourceSet.output.asFileTree.matching {
+    exclude(
+        "**/*\$Companion.class",
+        "**/*\$serializer.class",
+        "**/*\$\$serializer.class",
+        "**/*\$WhenMappings.class",
+        "**/*\$inlined\$*.class",
+    )
+}
+
+// Keep current quality-gate scope to avoid introducing a surprise CI break.
+val jacocoVerificationClassDirs = mainSourceSet.output.asFileTree.matching {
     exclude(
         "**/ApplicationKt.class",
         "**/plugins/Logging*.class",
@@ -100,7 +113,7 @@ tasks.named<JacocoReport>("jacocoTestReport") {
 
     executionData.setFrom(files(testExecData))
     sourceDirectories.setFrom(mainSourceSet.allSource.srcDirs)
-    classDirectories.setFrom(jacocoClassDirs)
+    classDirectories.setFrom(jacocoReportClassDirs)
 
     reports {
         xml.required.set(true)
@@ -113,7 +126,7 @@ tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
     dependsOn(testTask)
     executionData.setFrom(files(testExecData))
     sourceDirectories.setFrom(mainSourceSet.allSource.srcDirs)
-    classDirectories.setFrom(jacocoClassDirs)
+    classDirectories.setFrom(jacocoVerificationClassDirs)
 
     violationRules {
         rule {
