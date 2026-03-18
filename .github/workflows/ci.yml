@@ -41,7 +41,7 @@ jobs:
           chmod +x .github/scripts/test-coverage-summary.sh
           .github/scripts/test-coverage-summary.sh "Backend" \
             backend/build/test-results/test \
-            backend/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml
+            backend/build/reports/jacoco/test/jacocoTestReport.xml
 
       - name: Quality check
         working-directory: backend

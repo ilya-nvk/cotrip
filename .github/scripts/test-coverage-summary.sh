@@ -39,7 +39,7 @@ else
 fi
 
 # Parse JaCoCo LINE coverage from XML (counter type="LINE" missed="N" covered="M")
-coverage_pct="—"
+coverage_pct="N/A"
 if [[ -n "$JACOCO_XML" && -f "$JACOCO_XML" ]]; then
   line_line=$(grep 'type="LINE"' "$JACOCO_XML" | head -1)
   if [[ -n "$line_line" ]]; then
@@ -52,17 +52,22 @@ if [[ -n "$JACOCO_XML" && -f "$JACOCO_XML" ]]; then
   fi
 fi
 
-# Append to GitHub Step Summary (or stdout if not in Actions)
-SUMMARY="## $NAME — тесты и покрытие
+coverage_display="$coverage_pct"
+if [[ "$coverage_pct" =~ ^[0-9]+$ ]]; then
+  coverage_display="${coverage_pct}%"
+fi
 
-| Метрика | Значение |
+# Append to GitHub Step Summary (or stdout if not in Actions)
+SUMMARY="## $NAME — Tests & Coverage
+
+| Metric | Value |
 |--------|----------|
-| Всего тестов | $total |
-| Успешно | $passed |
-| Упало (failures) | $failed |
-| Ошибки (errors) | $errors |
-| % успешных | $pct% |
-| Покрытие кода (LINE) | $coverage_pct% |
+| Total tests | $total |
+| Passed | $passed |
+| Failed (failures) | $failed |
+| Errors | $errors |
+| Pass rate | $pct% |
+| Code coverage (LINE) | $coverage_display |
 "
 if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
   echo "$SUMMARY" >> "$GITHUB_STEP_SUMMARY"
