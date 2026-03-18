@@ -18,6 +18,7 @@ import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.network.dto.AiSuggestionsRequestDto
 import nvk.cotrip.data.repository.AiSuggestionsRepository
 import nvk.cotrip.ui.common.UiErrorMapper
+import nvk.cotrip.ui.common.appUiLocale
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import java.util.Locale
@@ -95,7 +96,7 @@ class RouteSuggestionsViewModel @Inject constructor(
                         timeOfDayOptions = selectedTimes,
                         budgetOptions = selectedBudgets,
                         generationToken = UUID.randomUUID().toString(),
-                        language = Locale.getDefault().toLanguageTag(),
+                        language = appUiLocale().toLanguageTag(),
                     )
                 )
             }

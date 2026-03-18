@@ -86,7 +86,7 @@ private suspend fun DefaultWebSocketServerSession.handleTextFrame(
                 send(Frame.Text(json.encodeToString(rejected)))
                 return
             }
-            val actorName = UserRepository.findById(userId)?.name ?: "Someone"
+            val actorName = UserRepository.findById(userId)?.name.orEmpty()
             publishCommentCreated(
                 tripId = tripId,
                 comment = stored,

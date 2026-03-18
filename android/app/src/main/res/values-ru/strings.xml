@@ -1,0 +1,540 @@
+<resources>
+    <string name="app_name">CoTrip</string>
+
+    <!--Sign In-->
+    <string name="sign_in_subtitle">Планируйте поездки вместе. Легко.</string>
+    <string name="continue_with_google">Продолжить через Google</string>
+    <string name="signing_in">Выполняется вход...</string>
+    <string name="sign_in_privacy_note">CoTrip использует ваш Google-аккаунт только для входа и синхронизации поездок.</string>
+
+    <!--Trips List-->
+    <string name="trips_title">Мои поездки</string>
+    <string name="section_active">АКТИВНЫЕ</string>
+    <string name="section_upcoming">ПРЕДСТОЯЩИЕ</string>
+    <string name="section_past_with_count">ПРОШЕДШИЕ ПОЕЗДКИ (%1$d)</string>
+    <string name="in_progress">Сейчас в поездке</string>
+    <string name="no_upcoming_trips">Нет предстоящих поездок</string>
+    <string name="no_upcoming_trips_desc">Создайте новую поездку, чтобы начать планирование.</string>
+    <string name="no_trips_yet">Пока нет поездок</string>
+    <string name="no_trips_yet_desc">Создайте первую поездку и планируйте вместе.</string>
+    <string name="create_trip">Создать поездку</string>
+    <string name="settings">Настройки</string>
+    <string name="settings_title">Настройки</string>
+    <string name="settings_save">Сохранить</string>
+    <string name="join_trip">Присоединиться</string>
+    <string name="join_trip_title">Присоединиться к поездке</string>
+    <string name="join_trip_subtitle">Вставьте ссылку-приглашение или ID поездки, чтобы присоединиться.</string>
+    <string name="join_trip_invite_label">Ссылка-приглашение или ID поездки</string>
+    <string name="join_trip_invite_placeholder">https://api.cotrip.site/invite/... или ID поездки</string>
+    <string name="join_trip_action">Присоединиться</string>
+    <string name="join_trip_hint">Поддерживается: ссылка invite, /trips/.../invite или ID поездки.</string>
+    <string name="join_trip_invalid">Некорректная ссылка или ID поездки</string>
+    <string name="join_trip_already_joined">Вы уже участвуете в этой поездке</string>
+    <string name="join_trip_success">Вы присоединились к поездке</string>
+    <string name="toggle_past">Показать/скрыть прошедшие</string>
+
+    <!--Trip Form-->
+    <string name="common_cancel">Отмена</string>
+    <string name="common_error_message">Что-то пошло не так. Повторите попытку.</string>
+    <string name="common_error_network">Нет подключения к интернету. Проверьте сеть и попробуйте снова.</string>
+    <string name="common_error_server_unreachable">Не удалось связаться с сервером. Попробуйте снова.</string>
+    <string name="common_error_unauthorized">Сессия истекла. Войдите снова.</string>
+    <string name="common_error_forbidden">Недостаточно прав для этого действия.</string>
+    <string name="common_error_not_found">Запрошенный объект не найден.</string>
+    <string name="common_error_city_coordinates_required">Выберите город из подсказок.</string>
+    <string name="common_error_city_search">Не удалось загрузить подсказки по городам.</string>
+    <string name="common_error_weather_unavailable">Сервис погоды не настроен на сервере.</string>
+    <string name="common_error_weather_refresh">Не удалось обновить прогноз погоды.</string>
+    <string name="common_error_ai_unavailable">AI-провайдер не настроен на сервере.</string>
+    <string name="common_error_ai_generation">Сейчас не удалось сгенерировать AI-подсказки.</string>
+    <string name="common_error_limit_reached">Достигнут лимит данных. Удалите старые элементы и повторите попытку.</string>
+    <string name="limit_reached_dialog_title">Достигнут лимит</string>
+    <string name="limit_reached_dialog_message">Чтобы добавить новый элемент, удалить самый старый: %1$s?</string>
+    <string name="limit_reached_dialog_confirm">Удалить и повторить</string>
+    <string name="limit_reached_oldest_fallback">самый старый элемент</string>
+    <string name="create_trip_title">Создать поездку</string>
+    <string name="create_trip_primary_button">Создать поездку</string>
+    <string name="create_trip_created_toast">Поездка создана</string>
+    <string name="edit_trip_title">Редактировать поездку</string>
+    <string name="edit_trip_primary_button">Сохранить изменения</string>
+    <string name="edit_trip_saved_toast">Изменения сохранены</string>
+    <string name="edit_trip_archived_toast">Поездка архивирована</string>
+    <string name="edit_trip_deleted_toast">Поездка удалена</string>
+    <string name="trip_form_cover_section">ОБЛОЖКА</string>
+    <string name="trip_form_add_cover">Добавить обложку</string>
+    <string name="trip_form_change_cover">Изменить обложку</string>
+    <string name="trip_form_cover_uploaded_toast">Обложка обновлена</string>
+    <string name="trip_form_name_label">Название поездки</string>
+    <string name="trip_form_dates_section">ДАТЫ</string>
+    <string name="trip_form_start_date_label">Дата начала</string>
+    <string name="trip_form_end_date_label">Дата окончания</string>
+    <string name="trip_form_start_date_range_toast">Дата начала должна быть между сегодняшним днем и датой через год.</string>
+    <string name="trip_form_end_date_range_toast">Дата окончания должна быть не раньше даты начала и не позже чем через 6 месяцев.</string>
+    <string name="trip_form_date_placeholder">дд.мм.гггг</string>
+    <string name="trip_form_description_label">Описание</string>
+    <string name="trip_form_currency_label">Валюта</string>
+    <string name="trip_form_advanced_section">ДОПОЛНИТЕЛЬНО</string>
+    <string name="trip_form_archive">Архивировать поездку</string>
+    <string name="trip_form_delete">Удалить поездку</string>
+    <string name="trip_form_date_not_implemented">Выбор даты пока не реализован</string>
+    <string name="trip_form_cover_not_implemented">Выбор обложки пока не реализован</string>
+
+    <!--Trip Details-->
+    <string name="trip_details_back">Назад</string>
+    <string name="trip_details_edit">Изменить</string>
+    <string name="trip_details_travelers">УЧАСТНИКИ</string>
+    <string name="trip_details_invite">Пригласить</string>
+    <string name="trip_details_members">Состав</string>
+    <string name="trip_members_title">Участники</string>
+    <string name="trip_members_owner">Владелец</string>
+    <string name="trip_members_member">Участник</string>
+    <string name="trip_members_remove">Удалить</string>
+    <string name="trip_members_leave">Выйти</string>
+    <string name="trip_members_removed_toast">Участник удален</string>
+    <string name="trip_members_left_toast">Вы вышли из поездки</string>
+    <string name="trip_details_invite_travelers">Пригласить участников</string>
+    <string name="trip_details_weather">ПОГОДА</string>
+    <string name="trip_details_weather_with_city">ПОГОДА: %1$s</string>
+    <string name="trip_details_view_full_forecast">Открыть полный прогноз</string>
+    <string name="trip_details_weather_city_missing">Выберите город в маршруте, чтобы увидеть погоду.</string>
+    <string name="trip_details_weather_no_data">Пока нет прогноза на выбранные даты поездки.</string>
+    <string name="trip_details_weather_partial">Прогноз доступен только для части дат поездки.</string>
+    <string name="trip_details_weather_unavailable">Сейчас не удалось загрузить погоду.</string>
+    <string name="trip_details_next_in_trip">ДАЛЕЕ В ПОЕЗДКЕ</string>
+    <string name="trip_details_view_full_itinerary">Открыть полный маршрут</string>
+    <string name="trip_details_start_planning">НАЧНИТЕ ПЛАНИРОВАНИЕ</string>
+    <string name="trip_details_start_planning_text">Поездка уже складывается. Добавляйте идеи и стройте маршрут, чтобы использовать время максимально эффективно.</string>
+    <string name="trip_details_browse_ideas">Открыть идеи</string>
+    <string name="trip_details_overview">ОБЗОР</string>
+    <string name="trip_details_ideas">Идеи</string>
+    <string name="trip_details_total_expenses">Общие расходы</string>
+    <string name="trip_details_get_route_suggestions">Получить предложения по маршруту</string>
+    <string name="trip_details_build_route">Получить предложения</string>
+    <string name="trip_details_city_picker_stub">Выбор города пока не реализован</string>
+
+    <!--Invitation-->
+    <string name="invite_people_title">Пригласить участников</string>
+    <string name="invite_people_description">Поделитесь этой ссылкой, чтобы пригласить других в поездку. Ссылка действует 12 часов.</string>
+    <string name="invite_people_link_label">ССЫЛКА-ПРИГЛАШЕНИЕ</string>
+    <string name="invite_people_expires_hint">Ссылка истекает через %1$d ч</string>
+    <string name="invite_people_copy_link">Копировать ссылку</string>
+    <string name="invite_people_share_link">Поделиться ссылкой</string>
+    <string name="invite_people_copied_toast">Ссылка скопирована</string>
+    <string name="invite_people_share_not_implemented">Поделиться пока не реализовано</string>
+
+    <!--Weather-->
+    <string name="weather_forecast_title">Прогноз погоды</string>
+    <string name="weather_forecast_disclaimer">Данные прогноза ориентировочные и могут меняться.</string>
+    <string name="weather_forecast_source">Источник: %1$s</string>
+    <string name="weather_forecast_updated">Обновлено: %1$s</string>
+    <string name="weather_forecast_empty">Пока нет погодных данных на выбранные даты.</string>
+    <string name="weather_forecast_city_missing">Выберите город</string>
+    <string name="weather_forecast_city_not_implemented">Выбор города пока не реализован</string>
+
+    <!--Out of Range Days-->
+    <string name="out_of_range_days_title">Дни вне диапазона</string>
+    <string name="out_of_range_days_banner">Эти дни не входят в новый диапазон дат поездки (%1$s). Выберите действие: удалить эти дни или перенести дату окончания на %2$s, чтобы сохранить их в маршруте.</string>
+    <string name="out_of_range_days_extend_end">Перенести дату окончания на %1$s</string>
+    <string name="out_of_range_days_remove">Удалить лишние дни (%1$d)</string>
+    <string name="out_of_range_days_no_city">Город не выбран</string>
+    <string name="out_of_range_days_activities_none">Нет активностей</string>
+    <string name="out_of_range_days_kept_toast">Лишние дни сохранены</string>
+    <string name="out_of_range_days_extended_toast">Дата окончания поездки продлена</string>
+    <string name="out_of_range_days_removed_toast">Лишние дни удалены</string>
+    <plurals name="out_of_range_days_activities_count">
+        <item quantity="one">%d активность</item>
+        <item quantity="few">%d активности</item>
+        <item quantity="many">%d активностей</item>
+        <item quantity="other">%d активности</item>
+    </plurals>
+    <plurals name="out_of_range_days_activities_more">
+        <item quantity="one">и еще %d…</item>
+        <item quantity="few">и еще %d…</item>
+        <item quantity="many">и еще %d…</item>
+        <item quantity="other">и еще %d…</item>
+    </plurals>
+
+    <!--Itinerary-->
+    <string name="itinerary_title">Маршрут</string>
+    <string name="itinerary_day_title">День %1$d</string>
+    <string name="itinerary_choose_city">Выбрать город</string>
+    <string name="itinerary_empty_day_hint">Выберите город, чтобы начать планирование дня</string>
+    <string name="itinerary_choose_city_title">Выбор города</string>
+    <string name="itinerary_choose_city_placeholder">Найдите город и выберите из подсказок</string>
+    <string name="itinerary_choose_city_searching">Поиск городов...</string>
+    <string name="itinerary_choose_city_apply_following">Применить к следующим дням</string>
+    <string name="itinerary_choose_city_applied_following_toast">Город применен к текущему и следующим дням</string>
+    <string name="itinerary_city_setup_banner">Перед продолжением выберите города для всех дней поездки.</string>
+    <string name="itinerary_city_setup_remaining">Осталось дней без города: %1$d</string>
+    <string name="itinerary_city_setup_continue">Продолжить</string>
+    <string name="itinerary_city_setup_required_toast">Чтобы продолжить, выберите города для всех дней</string>
+    <string name="itinerary_add_activity_not_implemented">Добавление активностей пока не реализовано</string>
+    <string name="itinerary_reorder_start">Изменить порядок активностей</string>
+    <string name="itinerary_reorder_done">Готово</string>
+    <string name="itinerary_move_up">Переместить вверх</string>
+    <string name="itinerary_move_down">Переместить вниз</string>
+
+    <!--Ideas-->
+    <string name="ideas_title">Идеи</string>
+    <string name="ideas_add_to_itinerary">Добавить в маршрут</string>
+    <string name="ideas_added_to_day">Добавлено в день %1$d</string>
+    <string name="ideas_comments_count">%1$d комментариев</string>
+    <string name="ideas_added_to_itinerary_toast">Добавлено в маршрут</string>
+    <string name="ideas_pick_day_title">Выберите день</string>
+    <string name="ideas_pick_day_label">День %1$d · %2$s</string>
+    <string name="ideas_empty_placeholder">Добавьте идеи для поездки или попросите AI предложить варианты.</string>
+    <string name="ideas_get_ai_suggestions">Получить AI-подсказки</string>
+
+    <!--Idea Details-->
+    <string name="idea_details_title">Идея</string>
+    <string name="idea_details_tab_details">Детали</string>
+    <string name="idea_details_tab_discussion">Обсуждение</string>
+    <string name="idea_details_city">Город</string>
+    <string name="idea_details_link">Ссылка</string>
+    <string name="idea_details_cost">Оценка стоимости</string>
+    <string name="idea_details_notes">Заметки</string>
+    <string name="idea_details_add_to_itinerary">Добавить в маршрут</string>
+    <string name="idea_details_added_to_day">Добавлено в день %1$d</string>
+    <string name="idea_details_delete">Удалить идею</string>
+    <string name="idea_details_approve">Одобрить</string>
+    <string name="idea_details_reject">Отклонить</string>
+    <string name="idea_details_add_comment">Добавить комментарий</string>
+    <string name="idea_details_comment_sending">Отправка…</string>
+    <string name="idea_details_comment_failed">Не отправлено</string>
+    <string name="idea_details_retry_comment">Повторить</string>
+    <string name="idea_details_retry_with_delete_oldest">Удалить самый старый и повторить</string>
+    <string name="idea_details_delete_pending_comment">Удалить</string>
+    <string name="idea_details_added_toast">Идея добавлена в маршрут</string>
+    <string name="idea_details_deleted_toast">Идея удалена</string>
+    <string name="idea_details_approved_toast">Идея одобрена</string>
+    <string name="idea_details_rejected_toast">Идея отклонена</string>
+
+    <!--Idea Form-->
+    <string name="idea_form_title_add">Добавить идею</string>
+    <string name="idea_form_title_edit">Редактировать идею</string>
+    <string name="idea_form_primary_save">Сохранить идею</string>
+    <string name="idea_form_title_label">Название *</string>
+    <string name="idea_form_city_label">Место</string>
+    <string name="idea_form_city_searching">Поиск по местам поездки...</string>
+    <string name="idea_form_link_label">Ссылка (необязательно)</string>
+    <string name="idea_form_cost_label">Оценка стоимости</string>
+    <string name="idea_form_notes_label">Заметки</string>
+    <string name="idea_form_title_placeholder">Введите название идеи</string>
+    <string name="idea_form_city_placeholder">Найдите место в истории поездки или введите текст</string>
+    <string name="idea_form_link_placeholder">https://</string>
+    <string name="idea_form_cost_placeholder">0</string>
+    <string name="idea_form_cost_per_person">На человека</string>
+    <string name="idea_form_cost_total">Итого</string>
+    <string name="idea_form_notes_placeholder">Добавьте заметки или детали</string>
+    <string name="idea_form_delete">Удалить идею</string>
+    <string name="idea_form_created_toast">Идея сохранена</string>
+    <string name="idea_form_saved_toast">Идея обновлена</string>
+    <string name="idea_form_deleted_toast">Идея удалена</string>
+    <string name="idea_form_delete_not_available">Удаление доступно только в режиме редактирования</string>
+
+    <!--AI Suggestions-->
+    <string name="ai_suggestions_title">AI-подсказки</string>
+    <string name="ai_suggestions_hint">Опишите, что вы ищете, и AI предложит активности под вашу поездку.</string>
+    <string name="ai_suggestions_city_label">Город *</string>
+    <string name="ai_suggestions_city_hint">Города из вашего маршрута</string>
+    <string name="ai_suggestions_select_city">Выбрать город</string>
+    <string name="ai_suggestions_select_city_title">Выбор города</string>
+    <string name="ai_suggestions_description_label">Опишите, что вы ищете (необязательно)</string>
+    <string name="ai_suggestions_description_placeholder">Примеры: Что-то спокойное на вечер • Музей</string>
+    <string name="ai_suggestions_description_hint">Напишите своими словами, чего хотите, — AI поймет</string>
+    <string name="ai_suggestions_quick_preferences">Быстрые предпочтения (необязательно)</string>
+    <string name="ai_suggestions_type_label">Тип</string>
+    <string name="ai_suggestions_time_of_day_label">Время суток</string>
+    <string name="ai_suggestions_budget_label">Бюджет</string>
+    <string name="ai_suggestions_generate">Сгенерировать</string>
+    <string name="ai_suggestions_change">Изменить</string>
+    <string name="ai_suggestions_loading">Генерация подсказок...</string>
+    <string name="ai_suggestions_estimated_cost">Оценка стоимости: %1$s</string>
+    <string name="ai_suggestions_save_to_ideas">Сохранить в идеи</string>
+    <string name="ai_suggestions_saved">Сохранено</string>
+
+    <!--Settings-->
+    <string name="settings_profile">ПРОФИЛЬ</string>
+    <string name="settings_add_photo">Добавить фото</string>
+    <string name="settings_change_photo">Изменить фото</string>
+    <string name="settings_remove_photo">Удалить фото</string>
+    <string name="settings_name_label">Имя</string>
+    <string name="settings_name_hint">Используется как отображаемое имя в поездках, обсуждениях и расходах</string>
+    <string name="settings_notifications">УВЕДОМЛЕНИЯ</string>
+    <string name="settings_danger_zone">ОПАСНАЯ ЗОНА</string>
+    <string name="settings_log_out">Выйти</string>
+    <string name="settings_delete_profile">Удалить профиль</string>
+    <string name="settings_delete_dialog_title">Удалить профиль?</string>
+    <string name="settings_delete_dialog_message">Все ваши поездки, идеи, расходы и данные будут удалены без возможности восстановления.</string>
+    <string name="settings_photo_changed_toast">Фото обновлено</string>
+    <string name="settings_profile_deleted_toast">Профиль удален</string>
+
+    <!--Expenses-->
+    <string name="expenses_title">Расходы</string>
+    <string name="expenses_total_spent">Потрачено всего</string>
+    <string name="expenses_your_balance">Ваш баланс</string>
+    <string name="expenses_total_planned">Запланировано всего</string>
+    <string name="expenses_balance_amount">%1$s %2$s</string>
+    <string name="expenses_spent_section">ОПЛАЧЕНО</string>
+    <string name="expenses_planned_section">ЗАПЛАНИРОВАНО</string>
+    <string name="expenses_status_owed_to_you">Вам должны %1$s</string>
+    <string name="expenses_status_you_owe">Вы должны %1$s</string>
+    <string name="expenses_status_settled">Закрыто</string>
+    <string name="expenses_status_planned">Запланировано</string>
+    <string name="expenses_empty_placeholder">Начните вести расходы поездки.</string>
+
+    <!--Expense Details-->
+    <string name="expense_details_title">Детали расхода</string>
+    <string name="expense_details_status_planned">Запланировано</string>
+    <string name="expense_details_status_unsettled">Не закрыто</string>
+    <string name="expense_details_status_settled">Закрыто</string>
+    <string name="expense_details_paid_by">Оплатил</string>
+    <string name="expense_details_date">Дата</string>
+    <string name="expense_details_split_section">РАЗДЕЛЕНИЕ</string>
+    <string name="expense_details_note_section">ПРИМЕЧАНИЕ</string>
+    <string name="expense_details_mark_paid">Отметить как оплаченный</string>
+    <string name="expense_details_total">Итого: %1$s</string>
+    <string name="expense_details_mark_as_paid">Отметить оплату</string>
+    <string name="expense_details_mark_all_settled">Отметить всех как оплативших</string>
+    <string name="expense_details_unmark_paid_title">Снять отметку об оплате?</string>
+    <string name="expense_details_unmark_paid_message">Ваша доля будет отмечена как неоплаченная.</string>
+    <string name="expense_details_unmark_paid_confirm">Отметить как неоплаченную</string>
+
+    <!--Expense Form-->
+    <string name="expense_form_title_add">Добавить расход</string>
+    <string name="expense_form_title_edit">Редактировать расход</string>
+    <string name="expense_form_primary_save">Сохранить расход</string>
+    <string name="expense_form_title_label">Название *</string>
+    <string name="expense_form_title_placeholder">Введите название расхода</string>
+    <string name="expense_form_amount_label">Сумма *</string>
+    <string name="expense_form_amount_placeholder">0</string>
+    <string name="expense_form_status_label">Статус расхода *</string>
+    <string name="expense_form_status_planned">Запланировано</string>
+    <string name="expense_form_status_paid">Оплачено</string>
+    <string name="expense_form_paid_by_label">Оплатил *</string>
+    <string name="expense_form_paid_by_placeholder">Выберите участника</string>
+    <string name="expense_form_paid_by_picker_title">Выберите участника</string>
+    <string name="expense_form_date_label">Дата</string>
+    <string name="expense_form_date_placeholder">Выберите дату</string>
+    <string name="expense_form_split_between_label">Разделить между *</string>
+    <string name="expense_form_split_type_label">Тип разделения *</string>
+    <string name="expense_form_split_equally">Поровну</string>
+    <string name="expense_form_custom_amounts">Произвольные суммы</string>
+    <string name="expense_form_amount_per_person">Сумма на человека</string>
+    <string name="expense_form_remaining">Осталось распределить</string>
+    <string name="expense_form_note_label">Примечание (необязательно)</string>
+    <string name="expense_form_note_placeholder">Добавьте примечание</string>
+    <string name="expense_form_delete">Удалить расход</string>
+    <string name="expense_form_created_toast">Расход сохранен</string>
+    <string name="expense_form_saved_toast">Расход обновлен</string>
+    <string name="expense_form_deleted_toast">Расход удален</string>
+    <string name="expense_form_delete_not_available">Удаление доступно только в режиме редактирования</string>
+    <string name="expense_form_date_not_implemented">Выбор даты пока не реализован</string>
+
+    <!--Activity Details-->
+    <string name="activity_details_title">Детали активности</string>
+    <string name="activity_details_date_time_label">ДАТА И ВРЕМЯ</string>
+    <string name="activity_details_location_label">ЛОКАЦИЯ</string>
+    <string name="activity_details_link_label">ССЫЛКА</string>
+    <string name="activity_details_cost_label">СТОИМОСТЬ</string>
+    <string name="activity_details_notes_label">ЗАМЕТКИ</string>
+    <string name="activity_details_day_only">День %1$d</string>
+    <string name="activity_details_day_with_city">День %1$d · %2$s</string>
+    <string name="activity_details_per_person">на человека</string>
+    <string name="activity_details_empty">—</string>
+    <string name="activity_details_delete">Удалить активность</string>
+    <string name="activity_details_edit_not_implemented">Редактирование пока не реализовано</string>
+    <string name="activity_details_open_link_not_implemented">Открытие ссылки пока не реализовано</string>
+    <string name="activity_details_deleted_toast">Активность удалена</string>
+
+    <!--Activity Form-->
+    <string name="activity_form_title_add">Добавить активность</string>
+    <string name="activity_form_title_edit">Редактировать активность</string>
+    <string name="activity_form_section_title">НАЗВАНИЕ АКТИВНОСТИ</string>
+    <string name="activity_form_title_placeholder">например, Посетить Лувр</string>
+    <string name="activity_form_section_date">ДАТА</string>
+    <string name="activity_form_section_time_optional">ВРЕМЯ (НЕОБЯЗАТЕЛЬНО)</string>
+    <string name="activity_form_time_placeholder">--:-- --</string>
+    <string name="activity_form_section_location_optional">ЛОКАЦИЯ (НЕОБЯЗАТЕЛЬНО)</string>
+    <string name="activity_form_location_placeholder">Найдите место в истории поездки или введите текст</string>
+    <string name="activity_form_location_searching">Поиск по местам поездки...</string>
+    <string name="activity_form_section_link_optional">ССЫЛКА (НЕОБЯЗАТЕЛЬНО)</string>
+    <string name="activity_form_link_placeholder">https://</string>
+    <string name="activity_form_section_cost_optional">СТОИМОСТЬ (НЕОБЯЗАТЕЛЬНО)</string>
+    <string name="activity_form_cost_placeholder">например, 17</string>
+    <string name="activity_form_cost_per_person">На человека</string>
+    <string name="activity_form_cost_total">Итого</string>
+    <string name="activity_form_section_notes_optional">ЗАМЕТКИ (НЕОБЯЗАТЕЛЬНО)</string>
+    <string name="activity_form_notes_placeholder">Добавьте дополнительные детали или напоминания...</string>
+    <string name="activity_form_primary_add">Добавить активность</string>
+    <string name="activity_form_primary_save">Сохранить изменения</string>
+    <string name="activity_form_delete">Удалить активность</string>
+    <string name="activity_form_pick_date_not_implemented">Выбор даты пока не реализован</string>
+    <string name="activity_form_pick_time_not_implemented">Выбор времени пока не реализован</string>
+    <string name="activity_form_date_out_of_trip_range">Выберите дату в пределах поездки.</string>
+    <string name="activity_form_created_toast">Активность добавлена</string>
+    <string name="activity_form_saved_toast">Изменения сохранены</string>
+    <string name="activity_form_deleted_toast">Активность удалена</string>
+    <string name="activity_form_delete_not_available">Удаление доступно только в режиме редактирования</string>
+
+    <!--Common Extras-->
+    <string name="common_empty_placeholder">—</string>
+    <string name="common_you">Вы</string>
+    <string name="common_unknown">Неизвестно</string>
+    <string name="common_member">Участник</string>
+    <string name="ui_kit_preview_label">Метка</string>
+    <string name="ui_kit_preview_with_helper">С пояснением</string>
+    <string name="ui_kit_preview_helper_text">Текст пояснения</string>
+    <string name="ui_kit_preview_disabled_value">Недоступно</string>
+    <string name="ui_kit_preview_disabled_label">Недоступно</string>
+    <string name="ui_kit_preview_error_state">Состояние ошибки</string>
+    <string name="ui_kit_preview_error_label">Ошибка</string>
+    <string name="ui_kit_preview_error_message">Текст ошибки</string>
+    <string name="ui_kit_preview_multiline_value">Многострочный
+текст</string>
+    <string name="ui_kit_preview_multiline_label">Многострочный</string>
+    <string name="ui_kit_preview_all_trips">Все поездки</string>
+    <string name="ui_kit_preview_past">Прошедшие</string>
+
+    <!--Sign In Errors-->
+    <string name="sign_in_error_missing_google_client_id">Отсутствует Google client id.</string>
+    <string name="sign_in_error_canceled_with_code">Вход отменен (код %1$d).</string>
+    <string name="sign_in_error_missing_id_token">Отсутствует idToken.</string>
+    <string name="sign_in_error_google_failed">Не удалось войти через Google.</string>
+    <string name="sign_in_error_google_failed_with_code">Ошибка входа через Google (%1$d): %2$s</string>
+    <string name="sign_in_error_google_network">Не удалось подключиться к сервисам Google. Проверьте интернет, VPN и автоматические дату/время.</string>
+    <string name="sign_in_error_google_misconfigured">Вход через Google неверно настроен для этой сборки.</string>
+    <string name="sign_in_error_google_in_progress">Вход через Google уже выполняется.</string>
+
+    <!--Trips List-->
+    <string name="trips_list_load_failed">Не удалось загрузить поездки.</string>
+    <string name="trips_list_sync_failed">Не удалось синхронизировать обновления.</string>
+    <plurals name="people_count">
+        <item quantity="one">%1$d человек</item>
+        <item quantity="few">%1$d человека</item>
+        <item quantity="many">%1$d человек</item>
+        <item quantity="other">%1$d человека</item>
+    </plurals>
+
+    <!--Trip Details Extras-->
+    <string name="trip_details_ideas_subtitle_empty">Добавьте первую идею</string>
+    <string name="trip_details_expenses_subtitle_empty">Добавьте первый расход</string>
+    <string name="trip_details_day_number">День %1$d</string>
+
+    <!--Weather Forecast Extras-->
+    <string name="trip_forecast_source_default">OpenWeather</string>
+    <string name="trip_forecast_coverage_city_missing">Сначала выберите город в маршруте, чтобы получить прогноз.</string>
+    <string name="trip_forecast_coverage_unavailable">Прогноз на эти даты пока недоступен. OpenWeather предоставляет данные максимум на 8 ближайших дней.</string>
+    <string name="trip_forecast_coverage_available_through">Прогноз доступен до %1$s. Остальные даты появятся позже.</string>
+    <string name="trip_forecast_coverage_partial">Прогноз доступен частично. Остальные даты появятся позже.</string>
+    <string name="trip_forecast_day_today">Сегодня</string>
+    <string name="trip_forecast_day_tomorrow">Завтра</string>
+    <string name="trip_forecast_description_missing">Без описания</string>
+
+    <!--Route Suggestions Extras-->
+    <string name="route_suggestions_city_fallback">Город поездки</string>
+    <string name="route_suggestions_type_fallback">Активность</string>
+    <string name="route_suggestions_duration_fallback">2-3ч</string>
+    <string name="route_suggestions_budget_fallback">Любой</string>
+    <string name="route_suggestions_filters_all_types">Все типы</string>
+    <string name="ai_suggestions_hint_symbol">✦</string>
+
+    <!--AI Suggestions Defaults-->
+    <string-array name="ai_suggestions_default_cities">
+        <item>Париж</item>
+        <item>Рим</item>
+        <item>Барселона</item>
+        <item>Версаль</item>
+    </string-array>
+    <string-array name="ai_suggestions_option_types">
+        <item>Обязательно к посещению</item>
+        <item>Еда</item>
+        <item>Музеи</item>
+        <item>Ночная жизнь</item>
+        <item>Природа</item>
+        <item>Бюджетно</item>
+        <item>Случайный выбор</item>
+    </string-array>
+    <string-array name="ai_suggestions_option_times">
+        <item>Утро</item>
+        <item>День</item>
+        <item>Вечер</item>
+    </string-array>
+    <string-array name="ai_suggestions_option_budgets">
+        <item>Бесплатно</item>
+        <item>€</item>
+        <item>€€</item>
+        <item>€€€</item>
+    </string-array>
+
+    <!--Settings Notifications-->
+    <string name="settings_notifications_discussions">ОБСУЖДЕНИЯ</string>
+    <string name="settings_notifications_expenses">РАСХОДЫ</string>
+    <string name="settings_notifications_trips">ПОЕЗДКИ</string>
+    <string name="settings_notification_new_comments">Новые комментарии к идеям</string>
+    <string name="settings_notification_new_expenses">Новые расходы</string>
+    <string name="settings_notification_expense_settlements">Закрытие расходов</string>
+    <string name="settings_notification_added_to_trip">Добавление в поездку</string>
+
+    <!--Trip Expenses Extras-->
+    <string name="trip_expenses_balance_settled">Закрыто</string>
+    <string name="trip_expenses_balance_owed">Вам должны</string>
+    <string name="trip_expenses_balance_you_owe">Вы должны</string>
+    <string name="trip_expenses_paid_status_planned">Запланировано</string>
+    <string name="trip_expenses_paid_status_paid">Оплачено</string>
+    <string name="trip_expenses_paid_by_you">Оплачено вами</string>
+    <string name="trip_expenses_paid_by_member">Оплатил: %1$s</string>
+
+    <!--Notifications-->
+    <string name="notification_title_new_comment">Новый комментарий</string>
+    <string name="notification_title_new_idea">Новая идея</string>
+    <string name="notification_title_new_expense">Новый расход</string>
+    <string name="notification_title_expense_settled">Расход закрыт</string>
+    <string name="notification_title_update">Обновление</string>
+    <string name="notification_body_actor_value">%1$s: %2$s</string>
+    <string name="notification_body_commented_fallback">В обсуждении идеи появился комментарий</string>
+    <string name="notification_body_new_idea_fallback">В вашей поездке появилась новая идея</string>
+    <string name="notification_body_new_expense_fallback">В вашей поездке появился новый расход</string>
+    <string name="notification_body_expense_settled_fallback">Один из расходов был закрыт</string>
+    <string name="notification_body_update_fallback">У вас есть новое обновление</string>
+    <string name="notification_channel_updates">Обновления CoTrip</string>
+
+    <!--Currencies-->
+    <string name="currency_eur">Евро (€)</string>
+    <string name="currency_usd">Доллар США ($)</string>
+    <string name="currency_gbp">Британский фунт (£)</string>
+    <string name="currency_jpy">Японская иена (¥)</string>
+    <string name="currency_cny">Китайский юань (¥)</string>
+    <string name="currency_krw">Южнокорейская вона (₩)</string>
+    <string name="currency_aud">Австралийский доллар ($)</string>
+    <string name="currency_cad">Канадский доллар ($)</string>
+    <string name="currency_chf">Швейцарский франк (CHF)</string>
+    <string name="currency_sek">Шведская крона (kr)</string>
+    <string name="currency_nok">Норвежская крона (kr)</string>
+    <string name="currency_dkk">Датская крона (kr)</string>
+    <string name="currency_pln">Польский злотый (zł)</string>
+    <string name="currency_czk">Чешская крона (Kč)</string>
+    <string name="currency_huf">Венгерский форинт (Ft)</string>
+    <string name="currency_try">Турецкая лира (₺)</string>
+    <string name="currency_ils">Израильский шекель (₪)</string>
+    <string name="currency_aed">Дирхам ОАЭ (د.إ)</string>
+    <string name="currency_sar">Саудовский риал (﷼)</string>
+    <string name="currency_inr">Индийская рупия (₹)</string>
+    <string name="currency_thb">Тайский бат (฿)</string>
+    <string name="currency_sgd">Сингапурский доллар ($)</string>
+    <string name="currency_hkd">Гонконгский доллар ($)</string>
+    <string name="currency_idr">Индонезийская рупия (Rp)</string>
+    <string name="currency_myr">Малайзийский ринггит (RM)</string>
+    <string name="currency_php">Филиппинское песо (₱)</string>
+    <string name="currency_mxn">Мексиканское песо ($)</string>
+    <string name="currency_brl">Бразильский реал (R$)</string>
+    <string name="currency_ars">Аргентинское песо ($)</string>
+    <string name="currency_clp">Чилийское песо ($)</string>
+    <string name="currency_cop">Колумбийское песо ($)</string>
+    <string name="currency_zar">Южноафриканский рэнд (R)</string>
+    <string name="currency_egp">Египетский фунт (£)</string>
+    <string name="currency_rub">Российский рубль (₽)</string>
+    <string name="currency_uah">Украинская гривна (₴)</string>
+    <string name="currency_kzt">Казахстанский тенге (₸)</string>
+    <string name="currency_byn">Белорусский рубль (Br)</string>
+</resources>

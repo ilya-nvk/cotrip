@@ -25,13 +25,13 @@ import nvk.cotrip.data.repository.PendingTripCreationStore
 import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.ui.common.TextInputLimits
 import nvk.cotrip.ui.common.UiErrorMapper
+import nvk.cotrip.ui.common.appUiLocale
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import nvk.cotrip.ui.trip.form.TripCurrency
 import nvk.cotrip.util.AppLogger
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
-import java.util.Locale
 import javax.inject.Inject
 
 @HiltViewModel
@@ -618,7 +618,7 @@ private fun collectTripCities(days: List<ItineraryDayDto>): List<CitySuggestionU
         val cityName = day.city?.trim()?.takeIf { it.isNotEmpty() } ?: continue
         val cityLat = day.cityLat ?: continue
         val cityLon = day.cityLon ?: continue
-        val key = cityName.lowercase(Locale.getDefault())
+        val key = cityName.lowercase(appUiLocale())
         val candidate = CitySuggestionUi(
             name = cityName,
             providerId = day.cityProviderId,
@@ -638,7 +638,7 @@ private fun collectTripCities(days: List<ItineraryDayDto>): List<CitySuggestionU
 
 private fun ItineraryDayDto.toUi(currencySymbol: String): ItineraryDayUi {
     val date = LocalDate.parse(date)
-    val dateText = DateTimeFormatter.ofPattern("EEE, MMM d", Locale.getDefault()).format(date)
+    val dateText = DateTimeFormatter.ofPattern("EEE, MMM d", appUiLocale()).format(date)
     val activities = activities.sortedBy { it.orderIndex }.map { it.toUi(currencySymbol) }
     return ItineraryDayUi(
         id = id,
@@ -664,7 +664,7 @@ private fun ActivityDto.toUi(currencySymbol: String): ItineraryActivityUi {
 private fun formatRange(startDate: String, endDate: String): String {
     val start = LocalDate.parse(startDate)
     val end = LocalDate.parse(endDate)
-    val locale = Locale.getDefault()
+    val locale = appUiLocale()
     val sameYear = start.year == end.year
     val startFormat = if (sameYear) "MMM d" else "MMM d, yyyy"
     val endFormat = "MMM d, yyyy"
@@ -681,7 +681,7 @@ private fun formatCost(amount: Double, currencySymbol: String): String {
     val display = if (amount % 1.0 == 0.0) {
         amount.toInt().toString()
     } else {
-        String.format(Locale.getDefault(), "%.2f", amount)
+        String.format(appUiLocale(), "%.2f", amount)
     }
     return "$currencySymbol$display"
 }

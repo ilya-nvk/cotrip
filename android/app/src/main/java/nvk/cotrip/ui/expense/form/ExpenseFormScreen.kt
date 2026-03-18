@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.flow.collectLatest
 import nvk.cotrip.R
+import nvk.cotrip.ui.common.appUiLocale
 import nvk.cotrip.ui.components.CoTripAvatar
 import nvk.cotrip.ui.components.CoTripDivider
 import nvk.cotrip.ui.components.CoTripIconButton
@@ -96,7 +97,7 @@ private fun ExpenseFormScreen(
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val dateFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy", Locale.getDefault())
+    val dateFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy", appUiLocale())
 
     fun showDatePicker() {
         val initialDate = runCatching { LocalDate.parse(state.dateText, dateFormatter) }

@@ -31,6 +31,7 @@ import nvk.cotrip.data.repository.IdeaRepository
 import nvk.cotrip.data.repository.ItineraryRepository
 import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.ui.common.UiErrorMapper
+import nvk.cotrip.ui.common.appUiLocale
 import nvk.cotrip.ui.idea.common.IdeaDayOptionUi
 import nvk.cotrip.ui.idea.common.IdeaDayPickerState
 import nvk.cotrip.ui.navigation.AppNavigator
@@ -39,7 +40,6 @@ import nvk.cotrip.ui.trip.form.TripCurrency
 import nvk.cotrip.util.AppLogger
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
-import java.util.Locale
 import javax.inject.Inject
 
 @HiltViewModel
@@ -315,7 +315,7 @@ private fun IdeaDto.toUi(currencySymbol: String, addedDay: Int?): IdeaListItemUi
 
 private fun ItineraryDayDto.toDayOption(): IdeaDayOptionUi {
     val date = LocalDate.parse(date)
-    val formatter = DateTimeFormatter.ofPattern("EEE, MMM d", Locale.getDefault())
+    val formatter = DateTimeFormatter.ofPattern("EEE, MMM d", appUiLocale())
     return IdeaDayOptionUi(
         id = id,
         dayNumber = dayNumber,
@@ -332,7 +332,7 @@ private fun formatCost(amount: Double, currencySymbol: String): String {
     val display = if (amount % 1.0 == 0.0) {
         amount.toInt().toString()
     } else {
-        String.format(Locale.getDefault(), "%.2f", amount)
+        String.format(appUiLocale(), "%.2f", amount)
     }
     return "$currencySymbol$display"
 }

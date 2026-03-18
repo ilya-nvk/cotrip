@@ -18,11 +18,11 @@ import nvk.cotrip.data.network.dto.TrimOutOfRangeRequest
 import nvk.cotrip.data.repository.ItineraryRepository
 import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.ui.common.UiErrorMapper
+import nvk.cotrip.ui.common.appUiLocale
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
-import java.util.Locale
 import javax.inject.Inject
 
 @HiltViewModel
@@ -141,7 +141,7 @@ private data class LoadedOutOfRange(
 
 private fun ItineraryDayDto.toUi(): OutOfRangeDayUi {
     val date = LocalDate.parse(date)
-    val dateText = date.format(DateTimeFormatter.ofPattern("EEE, MMM d", Locale.getDefault()))
+    val dateText = date.format(DateTimeFormatter.ofPattern("EEE, MMM d", appUiLocale()))
     val activities = activities.sortedBy { it.orderIndex }
     val preview = activities.take(2).map { it.title }
     val hiddenActivitiesCount = (activities.size - preview.size).coerceAtLeast(0)
@@ -158,12 +158,12 @@ private fun ItineraryDayDto.toUi(): OutOfRangeDayUi {
 }
 
 private fun formatRange(start: LocalDate, end: LocalDate): String {
-    val locale = Locale.getDefault()
+    val locale = appUiLocale()
     val startText = start.format(DateTimeFormatter.ofPattern("MMM d, yyyy", locale))
     val endText = end.format(DateTimeFormatter.ofPattern("MMM d, yyyy", locale))
     return "$startText – $endText"
 }
 
 private fun formatDate(date: LocalDate): String {
-    return date.format(DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.getDefault()))
+    return date.format(DateTimeFormatter.ofPattern("MMM d, yyyy", appUiLocale()))
 }

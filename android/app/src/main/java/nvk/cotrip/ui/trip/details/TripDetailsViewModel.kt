@@ -33,6 +33,7 @@ import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.data.repository.UserRepository
 import nvk.cotrip.data.repository.WeatherRepository
 import nvk.cotrip.ui.common.UiErrorMapper
+import nvk.cotrip.ui.common.appUiLocale
 import nvk.cotrip.ui.components.AvatarStackItem
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
@@ -40,7 +41,6 @@ import nvk.cotrip.ui.trip.form.TripCurrency
 import nvk.cotrip.util.AppLogger
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
-import java.util.Locale
 import javax.inject.Inject
 
 @HiltViewModel
@@ -545,7 +545,7 @@ private fun buildState(
 }
 
 private fun formatRange(start: LocalDate, end: LocalDate): String {
-    val locale = Locale.getDefault()
+    val locale = appUiLocale()
     val sameYear = start.year == end.year
     val startFormat = if (sameYear) "MMM d" else "MMM d, yyyy"
     val endFormat = "MMM d, yyyy"

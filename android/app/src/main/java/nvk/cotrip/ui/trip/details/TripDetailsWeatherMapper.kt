@@ -2,13 +2,13 @@ package nvk.cotrip.ui.trip.details
 
 import nvk.cotrip.data.network.dto.ItineraryDayDto
 import nvk.cotrip.data.network.dto.WeatherForecastResponseDto
+import nvk.cotrip.ui.common.appUiLocale
 import nvk.cotrip.ui.theme.CoTripIcons
 import nvk.cotrip.ui.theme.WeatherCloudy
 import nvk.cotrip.ui.theme.WeatherRainy
 import nvk.cotrip.ui.theme.WeatherSunny
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 object TripDetailsWeatherMapper {
     fun pickCity(days: List<ItineraryDayDto>): String? {
@@ -56,7 +56,7 @@ object TripDetailsWeatherMapper {
             .map { forecast ->
                 val dayDate = runCatching { LocalDate.parse(forecast.date) }.getOrNull()
                 WeatherDayUi(
-                    label = dayDate?.format(DateTimeFormatter.ofPattern("EEE", Locale.getDefault()))
+                    label = dayDate?.format(DateTimeFormatter.ofPattern("EEE", appUiLocale()))
                         ?: "—",
                     temp = buildTempText(forecast.tempMin, forecast.tempMax),
                     icon = when {

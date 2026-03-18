@@ -9,12 +9,12 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -47,6 +47,7 @@ import nvk.cotrip.data.repository.UserRepository
 import nvk.cotrip.notifications.SystemNotificationManager
 import nvk.cotrip.ui.common.TextInputLimits
 import nvk.cotrip.ui.common.UiErrorMapper
+import nvk.cotrip.ui.common.appUiLocale
 import nvk.cotrip.ui.idea.common.IdeaDayOptionUi
 import nvk.cotrip.ui.idea.common.IdeaDayPickerState
 import nvk.cotrip.ui.navigation.AppNavigator
@@ -59,7 +60,6 @@ import java.time.LocalDateTime
 import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.util.Locale
 import java.util.UUID
 import javax.inject.Inject
 
@@ -753,7 +753,7 @@ private fun CommentCreatedPayload.toDiscussionItem(
 
 private fun ItineraryDayDto.toDayOption(): IdeaDayOptionUi {
     val date = LocalDate.parse(date)
-    val formatter = DateTimeFormatter.ofPattern("EEE, MMM d", Locale.getDefault())
+    val formatter = DateTimeFormatter.ofPattern("EEE, MMM d", appUiLocale())
     return IdeaDayOptionUi(
         id = id,
         dayNumber = dayNumber,
@@ -770,7 +770,7 @@ private fun formatCost(amount: Double, currencySymbol: String): String {
     val display = if (amount % 1.0 == 0.0) {
         amount.toInt().toString()
     } else {
-        String.format(Locale.getDefault(), "%.2f", amount)
+        String.format(appUiLocale(), "%.2f", amount)
     }
     return "$currencySymbol$display"
 }
@@ -850,7 +850,7 @@ private const val COMMENT_SEND_TIMEOUT_MS = 8_000L
 
 private fun formatTimestamp(raw: String): String {
     val instant = parseTimestamp(raw) ?: return raw
-    val formatter = DateTimeFormatter.ofPattern("MMM d, HH:mm", Locale.getDefault())
+    val formatter = DateTimeFormatter.ofPattern("MMM d, HH:mm", appUiLocale())
     return formatter.format(instant.atZone(ZoneId.systemDefault()))
 }
 

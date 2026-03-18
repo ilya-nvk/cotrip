@@ -24,12 +24,12 @@ import nvk.cotrip.data.repository.UserRepository
 import nvk.cotrip.ui.common.LimitDialogState
 import nvk.cotrip.ui.common.TextInputLimits
 import nvk.cotrip.ui.common.UiErrorMapper
+import nvk.cotrip.ui.common.appUiLocale
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import nvk.cotrip.ui.trip.form.TripCurrency
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
-import java.util.Locale
 import javax.inject.Inject
 
 @HiltViewModel
@@ -330,7 +330,7 @@ class CreateExpenseViewModel @Inject constructor(
 }
 
 private fun formatDate(date: LocalDate): String {
-    return date.format(DateTimeFormatter.ofPattern("dd.MM.yyyy", Locale.getDefault()))
+    return date.format(DateTimeFormatter.ofPattern("dd.MM.yyyy", appUiLocale()))
 }
 
 private fun parseAmount(value: String): Double? {
