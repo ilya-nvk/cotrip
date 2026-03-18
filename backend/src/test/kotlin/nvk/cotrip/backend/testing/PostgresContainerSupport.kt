@@ -38,6 +38,8 @@ object PostgresContainerSupport {
             withDatabaseName("cotrip_test")
             // Use default user (test/test): in the image it is created as superuser,
             // so CREATE EXTENSION pgcrypto works. Custom user (e.g. cotrip) may not be superuser in CI.
+            // Raise max_connections so multiple test apps (each with a connection pool) don't hit the limit.
+            withCommand("postgres", "-c", "max_connections=200")
             start()
         }
         ensureSchema()
