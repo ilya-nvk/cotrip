@@ -81,20 +81,8 @@ val testExecData = testTask.map { test ->
         ?: file("build/jacoco/test.exec")
 }
 
-// Report coverage for almost all production code and hide Kotlin synthetic classes
-// that otherwise skew the denominator without improving signal.
-val jacocoReportClassDirs = mainSourceSet.output.asFileTree.matching {
-    exclude(
-        "**/*\$Companion.class",
-        "**/*\$serializer.class",
-        "**/*\$\$serializer.class",
-        "**/*\$WhenMappings.class",
-        "**/*\$inlined\$*.class",
-    )
-}
-
-// Keep current quality-gate scope to avoid introducing a surprise CI break.
-val jacocoVerificationClassDirs = mainSourceSet.output.asFileTree.matching {
+// Keep report and verification on the same scope so CI summary and gates are comparable.
+val jacocoCoverageClassDirs = mainSourceSet.output.asFileTree.matching {
     exclude(
         "**/ApplicationKt.class",
         "**/plugins/Logging*.class",
@@ -105,6 +93,11 @@ val jacocoVerificationClassDirs = mainSourceSet.output.asFileTree.matching {
         "**/notifications/FirebasePushService*.class",
         "**/ws/CommentEventsPublisher*.class",
         "**/ws/CommentsHub*.class",
+        "**/*\$Companion.class",
+        "**/*\$serializer.class",
+        "**/*\$\$serializer.class",
+        "**/*\$WhenMappings.class",
+        "**/*\$inlined\$*.class",
     )
 }
 
@@ -113,7 +106,7 @@ tasks.named<JacocoReport>("jacocoTestReport") {
 
     executionData.setFrom(files(testExecData))
     sourceDirectories.setFrom(mainSourceSet.allSource.srcDirs)
-    classDirectories.setFrom(jacocoReportClassDirs)
+    classDirectories.setFrom(jacocoCoverageClassDirs)
 
     reports {
         xml.required.set(true)
@@ -126,7 +119,7 @@ tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
     dependsOn(testTask)
     executionData.setFrom(files(testExecData))
     sourceDirectories.setFrom(mainSourceSet.allSource.srcDirs)
-    classDirectories.setFrom(jacocoVerificationClassDirs)
+    classDirectories.setFrom(jacocoCoverageClassDirs)
 
     violationRules {
         rule {
