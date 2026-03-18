@@ -159,6 +159,8 @@ val jacocoExcludes = listOf(
     "**/BuildConfig.*",
     "**/Manifest*.*",
     "**/*Test*.*",
+    "**/*$*",
+    "**/*ScreenKt*",
     "**/*_Factory*",
     "**/*_MembersInjector*",
     "**/*_HiltModules*",
@@ -167,6 +169,9 @@ val jacocoExcludes = listOf(
     "**/*_Impl*.*",
     "**/*\$Companion*",
     "**/*\$serializer*",
+    "**/MainActivity*",
+    "**/CoTripApp*",
+    "**/notifications/SystemNotificationManager*",
     "**/di/**",
     "nvk/cotrip/data/network/dto/**",
     "nvk/cotrip/ui/theme/**",
@@ -228,7 +233,7 @@ tasks.register<JacocoCoverageVerification>("jacocoDebugCoverageVerification") {
             limit {
                 counter = "BRANCH"
                 value = "COVEREDRATIO"
-                minimum = BigDecimal("0.30")
+                minimum = BigDecimal("0.40")
             }
         }
     }

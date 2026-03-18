@@ -42,10 +42,11 @@ else
   pct=0
 fi
 
-# Parse JaCoCo LINE coverage from XML (counter type="LINE" missed="N" covered="M")
-coverage_pct="N/A"
+# Parse JaCoCo LINE/BRANCH coverage from XML
+line_coverage_pct="N/A"
+branch_coverage_pct="N/A"
 if [[ -n "$JACOCO_XML" && -f "$JACOCO_XML" ]]; then
-  # JaCoCo XML is often a single line; extract all LINE counters and take the last one
+  # JaCoCo XML is often a single line; extract all counters and take the last one
   # (report-level aggregate across all packages/classes).
   line_counter=$(grep -o '<counter type="LINE" missed="[0-9]*" covered="[0-9]*"/>' "$JACOCO_XML" | tail -1)
   if [[ -n "$line_counter" ]]; then
@@ -53,14 +54,29 @@ if [[ -n "$JACOCO_XML" && -f "$JACOCO_XML" ]]; then
     line_missed=$(echo "$line_counter" | sed -n 's/.*missed="\([0-9]*\)".*/\1/p'); line_missed=${line_missed:-0}
     line_total=$((line_covered + line_missed))
     if [[ "$line_total" -gt 0 ]]; then
-      coverage_pct=$((line_covered * 100 / line_total))
+      line_coverage_pct=$((line_covered * 100 / line_total))
+    fi
+  fi
+
+  branch_counter=$(grep -o '<counter type="BRANCH" missed="[0-9]*" covered="[0-9]*"/>' "$JACOCO_XML" | tail -1)
+  if [[ -n "$branch_counter" ]]; then
+    branch_covered=$(echo "$branch_counter" | sed -n 's/.*covered="\([0-9]*\)".*/\1/p'); branch_covered=${branch_covered:-0}
+    branch_missed=$(echo "$branch_counter" | sed -n 's/.*missed="\([0-9]*\)".*/\1/p'); branch_missed=${branch_missed:-0}
+    branch_total=$((branch_covered + branch_missed))
+    if [[ "$branch_total" -gt 0 ]]; then
+      branch_coverage_pct=$((branch_covered * 100 / branch_total))
     fi
   fi
 fi
 
-coverage_display="$coverage_pct"
-if [[ "$coverage_pct" =~ ^[0-9]+$ ]]; then
-  coverage_display="${coverage_pct}%"
+line_coverage_display="$line_coverage_pct"
+if [[ "$line_coverage_pct" =~ ^[0-9]+$ ]]; then
+  line_coverage_display="${line_coverage_pct}%"
+fi
+
+branch_coverage_display="$branch_coverage_pct"
+if [[ "$branch_coverage_pct" =~ ^[0-9]+$ ]]; then
+  branch_coverage_display="${branch_coverage_pct}%"
 fi
 
 line_limit_display="N/A"
@@ -83,9 +99,8 @@ SUMMARY="## $NAME — Tests & Coverage
 | Failed (failures) | $failed |
 | Errors | $errors |
 | Pass rate | $pct% |
-| Code coverage (LINE) | $coverage_display |
-| Coverage gate (LINE) | $line_limit_display |
-| Coverage gate (BRANCH) | $branch_limit_display |
+| Coverage (LINE / gate) | $line_coverage_display / $line_limit_display |
+| Coverage (BRANCH / gate) | $branch_coverage_display / $branch_limit_display |
 "
 if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
   echo "$SUMMARY" >> "$GITHUB_STEP_SUMMARY"

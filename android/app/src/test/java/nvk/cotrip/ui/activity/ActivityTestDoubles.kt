@@ -10,8 +10,8 @@ import nvk.cotrip.data.network.dto.CreateActivityRequest
 import nvk.cotrip.data.network.dto.ItineraryDayDto
 import nvk.cotrip.data.network.dto.MoveActivityRequest
 import nvk.cotrip.data.network.dto.PlaceSuggestionDto
-import nvk.cotrip.data.network.dto.TripDto
 import nvk.cotrip.data.network.dto.TrimOutOfRangeRequest
+import nvk.cotrip.data.network.dto.TripDto
 import nvk.cotrip.data.network.dto.UpdateActivityRequest
 import nvk.cotrip.data.network.dto.UpdateDayRequest
 import nvk.cotrip.data.repository.ItineraryRepository
@@ -92,6 +92,9 @@ internal class ActivityFakeItineraryRepository(
     val createActivityCalls = mutableListOf<Pair<String, CreateActivityRequest>>()
     val updateActivityCalls = mutableListOf<Pair<String, UpdateActivityRequest>>()
     val deleteActivityCalls = mutableListOf<String>()
+    var searchPlacesResult: List<PlaceSuggestionDto> = emptyList()
+    var searchPlacesToThrow: Throwable? = null
+    val searchPlacesCalls = mutableListOf<Triple<String, String, Int>>()
 
     override fun observeItinerary(tripId: String): Flow<List<ItineraryDayDto>> =
         itineraryByTripId.getOrPut(tripId) { MutableStateFlow(emptyList()) }
@@ -103,7 +106,15 @@ internal class ActivityFakeItineraryRepository(
 
     override suspend fun searchCities(tripId: String, query: String, limit: Int): List<CitySuggestionDto> = emptyList()
 
-    override suspend fun searchPlaces(tripId: String, query: String, limit: Int): List<PlaceSuggestionDto> = emptyList()
+    override suspend fun searchPlaces(
+        tripId: String,
+        query: String,
+        limit: Int
+    ): List<PlaceSuggestionDto> {
+        searchPlacesCalls += Triple(tripId, query, limit)
+        searchPlacesToThrow?.let { throw it }
+        return searchPlacesResult
+    }
 
     override suspend fun updateDay(dayId: String, request: UpdateDayRequest) = Unit
 

@@ -97,7 +97,7 @@ jobs:
             android/app/build/test-results/testDebugUnitTest \
             android/app/build/reports/jacoco/jacocoDebugUnitTestReport/jacocoDebugUnitTestReport.xml \
             50 \
-            30
+            40
 
       - name: Quality check
         working-directory: android

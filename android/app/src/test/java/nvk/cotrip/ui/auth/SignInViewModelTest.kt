@@ -5,10 +5,15 @@ import androidx.test.core.app.ApplicationProvider
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
+import nvk.cotrip.R
 import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.NetworkStateProvider
 import nvk.cotrip.data.network.dto.AuthResponse
@@ -20,6 +25,7 @@ import nvk.cotrip.testing.MainDispatcherRule
 import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.navigation.Destination
 import nvk.cotrip.ui.trip.details.TripDetailsFakeNavigator
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -47,7 +53,7 @@ class SignInViewModelTest {
         val authRepository = mockk<AuthRepository>()
         every { authRepository.hasSession() } returns true
         val navigator = TripDetailsFakeNavigator()
-        val viewModel = createViewModel(
+        createViewModel(
             appContext = ApplicationProvider.getApplicationContext(),
             navigator = navigator,
             authRepository = authRepository,
@@ -67,7 +73,7 @@ class SignInViewModelTest {
         val authRepository = mockk<AuthRepository>()
         every { authRepository.hasSession() } returns false
         val navigator = TripDetailsFakeNavigator()
-        val viewModel = createViewModel(
+        createViewModel(
             appContext = ApplicationProvider.getApplicationContext(),
             navigator = navigator,
             authRepository = authRepository,
@@ -132,6 +138,64 @@ class SignInViewModelTest {
 
         // THEN
         assertTrue(navigator.destinations.isEmpty())
+        assertTrue(!viewModel.uiState.value.isLoading)
+    }
+
+    @Test
+    fun given_offline_when_startGoogleSignIn_then_emitsNetworkErrorAndDoesNotLoad() = runTest {
+        // GIVEN
+        every { networkStateProvider.isOnline() } returns false
+        val authRepository = mockk<AuthRepository>()
+        every { authRepository.hasSession() } returns false
+        val navigator = TripDetailsFakeNavigator()
+        val viewModel = createViewModel(
+            appContext = ApplicationProvider.getApplicationContext(),
+            navigator = navigator,
+            authRepository = authRepository,
+        )
+        advanceUntilIdle()
+        val effects = mutableListOf<SignInEffect>()
+        val collectJob = launch(start = CoroutineStart.UNDISPATCHED) {
+            viewModel.effects.take(1).toList(effects)
+        }
+
+        // WHEN
+        viewModel.onEvent(SignInEvent.StartGoogleSignIn)
+        advanceUntilIdle()
+        collectJob.join()
+
+        // THEN
+        assertEquals(SignInEffect.ShowToastRes(R.string.common_error_network), effects.single())
+        assertTrue(!viewModel.uiState.value.isLoading)
+    }
+
+    @Test
+    fun given_loadingState_when_onGoogleSignInFailed_then_stopsLoadingAndEmitsMessage() = runTest {
+        // GIVEN
+        every { networkStateProvider.isOnline() } returns true
+        val authRepository = mockk<AuthRepository>()
+        every { authRepository.hasSession() } returns false
+        val navigator = TripDetailsFakeNavigator()
+        val viewModel = createViewModel(
+            appContext = ApplicationProvider.getApplicationContext(),
+            navigator = navigator,
+            authRepository = authRepository,
+        )
+        advanceUntilIdle()
+        viewModel.onEvent(SignInEvent.StartGoogleSignIn)
+        assertTrue(viewModel.uiState.value.isLoading)
+        val effects = mutableListOf<SignInEffect>()
+        val collectJob = launch(start = CoroutineStart.UNDISPATCHED) {
+            viewModel.effects.take(1).toList(effects)
+        }
+
+        // WHEN
+        viewModel.onEvent(SignInEvent.OnGoogleSignInFailed("custom fail"))
+        advanceUntilIdle()
+        collectJob.join()
+
+        // THEN
+        assertEquals(SignInEffect.ShowToast("custom fail"), effects.single())
         assertTrue(!viewModel.uiState.value.isLoading)
     }
 
