@@ -46,7 +46,7 @@
 Серверная часть CoTrip реализована в каталоге `backend/src/main/kotlin/nvk/cotrip/backend`.
 
 ### 2.1 Структура серверной части
-1. `routes` - HTTP API-маршруты (`auth`, `trips`, `ideas`, `itinerary`, `expenses`, `sync`, `notifications`).
+1. `routes` - HTTP API-маршруты (`auth`, `trips`, `members`, `invites`, `ideas`, `comments`, `itinerary`, `expenses`, `weather`, `ai`, `sync`, `notifications`).
 2. `db` - доступ к данным и репозитории предметных сущностей.
 3. `auth` - валидация токенов и управление сессиями.
 4. `ws` - WebSocket-канал для обсуждений идей.

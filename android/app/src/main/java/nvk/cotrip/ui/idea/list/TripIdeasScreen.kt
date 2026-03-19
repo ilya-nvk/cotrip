@@ -273,13 +273,17 @@ private fun IdeaCard(
         ) {
             IdeaMetaItem(
                 icon = CoTripIcons.Location,
-                text = idea.city
+                text = idea.city,
+                modifier = Modifier.weight(1f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
 
             idea.cost?.let {
                 IdeaMetaItem(
                     icon = CoTripIcons.AccountBalance,
-                    text = it
+                    text = it,
+                    maxLines = 1
                 )
             }
 
@@ -289,7 +293,8 @@ private fun IdeaCard(
                     text = stringResource(
                         R.string.ideas_comments_count,
                         idea.commentsCount
-                    )
+                    ),
+                    maxLines = 1
                 )
             }
         }
@@ -323,8 +328,12 @@ private fun IdeaCard(
 private fun IdeaMetaItem(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     text: String,
+    modifier: Modifier = Modifier,
+    maxLines: Int = 1,
+    overflow: TextOverflow = TextOverflow.Ellipsis,
 ) {
     Row(
+        modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x0_5)
     ) {
@@ -337,7 +346,9 @@ private fun IdeaMetaItem(
         Text(
             text = text,
             style = MaterialTheme.typography.bodySmall,
-            color = TextSecondary
+            color = TextSecondary,
+            maxLines = maxLines,
+            overflow = overflow
         )
     }
 }

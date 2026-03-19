@@ -1,14 +1,353 @@
-\documentclass[12pt, a4paper]{article}
+\documentclass[12pt,a4paper]{article}
 
-\usepackage[left=30mm, top=20mm, right=15mm, bottom=20mm]{geometry}
+\usepackage[left=30mm,top=20mm,right=15mm,bottom=33mm,includeheadfoot]{geometry}
 \usepackage[utf8]{inputenc}
-\usepackage[T2A,T1]{fontenc}
+\usepackage[T2A]{fontenc}
 \usepackage[russian,english]{babel}
-\usepackage{hyperref}
-\usepackage{markdown}
 \usepackage{setspace}
+\usepackage{indentfirst}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{multirow}
+\usepackage{makecell}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{xurl}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{lastpage}
+\usepackage[absolute,overlay]{textpos}
+
+\hypersetup{hidelinks}
 \onehalfspacing
+\setlength{\parindent}{1.25cm}
+\setlength{\headheight}{30pt}
+\setlength{\footskip}{72pt}
+\emergencystretch=3em
+\setlength{\TPHorizModule}{1mm}
+\setlength{\TPVertModule}{1mm}
+\textblockorigin{0mm}{0mm}
+
+\newcommand{\doccodebase}{RU.17701729.05.05-01 12 01-1}
+\newcommand{\doccode}{RU.17701729.05.05-01 12 01-1}
+\newcommand{\doccodeapproval}{RU.17701729.05.05-01 12 01-1-ЛУ}
+\newcommand{\doctitle}{Андроид-приложение для совместного планирования поездок}
+\newcommand{\doctype}{Текст программы}
+
+\titleformat{\section}{\large\bfseries\centering}{\thesection}{1em}{\MakeUppercase}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{1em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries}{\thesubsubsection}{1em}{}
+\titlespacing*{\section}{0pt}{1.5ex plus 0.5ex minus 0.3ex}{1.0ex}
+\titlespacing*{\subsection}{0pt}{1.2ex plus 0.4ex minus 0.2ex}{0.8ex}
+\titlespacing*{\subsubsection}{0pt}{1.0ex plus 0.3ex minus 0.2ex}{0.5ex}
+
+\setlist[enumerate]{leftmargin=1.2cm,itemsep=0.2em,topsep=0.3em}
+\setlist[itemize]{leftmargin=1.2cm,itemsep=0.2em,topsep=0.3em}
+
+\newcommand{\pagefooter}{%
+  \begingroup
+  \setlength{\tabcolsep}{3pt}%
+  \renewcommand{\arraystretch}{1.0}%
+  \footnotesize
+  \begin{tabularx}{\textwidth}{|>{\centering\arraybackslash}p{0.305\textwidth}|>{\centering\arraybackslash}p{0.14\textwidth}|>{\centering\arraybackslash}p{0.13\textwidth}|>{\centering\arraybackslash}p{0.125\textwidth}|>{\centering\arraybackslash}X|}
+    \hline
+    Изм. & Лист & № докум. & Подп. & Дата \\
+    \hline
+    \doccode & & & & \\
+    \hline
+    Инв.~№~подл. & Подп.~и~дата & Взам.~инв.~№ & Инв.~№~дубл. & Подп.~и~дата \\
+    \hline
+  \end{tabularx}
+  \endgroup
+}
+
+\fancypagestyle{tpstyle}{
+  \fancyhf{}
+  \fancyhead[C]{\textbf{\thepage}\\[-0.2ex]\textbf{\doccode}}
+  \fancyfoot[C]{\pagefooter}
+  \renewcommand{\headrulewidth}{0pt}
+  \renewcommand{\footrulewidth}{0pt}
+}
+
+\fancypagestyle{plain}{
+  \fancyhf{}
+  \fancyhead[C]{\textbf{\thepage}\\[-0.2ex]\textbf{\doccode}}
+  \fancyfoot[C]{\pagefooter}
+  \renewcommand{\headrulewidth}{0pt}
+  \renewcommand{\footrulewidth}{0pt}
+}
+
+\newcommand{\leftapprovalstamp}[1]{%
+  \begingroup
+  \renewcommand{\arraystretch}{1.0}
+  \setlength{\tabcolsep}{0pt}
+  \footnotesize
+  \begin{tabular}{|>{\centering\arraybackslash}m{0.65cm}|>{\centering\arraybackslash}m{1.05cm}|}
+    \hline
+    \rotatebox{90}{Подп. и дата} & \rule{0pt}{1.10cm}\\
+    \hline
+    \rotatebox{90}{Инв. № дубл.} & \rule{0pt}{1.00cm}\\
+    \hline
+    \rotatebox{90}{Взам. инв. №} & \rule{0pt}{1.00cm}\\
+    \hline
+    \rotatebox{90}{Подп. и дата} & \rule{0pt}{1.10cm}\\
+    \hline
+    \rotatebox{90}{Инв. № подл.} &
+    \rotatebox{90}{\scalebox{0.70}{#1}}\rule{0pt}{0.95cm}\\
+    \hline
+  \end{tabular}
+  \endgroup
+}
+
+\newcommand{\placestamp}[2]{%
+  \begin{textblock*}{19mm}(1mm,#2)
+    \leftapprovalstamp{#1}
+  \end{textblock*}
+}
+
+\newcommand{\registrationblankrow}{%
+  \rule{0pt}{0.78cm} & & & & & & & & & \\
+  \hline
+}
+
+\newcommand{\registrationtable}{%
+  \begingroup
+  \setlength{\tabcolsep}{2pt}%
+  \renewcommand{\arraystretch}{1.0}
+  \footnotesize
+  \centering
+  \begin{tabular}{|>{\centering\arraybackslash}p{0.75cm}|>{\centering\arraybackslash}p{1.55cm}|>{\centering\arraybackslash}p{1.55cm}|>{\centering\arraybackslash}p{1.55cm}|>{\centering\arraybackslash}p{1.7cm}|>{\centering\arraybackslash}p{1.9cm}|>{\centering\arraybackslash}p{2.2cm}|>{\centering\arraybackslash}p{2.4cm}|>{\centering\arraybackslash}p{1.0cm}|>{\centering\arraybackslash}p{1.0cm}|}
+    \hline
+    \multicolumn{10}{|c|}{\textbf{Лист регистрации изменений}}\\
+    \hline
+    \multicolumn{5}{|c|}{\makecell[c]{Номера листов\\(страниц)}} & & & & & \\
+    \hline
+    Изм. & \makecell{Изме-\\ненных} & \makecell{Заме-\\ненных} & Новых & \makecell{Аннулиро-\\ванных} &
+    \makecell[c]{Всего\\листов\\(страниц)\\в докум.} &
+    \makecell[c]{№\\документа} &
+    \makecell[c]{Входящий\\№\\сопроводит.\\документа\\и\\дата} &
+    \makecell[c]{Подп.} &
+    \makecell[c]{Дата} \\
+    \hline
+    \registrationblankrow
+    \registrationblankrow
+    \registrationblankrow
+    \registrationblankrow
+    \registrationblankrow
+    \registrationblankrow
+    \registrationblankrow
+    \registrationblankrow
+    \registrationblankrow
+    \registrationblankrow
+    \registrationblankrow
+    \registrationblankrow
+    \registrationblankrow
+    \registrationblankrow
+  \end{tabular}
+  \endgroup
+}
 
 \begin{document}
-\markdownInput{../tp_text_program.md}
+\hypersetup{pageanchor=false}
+\selectlanguage{russian}
+
+\thispagestyle{empty}
+\placestamp{\doccode}{146mm}
+\vspace*{-2.1cm}
+
+\begin{center}
+  {\small\textbf{ПРАВИТЕЛЬСТВО РОССИЙСКОЙ ФЕДЕРАЦИИ}}\\
+  {\small\textbf{ФЕДЕРАЛЬНОЕ ГОСУДАРСТВЕННОЕ АВТОНОМНОЕ}}\\
+  {\small\textbf{ОБРАЗОВАТЕЛЬНОЕ УЧРЕЖДЕНИЕ ВЫСШЕГО ОБРАЗОВАНИЯ}}\\
+  {\small\textbf{НАЦИОНАЛЬНЫЙ ИССЛЕДОВАТЕЛЬСКИЙ УНИВЕРСИТЕТ}}\\
+  {\small\textbf{«ВЫСШАЯ ШКОЛА ЭКОНОМИКИ»}}\\[0.35cm]
+  Факультет компьютерных наук\\
+  Образовательная программа «Программная инженерия»
+\end{center}
+
+\vspace{0.6cm}
+\noindent
+\begin{minipage}[t]{0.49\textwidth}
+  \centering
+  \textbf{СОГЛАСОВАНО}\\
+  Руководитель,\\
+  Доцент департамента «Программной инженерии»\\[0.55cm]
+  \underline{\hspace{2.7cm}} А.Д. Брейман\\
+  «\underline{\hspace{0.9cm}}» \underline{\hspace{2.1cm}} 2026 г.
+\end{minipage}\hfill
+\begin{minipage}[t]{0.49\textwidth}
+  \centering
+  \textbf{УТВЕРЖДАЮ}\\
+  Академический руководитель\\
+  образовательной программы\\
+  «Программная инженерия»,\\
+  старший преподаватель департамента\\
+  программной инженерии\\[0.2cm]
+  \underline{\hspace{2.7cm}} Н.А. Павлочев\\
+  «\underline{\hspace{0.9cm}}» \underline{\hspace{2.1cm}} 2026 г.
+\end{minipage}
+
+\vspace{0.75cm}
+\begin{center}
+  {\large\textbf{\doctitle}}\\[0.22cm]
+  {\large\textbf{\doctype}}\\[0.18cm]
+  {\large\textbf{ЛИСТ УТВЕРЖДЕНИЯ}}\\[0.18cm]
+  {\large\textbf{\doccodeapproval}}
+\end{center}
+
+\vspace{1.15cm}
+\begin{flushright}
+  Исполнитель:\\[0.25cm]
+  студент группы БПИ223\\[0.35cm]
+  \underline{\hspace{2.5cm}} И.И. Новик\\[0.25cm]
+  «\underline{\hspace{0.9cm}}» \underline{\hspace{2.8cm}} 2026 г.
+\end{flushright}
+
+\begin{textblock*}{\paperwidth}(0mm,281mm)
+  \centering{\large\textbf{2026}}
+\end{textblock*}
+\newpage
+
+\thispagestyle{empty}
+\placestamp{\doccodeapproval}{144mm}
+\vspace*{-0.6cm}
+
+\begin{flushleft}
+  \textbf{УТВЕРЖДЕН}\\[0.2cm]
+  \textbf{\doccodeapproval}
+\end{flushleft}
+
+\vspace{1.4cm}
+\begin{center}
+  {\large\textbf{\doctitle}}\\[0.22cm]
+  {\Large\textbf{\doctype}}\\[0.22cm]
+  {\Large\textbf{\doccode}}\\[0.2cm]
+  {\Large\textbf{Листов \pageref{lastnumberedpage}}}
+\end{center}
+
+\begin{textblock*}{\paperwidth}(0mm,281mm)
+  \centering{\large\textbf{2026}}
+\end{textblock*}
+
+\clearpage
+\hypersetup{pageanchor=true}
+\setcounter{page}{2}
+\pagestyle{tpstyle}
+\tableofcontents
+\clearpage
+
+\section*{ТЕКСТ ПРОГРАММЫ}
+\addcontentsline{toc}{section}{ТЕКСТ ПРОГРАММЫ}
+
+\subsection*{1 Клиентская часть}
+Клиентская часть CoTrip реализована в каталоге \path{android/app/src/main/java/nvk/cotrip}.
+Исходный код опубликован в репозитории \url{https://github.com/ilya-nvk/cotrip}.
+
+\subsubsection*{1.1 Структура клиентской части}
+\begin{enumerate}
+  \item \texttt{ui} --- экраны и пользовательские сценарии (авторизация, поездки, идеи, маршрут, расходы, настройки, погода, рекомендации ИИ).
+  \item \texttt{data/repository} --- прикладная логика сценариев и координация источников данных.
+  \item \texttt{data/network} --- API-клиенты, перехватчики, сетевые модели.
+  \item \texttt{data/cache} --- локальные кэш-хранилища клиентских сущностей.
+  \item \texttt{data/sync} --- офлайн-очередь и синхронизация после восстановления сети.
+  \item \texttt{notifications} --- обработка уведомлений и переходов по событиям.
+  \item \texttt{di} --- конфигурация внедрения зависимостей.
+\end{enumerate}
+
+\subsubsection*{1.2 Основные библиотеки клиентской части}
+\begin{enumerate}
+  \item Kotlin.
+  \item Jetpack Compose.
+  \item AndroidX Navigation.
+  \item Hilt/Dagger.
+  \item Retrofit + OkHttp + Kotlinx Serialization.
+  \item Room.
+  \item WorkManager.
+  \item Firebase Cloud Messaging SDK.
+\end{enumerate}
+
+\subsubsection*{1.3 Ссылки на исходный код клиентской части}
+\begin{enumerate}
+  \item Общий репозиторий: \url{https://github.com/ilya-nvk/cotrip}
+  \item Клиентский код: \url{https://github.com/ilya-nvk/cotrip/tree/main/android/app/src/main/java/nvk/cotrip}
+\end{enumerate}
+
+\subsection*{2 Серверная часть}
+Серверная часть CoTrip реализована в каталоге \path{backend/src/main/kotlin/nvk/cotrip/backend}.
+
+\subsubsection*{2.1 Структура серверной части}
+\begin{enumerate}
+  \item \texttt{routes} --- HTTP API-маршруты (\texttt{auth}, \texttt{trips}, \texttt{ideas}, \texttt{itinerary}, \texttt{expenses}, \texttt{sync}, \texttt{notifications}).
+  \item \texttt{db} --- доступ к данным и репозитории предметных сущностей.
+  \item \texttt{auth} --- валидация токенов и управление сессиями.
+  \item \texttt{ws} --- WebSocket-канал для обсуждений идей.
+  \item \texttt{integrations} --- внешние интеграции (погода, AI).
+  \item \texttt{notifications} --- серверная публикация push-событий.
+  \item \texttt{plugins} --- конфигурация Ktor (сериализация, маршрутизация, обработка ошибок, безопасность).
+\end{enumerate}
+
+\subsubsection*{2.2 Основные библиотеки серверной части}
+\begin{enumerate}
+  \item Kotlin.
+  \item Ktor.
+  \item PostgreSQL JDBC.
+  \item Kotlinx Serialization.
+  \item Firebase Admin SDK.
+\end{enumerate}
+
+\subsubsection*{2.3 Ссылки на исходный код серверной части}
+\begin{enumerate}
+  \item Серверный код: \url{https://github.com/ilya-nvk/cotrip/tree/main/backend/src/main/kotlin/nvk/cotrip/backend}
+  \item API-маршруты: \url{https://github.com/ilya-nvk/cotrip/tree/main/backend/src/main/kotlin/nvk/cotrip/backend/routes}
+\end{enumerate}
+
+\clearpage
+\section*{СПИСОК ИСТОЧНИКОВ}
+\addcontentsline{toc}{section}{СПИСОК ИСТОЧНИКОВ}
+\begin{enumerate}
+  \item ГОСТ 19.101-77: Виды программ и программных документов. // Единая система программной документации. --- М.: ИПК Издательство стандартов, 2001.
+  \item ГОСТ 19.102-77: Стадии разработки. // Единая система программной документации. --- М.: ИПК Издательство стандартов, 2001.
+  \item ГОСТ 19.103-77: Обозначения программ и программных документов. // Единая система программной документации. --- М.: ИПК Издательство стандартов, 2001.
+  \item ГОСТ 19.104-78: Основные надписи. // Единая система программной документации. --- М.: ИПК Издательство стандартов, 2001.
+  \item ГОСТ 19.105-78: Общие требования к программным документам. // Единая система программной документации. --- М.: ИПК Издательство стандартов, 2001.
+  \item ГОСТ 19.106-78: Требования к программным документам, выполненным печатным способом. // Единая система программной документации. --- М.: ИПК Издательство стандартов, 2001.
+  \item ГОСТ 19.602-78: Правила дублирования, учета и хранения программных документов, выполненных печатным способом. // Единая система программной документации. --- М.: ИПК Издательство стандартов, 2001.
+  \item ГОСТ 19.603-78: Общие правила внесения изменений. // Единая система программной документации. --- М.: ИПК Издательство стандартов, 2001.
+  \item GitHub-репозиторий проекта CoTrip. [Электронный ресурс] --- URL: \url{https://github.com/ilya-nvk/cotrip} режим доступа: свободный (дата обращения: 19.03.2026).
+  \item GitHub-репозиторий с текстом клиентской части. [Электронный ресурс] --- URL: \url{https://github.com/ilya-nvk/cotrip/tree/main/android/app/src/main/java/nvk/cotrip} режим доступа: свободный (дата обращения: 19.03.2026).
+  \item GitHub-репозиторий с текстом серверной части. [Электронный ресурс] --- URL: \url{https://github.com/ilya-nvk/cotrip/tree/main/backend/src/main/kotlin/nvk/cotrip/backend} режим доступа: свободный (дата обращения: 19.03.2026).
+  \item GitHub-репозиторий с текстом клиентских экранов. [Электронный ресурс] --- URL: \url{https://github.com/ilya-nvk/cotrip/tree/main/android/app/src/main/java/nvk/cotrip/ui} режим доступа: свободный (дата обращения: 19.03.2026).
+  \item GitHub-репозиторий с текстом API-маршрутов сервера. [Электронный ресурс] --- URL: \url{https://github.com/ilya-nvk/cotrip/tree/main/backend/src/main/kotlin/nvk/cotrip/backend/routes} режим доступа: свободный (дата обращения: 19.03.2026).
+  \item Kotlin Documentation. [Электронный ресурс] --- URL: \url{https://kotlinlang.org/docs/home.html} режим доступа: свободный (дата обращения: 19.03.2026).
+  \item Android Developers: Jetpack Compose. [Электронный ресурс] --- URL: \url{https://developer.android.com/compose} режим доступа: свободный (дата обращения: 19.03.2026).
+  \item Android Developers: Navigation Compose. [Электронный ресурс] --- URL: \url{https://developer.android.com/develop/ui/compose/navigation} режим доступа: свободный (дата обращения: 19.03.2026).
+  \item Android Developers: Hilt. [Электронный ресурс] --- URL: \url{https://developer.android.com/training/dependency-injection/hilt-android} режим доступа: свободный (дата обращения: 19.03.2026).
+  \item Dagger Hilt Documentation. [Электронный ресурс] --- URL: \url{https://dagger.dev/hilt/} режим доступа: свободный (дата обращения: 19.03.2026).
+  \item Retrofit Documentation. [Электронный ресурс] --- URL: \url{https://square.github.io/retrofit/} режим доступа: свободный (дата обращения: 19.03.2026).
+  \item OkHttp Documentation. [Электронный ресурс] --- URL: \url{https://square.github.io/okhttp/} режим доступа: свободный (дата обращения: 19.03.2026).
+  \item Kotlinx Serialization Documentation. [Электронный ресурс] --- URL: \url{https://github.com/Kotlin/kotlinx.serialization} режим доступа: свободный (дата обращения: 19.03.2026).
+  \item Android Developers: Room. [Электронный ресурс] --- URL: \url{https://developer.android.com/training/data-storage/room} режим доступа: свободный (дата обращения: 19.03.2026).
+  \item Android Developers: WorkManager. [Электронный ресурс] --- URL: \url{https://developer.android.com/topic/libraries/architecture/workmanager} режим доступа: свободный (дата обращения: 19.03.2026).
+  \item Firebase Cloud Messaging. [Электронный ресурс] --- URL: \url{https://firebase.google.com/docs/cloud-messaging} режим доступа: свободный (дата обращения: 19.03.2026).
+  \item Firebase Admin SDK Documentation. [Электронный ресурс] --- URL: \url{https://firebase.google.com/docs/admin/setup} режим доступа: свободный (дата обращения: 19.03.2026).
+  \item Ktor Documentation. [Электронный ресурс] --- URL: \url{https://ktor.io/docs/} режим доступа: свободный (дата обращения: 19.03.2026).
+  \item PostgreSQL Documentation. [Электронный ресурс] --- URL: \url{https://www.postgresql.org/docs/} режим доступа: свободный (дата обращения: 19.03.2026).
+  \item OpenWeather API Documentation. [Электронный ресурс] --- URL: \url{https://openweathermap.org/api} режим доступа: свободный (дата обращения: 19.03.2026).
+  \item Yandex Cloud AI Documentation. [Электронный ресурс] --- URL: \url{https://yandex.cloud/ru/docs/foundation-models/} режим доступа: свободный (дата обращения: 19.03.2026).
+\end{enumerate}
+
+\clearpage
+\thispagestyle{empty}
+\phantomsection
+\addcontentsline{toc}{section}{Лист регистрации изменений}
+\vspace*{-1.1cm}
+\begin{center}
+  {\Large\textbf{ЛИСТ РЕГИСТРАЦИИ ИЗМЕНЕНИЙ}}
+\end{center}
+\vspace{0.35cm}
+\registrationtable
+
+\label{lastnumberedpage}
 \end{document}

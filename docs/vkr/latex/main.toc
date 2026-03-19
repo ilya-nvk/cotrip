@@ -19,6 +19,9 @@
 \contentsline {section}{\numberline {3}Проектирование системы}{12}{section.3}%
 \contentsline {subsection}{\numberline {3.1}Пользовательские сценарии}{12}{subsection.3.1}%
 \contentsline {subsection}{\numberline {3.2}Архитектура системы}{13}{subsection.3.2}%
+\contentsline {subsubsection}{\numberline {3.2.1}Архитектура клиентской части}{13}{subsubsection.3.2.1}%
+\contentsline {subsubsection}{\numberline {3.2.2}Архитектура серверной части}{14}{subsubsection.3.2.2}%
+\contentsline {subsubsection}{\numberline {3.2.3}Взаимодействие клиента и сервера}{14}{subsubsection.3.2.3}%
 \contentsline {subsection}{\numberline {3.3}Модель данных и связи сущностей}{15}{subsection.3.3}%
 \contentsline {subsection}{\numberline {3.4}Подсистемы и функциональное назначение}{15}{subsection.3.4}%
 \contentsline {subsection}{\numberline {3.5}Выбор методов и средств реализации}{16}{subsection.3.5}%
@@ -26,8 +29,9 @@
 \contentsline {subsubsection}{\numberline {3.5.2}Хранилище данных}{17}{subsubsection.3.5.2}%
 \contentsline {subsubsection}{\numberline {3.5.3}Клиентская часть}{17}{subsubsection.3.5.3}%
 \contentsline {subsubsection}{\numberline {3.5.4}Интеграционные компоненты}{18}{subsubsection.3.5.4}%
-\contentsline {subsection}{\numberline {3.6}Нефункциональные решения}{18}{subsection.3.6}%
-\contentsline {subsection}{\numberline {3.7}Выводы по главе}{19}{subsection.3.7}%
+\contentsline {subsubsection}{\numberline {3.5.5}Обоснование выбранных паттернов}{18}{subsubsection.3.5.5}%
+\contentsline {subsection}{\numberline {3.6}Нефункциональные решения}{19}{subsection.3.6}%
+\contentsline {subsection}{\numberline {3.7}Выводы по главе}{20}{subsection.3.7}%
 \contentsline {section}{\numberline {4}Программная реализация системы}{21}{section.4}%
 \contentsline {subsection}{\numberline {4.1}Реализация подсистемы авторизации и профиля}{22}{subsection.4.1}%
 \contentsline {subsubsection}{\numberline {4.1.1}Реализация на клиенте}{22}{subsubsection.4.1.1}%
@@ -46,7 +50,7 @@
 \contentsline {subsubsection}{\numberline {4.3.4}Результат для пользователя}{26}{subsubsection.4.3.4}%
 \contentsline {subsection}{\numberline {4.4}Реализация подсистемы расходов и балансов}{27}{subsection.4.4}%
 \contentsline {subsubsection}{\numberline {4.4.1}Реализация на клиенте}{27}{subsubsection.4.4.1}%
-\contentsline {subsubsection}{\numberline {4.4.2}Реализация на сервере}{28}{subsubsection.4.4.2}%
+\contentsline {subsubsection}{\numberline {4.4.2}Реализация на сервере}{27}{subsubsection.4.4.2}%
 \contentsline {subsubsection}{\numberline {4.4.3}Пользовательский поток (владелец/участник)}{28}{subsubsection.4.4.3}%
 \contentsline {subsubsection}{\numberline {4.4.4}Результат для пользователя}{28}{subsubsection.4.4.4}%
 \contentsline {subsection}{\numberline {4.5}Реализация подсистем погоды, AI-подсказок и уведомлений}{29}{subsection.4.5}%
@@ -55,17 +59,13 @@
 \contentsline {subsubsection}{\numberline {4.5.3}Пользовательский поток (владелец/участник)}{30}{subsubsection.4.5.3}%
 \contentsline {subsubsection}{\numberline {4.5.4}Результат для пользователя}{30}{subsubsection.4.5.4}%
 \contentsline {subsection}{\numberline {4.6}Реализация офлайн-режима и синхронизации}{30}{subsection.4.6}%
-\contentsline {subsubsection}{\numberline {4.6.1}Реализация на клиенте}{30}{subsubsection.4.6.1}%
-\contentsline {subsubsection}{\numberline {4.6.2}Реализация на сервере}{30}{subsubsection.4.6.2}%
-\contentsline {subsubsection}{\numberline {4.6.3}Пользовательский поток (владелец/участник)}{31}{subsubsection.4.6.3}%
-\contentsline {subsubsection}{\numberline {4.6.4}Результат для пользователя}{31}{subsubsection.4.6.4}%
-\contentsline {subsection}{\numberline {4.7}Проверка сквозных пользовательских сценариев}{32}{subsection.4.7}%
-\contentsline {subsection}{\numberline {4.8}Автоматизированное тестирование и анализ покрытия}{36}{subsection.4.8}%
-\contentsline {subsubsection}{\numberline {4.8.1}Пошаговый запуск проверок (для внешнего проверяющего)}{36}{subsubsection.4.8.1}%
-\contentsline {subsubsection}{\numberline {4.8.2}Методика расчета коэффициента покрытия}{37}{subsubsection.4.8.2}%
-\contentsline {subsubsection}{\numberline {4.8.3}Контур файлов и причины исключений из расчета покрытия}{37}{subsubsection.4.8.3}%
-\contentsline {subsubsection}{\numberline {4.8.4}Фактические результаты}{39}{subsubsection.4.8.4}%
-\contentsline {subsubsection}{\numberline {4.8.5}Интерпретация результатов}{39}{subsubsection.4.8.5}%
-\contentsline {subsection}{\numberline {4.9}Выводы по главе}{40}{subsection.4.9}%
-\contentsline {section}{\numberline {5}Заключение}{41}{section.5}%
-\contentsline {section}{Список источников}{42}{section.5}%
+\contentsline {subsection}{\numberline {4.7}Проверка сквозных пользовательских сценариев}{30}{subsection.4.7}%
+\contentsline {subsection}{\numberline {4.8}Автоматизированное тестирование и анализ покрытия}{33}{subsection.4.8}%
+\contentsline {subsubsection}{\numberline {4.8.1}Пошаговый запуск проверок (для внешнего проверяющего)}{33}{subsubsection.4.8.1}%
+\contentsline {subsubsection}{\numberline {4.8.2}Методика расчета коэффициента покрытия}{34}{subsubsection.4.8.2}%
+\contentsline {subsubsection}{\numberline {4.8.3}Контур файлов и причины исключений из расчета покрытия}{34}{subsubsection.4.8.3}%
+\contentsline {subsubsection}{\numberline {4.8.4}Фактические результаты}{36}{subsubsection.4.8.4}%
+\contentsline {subsubsection}{\numberline {4.8.5}Интерпретация результатов}{36}{subsubsection.4.8.5}%
+\contentsline {subsection}{\numberline {4.9}Выводы по главе}{37}{subsection.4.9}%
+\contentsline {section}{\numberline {5}Заключение}{38}{section.5}%
+\contentsline {section}{Список источников}{39}{section.5}%
