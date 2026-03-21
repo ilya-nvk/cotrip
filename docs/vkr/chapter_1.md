@@ -138,8 +138,8 @@ RUSSPASS позиционируется как сервис для турист�
 
 [6] RUSSPASS (Google Play). URL: https://play.google.com/store/apps/details?id=ru.russpass.tourist (дата обращения: 15.03.2026).
 
-[7] Техническое задание проекта (финализированная редакция): `docs/kt1_tz_final.md`.
+[7] Техническое задание.
 
-[8] Проектное предложение (project proposal essay draft): `docs/project-proposal/project_proposal_essay_draft.md`.
+[8] Проектное предложение.
 
-[9] README проекта: `README.md`.
+[9] Текст программы.

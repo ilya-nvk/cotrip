@@ -1,0 +1,5 @@
+\babel@toc {english}{}\relax 
+\babel@toc {russian}{}\relax 
+\contentsline {section}{ТЕКСТ ПРОГРАММЫ}{3}{Doc-Start}%
+\contentsline {section}{СПИСОК ИСТОЧНИКОВ}{5}{Item.31}%
+\contentsline {section}{Лист регистрации изменений}{8}{section*.1}%

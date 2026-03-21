@@ -5,25 +5,32 @@
 \usepackage[utf8]{inputenc}
 \usepackage[T2A,T1]{fontenc}
 \usepackage[english,russian]{babel}
-\usepackage{amsmath, amsfonts, amssymb}
+\usepackage{amsmath, amsfonts, amssymb} 
 \usepackage{graphicx}
-\usepackage{indentfirst}
+\usepackage{indentfirst} 
 \usepackage{setspace}
 \usepackage{hyperref}
+\usepackage{xurl}
 \usepackage{caption}
 \usepackage{float}
-\usepackage{graphicx}
-\usepackage{float}
+\usepackage[bottom]{footmisc}
+\usepackage{tabularx}
+\usepackage{array}
 
-\onehalfspacing
+\onehalfspacing 
 
 \usepackage{titlesec}
-\titleformat{\section}{\large\bfseries\centering}{\thesection}{1em}{}
-\titleformat{\subsection}{\normalsize\bfseries\centering}{\thesubsection}{1em}{}
-\titleformat{\subsubsection}{\normalsize\bfseries\centering}{\thesubsubsection}{1em}{}
+\titleformat{\section}{\large\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{1em}{}
+\numberwithin{figure}{section}
+\newcommand{\sref}[1]{\hyperlink{src:#1}{[#1]}}
 
 \begin{document}
 \input{chapters/titlepage}
+\newpage
+
+\tableofcontents
+\newpage
 
 % РЕФЕРАТ
 \input{chapters/abstract_ru}
@@ -35,9 +42,6 @@
 
 % ОПРЕДЕЛЕНИЯ И СОКРАЩЕНИЯ
 \input{chapters/terms}
-\newpage
-
-\tableofcontents
 \newpage
 
 % ВВЕДЕНИЕ

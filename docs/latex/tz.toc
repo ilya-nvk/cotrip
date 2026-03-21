@@ -1,0 +1,38 @@
+\babel@toc {english}{}\relax 
+\babel@toc {russian}{}\relax 
+\contentsline {section}{АННОТАЦИЯ}{4}{Doc-Start}%
+\contentsline {section}{ГЛОССАРИЙ}{5}{Item.8}%
+\contentsline {section}{\numberline {1}Введение}{6}{section.1}%
+\contentsline {subsection}{\numberline {1.1}Наименование программы}{6}{subsection.1.1}%
+\contentsline {subsection}{\numberline {1.2}Область применения}{6}{subsection.1.2}%
+\contentsline {section}{\numberline {2}Основания для разработки}{7}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Документ, на основании которого ведется разработка}{7}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}Наименование темы разработки}{7}{subsection.2.2}%
+\contentsline {section}{\numberline {3}Назначение разработки}{8}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Функциональное назначение}{8}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}Эксплуатационное назначение}{8}{subsection.3.2}%
+\contentsline {section}{\numberline {4}Требования к программе}{9}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Функциональные требования}{9}{subsection.4.1}%
+\contentsline {subsubsection}{\numberline {4.1.1}Авторизация и профиль}{9}{subsubsection.4.1.1}%
+\contentsline {subsubsection}{\numberline {4.1.2}Поездки}{9}{subsubsection.4.1.2}%
+\contentsline {subsubsection}{\numberline {4.1.3}Приглашения и присоединение}{10}{subsubsection.4.1.3}%
+\contentsline {subsubsection}{\numberline {4.1.4}Идеи и обсуждения}{10}{subsubsection.4.1.4}%
+\contentsline {subsubsection}{\numberline {4.1.5}Маршрут}{11}{subsubsection.4.1.5}%
+\contentsline {subsubsection}{\numberline {4.1.6}Расходы и баланс}{11}{subsubsection.4.1.6}%
+\contentsline {subsubsection}{\numberline {4.1.7}Погода}{11}{subsubsection.4.1.7}%
+\contentsline {subsubsection}{\numberline {4.1.8}Подсказки ИИ}{12}{subsubsection.4.1.8}%
+\contentsline {subsubsection}{\numberline {4.1.9}Настройки уведомлений}{12}{subsubsection.4.1.9}%
+\contentsline {subsubsection}{\numberline {4.1.10}Офлайн-поведение}{12}{subsubsection.4.1.10}%
+\contentsline {subsubsection}{\numberline {4.1.11}Локализация интерфейса}{13}{subsubsection.4.1.11}%
+\contentsline {subsection}{\numberline {4.2}Временные характеристики}{13}{subsection.4.2}%
+\contentsline {subsection}{\numberline {4.3}Надежность}{13}{subsection.4.3}%
+\contentsline {subsection}{\numberline {4.4}Условия эксплуатации}{13}{subsection.4.4}%
+\contentsline {section}{\numberline {5}Требования к программной документации}{14}{section.5}%
+\contentsline {section}{\numberline {6}Технико-экономические показатели}{15}{section.6}%
+\contentsline {subsection}{\numberline {6.1}Ориентировочная экономическая эффективность}{15}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}Предполагаемая годовая потребность}{15}{subsection.6.2}%
+\contentsline {subsection}{\numberline {6.3}Экономические преимущества разработки по сравнению с лучшими отечественными и зарубежными образцами или аналогами}{15}{subsection.6.3}%
+\contentsline {section}{\numberline {7}Стадии разработки}{17}{section.7}%
+\contentsline {section}{\numberline {8}Порядок контроля и приемки}{19}{section.8}%
+\contentsline {subsection}{\numberline {8.1}Виды испытаний}{19}{subsection.8.1}%
+\contentsline {section}{ПРИЛОЖЕНИЕ 1}{20}{subsection.8.1}%

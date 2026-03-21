@@ -64,6 +64,28 @@ kotlin {
 
 tasks.test {
     useJUnitPlatform()
+    val isCi = System.getenv("CI")?.equals("true", ignoreCase = true) == true
+    val runContainerTests = (
+        project.findProperty("runContainerTests") as String?
+            ?: System.getenv("RUN_CONTAINER_TESTS")
+    )?.equals("true", ignoreCase = true) == true || isCi
+
+    useJUnitPlatform {
+        if (!runContainerTests) {
+            excludeTags("container")
+        }
+    }
+
+    doFirst {
+        logger.lifecycle(
+            if (runContainerTests) {
+                "Container-backed integration tests are enabled."
+            } else {
+                "Container-backed integration tests are disabled (set -PrunContainerTests=true or RUN_CONTAINER_TESTS=true to enable)."
+            }
+        )
+    }
+
     finalizedBy("jacocoTestReport")
     // In CI, run test classes sequentially to avoid exhausting Postgres max_connections
     // (all integration tests share one Testcontainers instance; each test app opens a connection pool).
