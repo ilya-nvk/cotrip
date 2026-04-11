@@ -229,6 +229,16 @@ private fun TripFormScreen(
                     modifier = Modifier.fillMaxWidth()
                 )
 
+                state.inlineErrorRes?.let { inlineError ->
+                    Spacer(Modifier.height(CoTripTokens.spacing.x1))
+                    Text(
+                        text = stringResource(inlineError),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
                 Spacer(Modifier.height(CoTripTokens.spacing.x2))
 
                 TertiaryTextButton(
@@ -296,6 +306,26 @@ private fun TripFormScreen(
                         valueText = formatDateOrPlaceholder(state.endDate),
                         onClick = onEndDateClick,
                         modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+
+            state.startDateErrorRes?.let { startDateError ->
+                item {
+                    Text(
+                        text = stringResource(startDateError),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
+
+            state.endDateErrorRes?.let { endDateError ->
+                item {
+                    Text(
+                        text = stringResource(endDateError),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
                     )
                 }
             }

@@ -130,7 +130,6 @@ class ActivityDetailsViewModel @Inject constructor(
                 itineraryRepository.deleteActivity(activityId)
             }) {
                 is ApiResult.Success -> {
-                    emitToast(R.string.activity_details_deleted_toast)
                     appNavigator.popBackStack()
                 }
 

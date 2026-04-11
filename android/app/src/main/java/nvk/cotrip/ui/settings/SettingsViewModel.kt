@@ -293,7 +293,6 @@ class SettingsViewModel @Inject constructor(
             when (result) {
                 is ApiResult.Success -> {
                     userRepository.clearSession()
-                    emit(SettingsEffect.ShowToastRes(R.string.settings_profile_deleted_toast))
                     appNavigator.navigate(Destination.SignIn) {
                         popUpTo(Destination.Trips.route) { inclusive = true }
                         launchSingleTop = true
@@ -330,7 +329,6 @@ class SettingsViewModel @Inject constructor(
                             canSave = canSaveProfileChanges(updatedProfile.name, updatedProfile.photoUrl)
                         )
                     }
-                    emit(SettingsEffect.ShowToastRes(R.string.settings_photo_changed_toast))
                 }
 
                 is ApiResult.Failure -> {

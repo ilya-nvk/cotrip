@@ -46,7 +46,7 @@ class TripForecastViewModel @Inject constructor(
     val effects = _effects.asSharedFlow()
 
     init {
-        refreshForecast(isUserRefresh = false, forceRefresh = true)
+        refreshForecast(isUserRefresh = false, forceRefresh = true, showErrorToast = false)
     }
 
     fun onEvent(event: TripForecastEvent) {
@@ -54,9 +54,13 @@ class TripForecastViewModel @Inject constructor(
             TripForecastEvent.OnBackClick -> appNavigator.popBackStack()
             TripForecastEvent.OnAutoRefresh -> refreshForecast(
                 isUserRefresh = false,
-                forceRefresh = true
+                forceRefresh = true,
+                showErrorToast = false,
             )
-            TripForecastEvent.OnUserRefresh -> refreshForecast(isUserRefresh = true)
+            TripForecastEvent.OnUserRefresh -> refreshForecast(
+                isUserRefresh = true,
+                showErrorToast = true,
+            )
             TripForecastEvent.OnCityClick -> {
                 val current = _state.value as? TripForecastState.Content ?: return
                 if (current.cityOptions.size > 1) {
@@ -74,7 +78,11 @@ class TripForecastViewModel @Inject constructor(
                     city = event.city,
                     isCityPickerVisible = false,
                 )
-                refreshForecast(isUserRefresh = false, forceRefresh = true)
+                refreshForecast(
+                    isUserRefresh = false,
+                    forceRefresh = true,
+                    showErrorToast = true,
+                )
             }
         }
     }
@@ -82,6 +90,7 @@ class TripForecastViewModel @Inject constructor(
     private fun refreshForecast(
         isUserRefresh: Boolean,
         forceRefresh: Boolean = false,
+        showErrorToast: Boolean = false,
     ) {
         viewModelScope.launch {
             val current = _state.value as? TripForecastState.Content
@@ -162,7 +171,9 @@ class TripForecastViewModel @Inject constructor(
                     if (latest != null) {
                         _state.value = latest.copy(isRefreshing = false)
                     }
-                    emitToast(uiErrorMapper.messageRes(result))
+                    if (showErrorToast) {
+                        emitToast(uiErrorMapper.messageRes(result))
+                    }
                 }
             }
         }

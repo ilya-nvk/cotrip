@@ -334,7 +334,9 @@ class TripDetailsViewModel @Inject constructor(
                         "refreshTripData failed for tripId=$tripId code=${result.httpCode} apiCode=${result.error?.code.orEmpty()}",
                         result.cause
                     )
-                    emitToast(uiErrorMapper.messageRes(result))
+                    if (isUserRefresh) {
+                        emitToast(uiErrorMapper.messageRes(result))
+                    }
                 }
             }
         }

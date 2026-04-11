@@ -231,7 +231,6 @@ class EditExpenseViewModel @Inject constructor(
                 )
             }) {
                 is ApiResult.Success -> {
-                    emit(ExpenseFormEffect.ShowToastRes(R.string.expense_form_saved_toast))
                     appNavigator.popBackStack()
                 }
 
@@ -249,7 +248,6 @@ class EditExpenseViewModel @Inject constructor(
                 expenseRepository.deleteExpense(expenseId)
             }) {
                 is ApiResult.Success -> {
-                    emit(ExpenseFormEffect.ShowToastRes(R.string.expense_form_deleted_toast))
                     appNavigator.popBackStack()
                 }
 

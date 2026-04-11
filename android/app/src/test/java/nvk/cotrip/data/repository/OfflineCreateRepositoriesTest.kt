@@ -5,16 +5,19 @@ import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import io.mockk.coEvery
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
+import nvk.cotrip.data.auth.SessionCleaner
 import nvk.cotrip.data.cache.ExpensesCacheStore
 import nvk.cotrip.data.cache.IdeaCommentsCacheStore
 import nvk.cotrip.data.cache.IdeasCacheStore
 import nvk.cotrip.data.cache.ItineraryCacheStore
+import nvk.cotrip.data.cache.NotificationsCacheStore
 import nvk.cotrip.data.cache.TripMembersCacheStore
 import nvk.cotrip.data.cache.TripsCacheStore
 import nvk.cotrip.data.cache.UserCacheStore
@@ -22,21 +25,30 @@ import nvk.cotrip.data.network.CoTripApi
 import nvk.cotrip.data.network.NetworkStateProvider
 import nvk.cotrip.data.network.dto.ActivityDto
 import nvk.cotrip.data.network.dto.CommentDto
+import nvk.cotrip.data.network.dto.ConvertIdeaRequest
 import nvk.cotrip.data.network.dto.CreateActivityRequest
 import nvk.cotrip.data.network.dto.CreateIdeaRequest
 import nvk.cotrip.data.network.dto.CreateTripRequest
 import nvk.cotrip.data.network.dto.ExpenseCreateRequest
 import nvk.cotrip.data.network.dto.ExpenseDto
+import nvk.cotrip.data.network.dto.ExpenseParticipantDto
 import nvk.cotrip.data.network.dto.ExpenseParticipantInput
+import nvk.cotrip.data.network.dto.ExpenseUpdateRequest
 import nvk.cotrip.data.network.dto.IdeaDto
 import nvk.cotrip.data.network.dto.ItineraryDayDto
 import nvk.cotrip.data.network.dto.MemberDto
+import nvk.cotrip.data.network.dto.NotificationDto
+import nvk.cotrip.data.network.dto.NotificationSettingDto
+import nvk.cotrip.data.network.dto.TrimOutOfRangeRequest
 import nvk.cotrip.data.network.dto.TripDto
+import nvk.cotrip.data.network.dto.UpdateTripRequest
+import nvk.cotrip.data.network.dto.UpdateUserRequest
 import nvk.cotrip.data.network.dto.UserDto
 import nvk.cotrip.data.sync.CoTripDatabase
 import nvk.cotrip.data.sync.SyncEntities
 import nvk.cotrip.data.sync.SyncQueueRepository
 import nvk.cotrip.data.sync.SyncScheduler
+import nvk.cotrip.notifications.PushTokenSyncManager
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -132,6 +144,7 @@ class OfflineCreateRepositoriesTest {
             syncQueueRepository = queue,
             ideasCacheStore = ideasStore,
             commentsCacheStore = FakeIdeaCommentsCacheStore(),
+            itineraryCacheStore = FakeItineraryCacheStore(),
             userCacheStore = userStore,
             networkStateProvider = networkStateProvider,
         )
@@ -260,6 +273,425 @@ class OfflineCreateRepositoriesTest {
         assertEquals(SyncEntities.ACTIVITY, pending.first().entity)
         assertEquals("create", pending.first().type)
         assertEquals(created.id, pending.first().entityId)
+    }
+
+    @Test
+    fun given_apiOffline_when_updateTrip_then_updatesLocalTripAndQueuesUpsertAndReturnsSuccess() = runTest {
+        // GIVEN
+        val api = mockk<CoTripApi>()
+        coEvery { api.updateTrip(any(), any()) } throws IOException("offline")
+        val tripsStore = FakeTripsCacheStore().apply {
+            upsertTrip(
+                TripDto(
+                    id = "trip-1",
+                    ownerId = "owner-1",
+                    title = "Before",
+                    description = "desc",
+                    startDate = "2026-06-10",
+                    endDate = "2026-06-12",
+                    locationLine = "Rome",
+                    coverUrl = null,
+                    currencyCode = "EUR",
+                    status = "active",
+                    updatedAt = "2026-01-01T00:00:00Z",
+                )
+            )
+        }
+        val repository = TripRepositoryImpl(
+            api = api,
+            tripsCacheStore = tripsStore,
+            tripMembersCacheStore = FakeTripMembersCacheStore(),
+            itineraryCacheStore = FakeItineraryCacheStore(),
+            userCacheStore = FakeUserCacheStore(),
+            syncQueueRepository = queue,
+            networkStateProvider = networkStateProvider,
+        )
+
+        // WHEN
+        val result = repository.updateTrip(
+            tripId = "trip-1",
+            request = UpdateTripRequest(
+                title = "After",
+            )
+        )
+
+        // THEN
+        assertTrue(result.isSuccess)
+        assertEquals("After", tripsStore.getTrips().first { it.id == "trip-1" }.title)
+        val pending = database.syncChangeDao().listPending(10)
+        assertEquals(1, pending.size)
+        assertEquals(SyncEntities.TRIP, pending.first().entity)
+        assertEquals("upsert", pending.first().type)
+        assertEquals("trip-1", pending.first().entityId)
+    }
+
+    @Test
+    fun given_apiOffline_when_removeMember_then_updatesLocalMembersAndQueuesDeleteCommand() = runTest {
+        // GIVEN
+        val tripId = "trip-members-1"
+        val api = mockk<CoTripApi>()
+        coEvery { api.removeMember(any(), any()) } throws IOException("offline")
+        val membersStore = FakeTripMembersCacheStore().apply {
+            setMembers(
+                tripId = tripId,
+                members = listOf(
+                    MemberDto(
+                        userId = "member-1",
+                        name = "Member 1",
+                        initials = "M1",
+                        role = "owner",
+                        status = "joined",
+                    ),
+                    MemberDto(
+                        userId = "member-2",
+                        name = "Member 2",
+                        initials = "M2",
+                        role = "member",
+                        status = "joined",
+                    ),
+                )
+            )
+        }
+        val repository = TripRepositoryImpl(
+            api = api,
+            tripsCacheStore = FakeTripsCacheStore(),
+            tripMembersCacheStore = membersStore,
+            itineraryCacheStore = FakeItineraryCacheStore(),
+            userCacheStore = FakeUserCacheStore(),
+            syncQueueRepository = queue,
+            networkStateProvider = networkStateProvider,
+        )
+
+        // WHEN
+        repository.removeMember(tripId = tripId, memberId = "member-2")
+
+        // THEN
+        assertEquals(1, membersStore.getMembers(tripId).size)
+        assertEquals("member-1", membersStore.getMembers(tripId).first().userId)
+        val pending = database.syncChangeDao().listPending(10)
+        assertEquals(1, pending.size)
+        assertEquals(SyncEntities.TRIP_MEMBER, pending.first().entity)
+        assertEquals("delete", pending.first().type)
+        assertEquals("$tripId:member-2", pending.first().entityId)
+    }
+
+    @Test
+    fun given_apiOffline_when_approveIdea_then_updatesLocalStatusAndQueuesStatusCommand() = runTest {
+        // GIVEN
+        val api = mockk<CoTripApi>()
+        coEvery { api.approveIdea(any()) } throws IOException("offline")
+        val ideasStore = FakeIdeasCacheStore().apply {
+            setIdeas(
+                tripId = "trip-approve",
+                ideas = listOf(
+                    IdeaDto(
+                        id = "idea-approve-1",
+                        tripId = "trip-approve",
+                        authorId = "user-1",
+                        title = "Idea",
+                        status = "pending",
+                        updatedAt = "2026-01-01T00:00:00Z",
+                        commentsCount = 0,
+                    )
+                )
+            )
+        }
+        val repository = IdeaRepositoryImpl(
+            api = api,
+            syncQueueRepository = queue,
+            ideasCacheStore = ideasStore,
+            commentsCacheStore = FakeIdeaCommentsCacheStore(),
+            itineraryCacheStore = FakeItineraryCacheStore(),
+            userCacheStore = FakeUserCacheStore(),
+            networkStateProvider = networkStateProvider,
+        )
+
+        // WHEN
+        val approved = repository.approveIdea("idea-approve-1")
+
+        // THEN
+        assertEquals("approved", approved.status)
+        assertEquals(
+            "approved",
+            ideasStore.findIdeaById("idea-approve-1")?.status
+        )
+        val pending = database.syncChangeDao().listPending(10)
+        assertEquals(1, pending.size)
+        assertEquals(SyncEntities.IDEA_STATUS, pending.first().entity)
+        assertEquals("upsert", pending.first().type)
+        assertEquals("idea-approve-1", pending.first().entityId)
+    }
+
+    @Test
+    fun given_apiOffline_when_convertIdea_then_updatesLocalItineraryAndQueuesConvertCommand() = runTest {
+        // GIVEN
+        val api = mockk<CoTripApi>()
+        coEvery { api.convertIdeaToActivity(any(), any()) } throws IOException("offline")
+        val tripId = "trip-convert-1"
+        val dayId = "day-convert-1"
+        val ideasStore = FakeIdeasCacheStore().apply {
+            setIdeas(
+                tripId = tripId,
+                ideas = listOf(
+                    IdeaDto(
+                        id = "idea-convert-1",
+                        tripId = tripId,
+                        authorId = "user-1",
+                        title = "Convert me",
+                        city = "Paris",
+                        link = "https://example.com",
+                        costAmount = 20.0,
+                        costType = "per_person",
+                        notes = "note",
+                        status = "pending",
+                        updatedAt = "2026-01-01T00:00:00Z",
+                        commentsCount = 0,
+                    )
+                )
+            )
+        }
+        val itineraryStore = FakeItineraryCacheStore().apply {
+            setItinerary(
+                tripId = tripId,
+                days = listOf(
+                    ItineraryDayDto(
+                        id = dayId,
+                        tripId = tripId,
+                        date = "2026-06-10",
+                        dayNumber = 1,
+                        city = "Paris",
+                        cityProviderId = null,
+                        cityLat = null,
+                        cityLon = null,
+                        isOutOfRange = false,
+                        activities = emptyList(),
+                    )
+                )
+            )
+        }
+        val repository = IdeaRepositoryImpl(
+            api = api,
+            syncQueueRepository = queue,
+            ideasCacheStore = ideasStore,
+            commentsCacheStore = FakeIdeaCommentsCacheStore(),
+            itineraryCacheStore = itineraryStore,
+            userCacheStore = FakeUserCacheStore(),
+            networkStateProvider = networkStateProvider,
+        )
+
+        // WHEN
+        repository.convertIdeaToActivity(
+            ideaId = "idea-convert-1",
+            request = ConvertIdeaRequest(dayId = dayId),
+        )
+
+        // THEN
+        val activities = itineraryStore.getItinerary(tripId).first { it.id == dayId }.activities
+        assertEquals(1, activities.size)
+        assertEquals("idea-convert-1", activities.first().sourceIdeaId)
+        val pending = database.syncChangeDao().listPending(10)
+        assertEquals(1, pending.size)
+        assertEquals(SyncEntities.IDEA_CONVERT, pending.first().entity)
+        assertEquals("create", pending.first().type)
+        assertEquals("idea-convert-1", pending.first().entityId)
+    }
+
+    @Test
+    fun given_apiOffline_when_updateExpense_then_updatesLocalExpenseAndQueuesUpsert() = runTest {
+        // GIVEN
+        val api = mockk<CoTripApi>()
+        coEvery { api.updateExpense(any(), any()) } throws IOException("offline")
+        val expensesStore = FakeExpensesCacheStore().apply {
+            setExpenses(
+                tripId = "trip-expense-update",
+                expenses = listOf(
+                    ExpenseDto(
+                        id = "expense-1",
+                        tripId = "trip-expense-update",
+                        title = "Before",
+                        amount = 10.0,
+                        currencyCode = "EUR",
+                        status = "planned",
+                        splitType = "equally",
+                        participants = listOf(
+                            ExpenseParticipantDto(
+                                userId = "user-1",
+                                isIncluded = true,
+                                isPaid = false,
+                            )
+                        ),
+                    )
+                )
+            )
+        }
+        val repository = ExpenseRepositoryImpl(
+            api = api,
+            syncQueueRepository = queue,
+            expensesCacheStore = expensesStore,
+            networkStateProvider = networkStateProvider,
+        )
+
+        // WHEN
+        repository.updateExpense(
+            expenseId = "expense-1",
+            request = ExpenseUpdateRequest(title = "After"),
+        )
+
+        // THEN
+        assertEquals("After", expensesStore.findExpenseById("expense-1")?.title)
+        val pending = database.syncChangeDao().listPending(10)
+        assertEquals(1, pending.size)
+        assertEquals(SyncEntities.EXPENSE, pending.first().entity)
+        assertEquals("upsert", pending.first().type)
+        assertEquals("expense-1", pending.first().entityId)
+    }
+
+    @Test
+    fun given_apiOffline_when_trimOutOfRange_then_updatesLocalItineraryAndQueuesCommand() = runTest {
+        // GIVEN
+        val api = mockk<CoTripApi>()
+        coEvery { api.trimOutOfRangeDays(any(), any()) } throws IOException("offline")
+        val tripId = "trip-trim-1"
+        val itineraryStore = FakeItineraryCacheStore().apply {
+            setItinerary(
+                tripId = tripId,
+                days = listOf(
+                    ItineraryDayDto(
+                        id = "day-trim-1",
+                        tripId = tripId,
+                        date = "2026-06-10",
+                        dayNumber = 1,
+                        city = null,
+                        cityProviderId = null,
+                        cityLat = null,
+                        cityLon = null,
+                        isOutOfRange = false,
+                        activities = emptyList(),
+                    ),
+                    ItineraryDayDto(
+                        id = "day-trim-2",
+                        tripId = tripId,
+                        date = "2026-06-11",
+                        dayNumber = 2,
+                        city = null,
+                        cityProviderId = null,
+                        cityLat = null,
+                        cityLon = null,
+                        isOutOfRange = true,
+                        activities = emptyList(),
+                    ),
+                )
+            )
+        }
+        val repository = ItineraryRepositoryImpl(
+            api = api,
+            syncQueueRepository = queue,
+            itineraryCacheStore = itineraryStore,
+            networkStateProvider = networkStateProvider,
+        )
+
+        // WHEN
+        repository.trimOutOfRange(
+            tripId = tripId,
+            request = TrimOutOfRangeRequest(
+                action = "remove",
+                dayIds = listOf("day-trim-2"),
+            )
+        )
+
+        // THEN
+        assertEquals(1, itineraryStore.getItinerary(tripId).size)
+        assertEquals("day-trim-1", itineraryStore.getItinerary(tripId).first().id)
+        val pending = database.syncChangeDao().listPending(10)
+        assertEquals(1, pending.size)
+        assertEquals(SyncEntities.ITINERARY_TRIM, pending.first().entity)
+        assertEquals("upsert", pending.first().type)
+        assertEquals(tripId, pending.first().entityId)
+    }
+
+    @Test
+    fun given_apiOffline_when_updateSettings_then_setsLocalSettingsAndQueuesUpsert() = runTest {
+        // GIVEN
+        val api = mockk<CoTripApi>()
+        coEvery { api.updateNotificationSettings(any()) } throws IOException("offline")
+        val settingsStore = FakeNotificationsCacheStore()
+        val networkProvider = mockk<NetworkStateProvider>()
+        every { networkProvider.isOnline() } returns true
+        val repository = NotificationRepositoryImpl(
+            api = api,
+            notificationsCacheStore = settingsStore,
+            syncQueueRepository = queue,
+            networkStateProvider = networkProvider,
+        )
+        val settings = listOf(NotificationSettingDto(key = "ideas_comments", enabled = false))
+
+        // WHEN
+        val result = repository.updateSettings(settings)
+
+        // THEN
+        assertTrue(result.isSuccess)
+        assertEquals(settings, settingsStore.getSettings())
+        val pending = database.syncChangeDao().listPending(10)
+        assertEquals(1, pending.size)
+        assertEquals(SyncEntities.NOTIFICATION_SETTINGS, pending.first().entity)
+        assertEquals("upsert", pending.first().type)
+        assertEquals("me", pending.first().entityId)
+    }
+
+    @Test
+    fun given_apiOffline_when_updateMe_then_setsLocalUserAndQueuesProfileUpsert() = runTest {
+        // GIVEN
+        val api = mockk<CoTripApi>()
+        coEvery { api.updateMe(any()) } throws IOException("offline")
+        val userStore = FakeUserCacheStore().apply {
+            setUser(UserDto(id = "user-1", name = "Before Name", initials = "BN"))
+        }
+        val repository = UserRepositoryImpl(
+            api = api,
+            sessionCleaner = mockk<SessionCleaner>(relaxed = true),
+            userCacheStore = userStore,
+            pushTokenSyncManager = mockk<PushTokenSyncManager>(relaxed = true),
+            syncQueueRepository = queue,
+        )
+
+        // WHEN
+        val updated = repository.updateMe(
+            UpdateUserRequest(
+                name = "After Name",
+                photoUrl = "https://photo",
+            )
+        )
+
+        // THEN
+        assertEquals("user-1", updated.id)
+        assertEquals("After Name", updated.name)
+        assertEquals("After Name", userStore.getUser()?.name)
+        val pending = database.syncChangeDao().listPending(10)
+        assertEquals(1, pending.size)
+        assertEquals(SyncEntities.USER_PROFILE, pending.first().entity)
+        assertEquals("upsert", pending.first().type)
+        assertEquals("me", pending.first().entityId)
+    }
+
+    @Test
+    fun given_apiOffline_when_saveAiSuggestion_then_queuesSaveCommand() = runTest {
+        // GIVEN
+        val api = mockk<CoTripApi>()
+        coEvery { api.saveAiSuggestionToIdeas(any()) } throws IOException("offline")
+        val repository = AiSuggestionsRepositoryImpl(
+            api = api,
+            syncQueueRepository = queue,
+        )
+
+        // WHEN
+        repository.saveSuggestionToIdeas("suggestion-1")
+
+        // THEN
+        val pending = database.syncChangeDao().listPending(10)
+        assertEquals(1, pending.size)
+        assertEquals(SyncEntities.AI_SUGGESTION_SAVE, pending.first().entity)
+        assertEquals("upsert", pending.first().type)
+        assertEquals("suggestion-1", pending.first().entityId)
     }
 
     private class NoOpSyncScheduler(context: Context) : SyncScheduler(context) {
@@ -459,5 +891,52 @@ private class FakeExpensesCacheStore : ExpensesCacheStore {
 
     override suspend fun clearAll() {
         byTrip.value = emptyMap()
+    }
+}
+
+private class FakeNotificationsCacheStore : NotificationsCacheStore {
+    private val notificationsState = MutableStateFlow<List<NotificationDto>>(emptyList())
+    private val settingsState = MutableStateFlow<List<NotificationSettingDto>>(emptyList())
+
+    override val notifications: Flow<List<NotificationDto>> = notificationsState
+    override val settings: Flow<List<NotificationSettingDto>> = settingsState
+
+    override suspend fun getNotifications(): List<NotificationDto> = notificationsState.value
+
+    override suspend fun getSettings(): List<NotificationSettingDto> = settingsState.value
+
+    override suspend fun setNotifications(items: List<NotificationDto>) {
+        notificationsState.value = items
+    }
+
+    override suspend fun markRead(notificationId: String) {
+        notificationsState.value = notificationsState.value.map { notification ->
+            if (notification.id == notificationId) {
+                notification.copy(readAt = "2026-01-01T00:00:00Z")
+            } else {
+                notification
+            }
+        }
+    }
+
+    override suspend fun markReadBulkNonComment() {
+        notificationsState.value = notificationsState.value.map {
+            it.copy(readAt = "2026-01-01T00:00:00Z")
+        }
+    }
+
+    override suspend fun markReadBulkIdeaComments(ideaId: String) {
+        notificationsState.value = notificationsState.value.map {
+            it.copy(readAt = "2026-01-01T00:00:00Z")
+        }
+    }
+
+    override suspend fun setSettings(items: List<NotificationSettingDto>) {
+        settingsState.value = items
+    }
+
+    override suspend fun clear() {
+        notificationsState.value = emptyList()
+        settingsState.value = emptyList()
     }
 }

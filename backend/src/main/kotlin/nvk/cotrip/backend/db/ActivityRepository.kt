@@ -197,6 +197,24 @@ object ActivityRepository {
         }
     }
 
+    fun findBySourceIdea(dayId: String, sourceIdeaId: String): ActivityRow? = dbQuery { conn ->
+        conn.prepareStatement(
+            """
+            SELECT id, day_id, source_idea_id, title, time_text, location_name, link, cost_amount, cost_type, notes, order_index, created_at
+            FROM activities
+            WHERE day_id = ? AND source_idea_id = ? AND deleted_at IS NULL
+            ORDER BY created_at DESC, id DESC
+            LIMIT 1
+            """.trimIndent()
+        ).use { stmt ->
+            stmt.setObject(1, UUID.fromString(dayId))
+            stmt.setObject(2, UUID.fromString(sourceIdeaId))
+            stmt.executeQuery().use { rs ->
+                if (rs.next()) mapActivity(rs) else null
+            }
+        }
+    }
+
     fun update(
         activityId: String,
         title: String?,

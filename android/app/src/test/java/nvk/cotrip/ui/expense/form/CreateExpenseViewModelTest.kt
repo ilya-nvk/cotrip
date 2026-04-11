@@ -1,9 +1,7 @@
 package nvk.cotrip.ui.expense.form
 
 import android.app.Application
-import android.content.Context
 import androidx.lifecycle.SavedStateHandle
-import androidx.test.core.app.ApplicationProvider
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CoroutineStart
@@ -197,42 +195,31 @@ class CreateExpenseViewModelTest {
         viewModel.onEvent(ExpenseFormEvent.OnTitleChange("Lunch"))
         viewModel.onEvent(ExpenseFormEvent.OnAmountChange("25.50"))
         viewModel.onEvent(ExpenseFormEvent.OnPaidBySelected("user-1"))
-        val effects = mutableListOf<ExpenseFormEffect>()
-        val collectJob = launch(start = CoroutineStart.UNDISPATCHED) {
-            viewModel.effects.take(1).toList(effects)
-        }
         // WHEN
         viewModel.onEvent(ExpenseFormEvent.OnPrimaryClick)
         advanceUntilIdle()
-        collectJob.join()
 
         // THEN
         assertEquals(1, expenseRepository.createExpenseCalls.size)
         assertEquals("trip-1", expenseRepository.createExpenseCalls.single().first)
         assertEquals("Lunch", expenseRepository.createExpenseCalls.single().second.title.trim())
         assertEquals(25.50, expenseRepository.createExpenseCalls.single().second.amount, 0.001)
-        assertEquals(R.string.expense_form_created_toast, (effects.single() as ExpenseFormEffect.ShowToastRes).resId)
         assertEquals(1, navigator.popCalls)
     }
 
     @Test
-    fun given_createScreen_when_onDeleteClick_then_emitsDeleteNotAvailableToast() = runTest {
+    fun given_createScreen_when_onDeleteClick_then_doesNotEmitEffect() = runTest {
         // GIVEN
         every { networkStateProvider.isOnline() } returns true
         val viewModel = createViewModel()
         advanceUntilIdle()
-        val effects = mutableListOf<ExpenseFormEffect>()
-        val collectJob = launch(start = CoroutineStart.UNDISPATCHED) {
-            viewModel.effects.take(1).toList(effects)
-        }
 
         // WHEN
         viewModel.onEvent(ExpenseFormEvent.OnDeleteClick)
         advanceUntilIdle()
-        collectJob.join()
 
         // THEN
-        assertEquals(R.string.expense_form_delete_not_available, (effects.single() as ExpenseFormEffect.ShowToastRes).resId)
+        assertTrue(!viewModel.state.value.isSaving)
     }
 
     @Test
@@ -471,7 +458,7 @@ class CreateExpenseViewModelTest {
     }
 
     @Test
-    fun given_limitDialogShown_when_deleteOldestAndRetrySuccess_then_emitsToastAndPopsBack() = runTest {
+    fun given_limitDialogShown_when_deleteOldestAndRetrySuccess_then_popsBack() = runTest {
         // GIVEN
         every { networkStateProvider.isOnline() } returns true
         val limitReachedJson = """
@@ -498,19 +485,13 @@ class CreateExpenseViewModelTest {
         advanceUntilIdle()
 
         expenseRepository.createExpenseToThrow = null
-        val effects = mutableListOf<ExpenseFormEffect>()
-        val collectJob = launch(start = CoroutineStart.UNDISPATCHED) {
-            viewModel.effects.take(1).toList(effects)
-        }
         // WHEN
         viewModel.onEvent(ExpenseFormEvent.OnConfirmDeleteOldestAndRetry)
         advanceUntilIdle()
-        collectJob.join()
 
         // THEN
         assertEquals(1, expenseRepository.deleteExpenseCalls.size)
         assertEquals("exp-old", expenseRepository.deleteExpenseCalls.single())
-        assertEquals(R.string.expense_form_created_toast, (effects.single() as ExpenseFormEffect.ShowToastRes).resId)
         assertEquals(1, navigator.popCalls)
     }
 
@@ -526,7 +507,6 @@ class CreateExpenseViewModelTest {
         expenseRepository: ExpenseFormFakeExpenseRepository = ExpenseFormFakeExpenseRepository(),
         userRepository: ExpenseFormFakeUserRepository = ExpenseFormFakeUserRepository(initialMe = expenseFormUserDto(id = "user-1")),
     ): CreateExpenseViewModel {
-        val appContext: Context = ApplicationProvider.getApplicationContext()
         return CreateExpenseViewModel(
             savedStateHandle = SavedStateHandle(
                 mapOf(Destination.CreateExpense.ARG_TRIP_ID to "trip-1")

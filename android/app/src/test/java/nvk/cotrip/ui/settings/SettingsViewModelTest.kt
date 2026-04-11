@@ -130,7 +130,7 @@ class SettingsViewModelTest {
     }
 
     @Test
-    fun given_photoPicked_when_uploadSuccess_then_updatesPhotoAndEmitsToast() = runTest {
+    fun given_photoPicked_when_uploadSuccess_then_updatesPhoto() = runTest {
         // GIVEN
         every { networkStateProvider.isOnline() } returns true
         val imageUploadRepository = SettingsFakeImageUploadRepository().apply {
@@ -143,21 +143,15 @@ class SettingsViewModelTest {
         )
         advanceUntilIdle()
 
-        val effects = mutableListOf<SettingsEffect>()
-        val collector = launch(start = CoroutineStart.UNDISPATCHED) {
-            viewModel.effects.take(1).toList(effects)
-        }
         // WHEN
         viewModel.onEvent(SettingsEvent.OnPhotoPicked("content://photo/1"))
         advanceUntilIdle()
-        collector.join()
 
         // THEN
         val profile = viewModel.state.value.profile
         assertTrue(profile.hasPhoto)
         assertEquals("https://cdn.example/new-avatar.jpg", profile.photoUrl)
         assertTrue(viewModel.state.value.canSave)
-        assertEquals(SettingsEffect.ShowToastRes(R.string.settings_photo_changed_toast), effects.single())
     }
 
     @Test
@@ -173,23 +167,16 @@ class SettingsViewModelTest {
         )
         advanceUntilIdle()
 
-        val effects = mutableListOf<SettingsEffect>()
-        val collector = launch(start = CoroutineStart.UNDISPATCHED) {
-            viewModel.effects.take(1).toList(effects)
-        }
-
         // WHEN
         viewModel.onEvent(SettingsEvent.OnDeleteProfileClick)
         assertTrue(viewModel.state.value.showDeleteDialog)
         viewModel.onEvent(SettingsEvent.OnConfirmDeleteProfileClick)
         advanceUntilIdle()
-        collector.join()
 
         // THEN
         assertEquals(1, userRepository.deleteCalls)
         assertEquals(1, userRepository.clearSessionCalls)
         assertTrue(navigator.destinations.contains(Destination.SignIn))
-        assertEquals(SettingsEffect.ShowToastRes(R.string.settings_profile_deleted_toast), effects.single())
         assertFalse(viewModel.state.value.showDeleteDialog)
     }
 

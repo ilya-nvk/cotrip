@@ -95,7 +95,7 @@ class TripItineraryViewModel @Inject constructor(
                     return
                 }
                 if (_state.value.isCitySelectionRequired && _state.value.pendingCitySelectionCount > 0) {
-                    emitToast(R.string.itinerary_city_setup_required_toast)
+                    _state.update { it.copy(inlineErrorRes = R.string.itinerary_city_setup_required_toast) }
                 } else {
                     appNavigator.popBackStack()
                 }
@@ -120,6 +120,7 @@ class TripItineraryViewModel @Inject constructor(
 
             is TripItineraryEvent.OnChooseCityClick -> {
                 if (_state.value.isPastTrip) return
+                _state.update { it.copy(inlineErrorRes = null) }
                 openCityPicker(event.dayId)
             }
 
@@ -214,6 +215,15 @@ class TripItineraryViewModel @Inject constructor(
                             } else {
                                 0
                             },
+                            inlineErrorRes = if (
+                                requireCitySelection &&
+                                !isPastTrip &&
+                                pendingCitySelectionCount > 0
+                            ) {
+                                it.inlineErrorRes
+                            } else {
+                                null
+                            },
                         )
                     }
                 }
@@ -244,7 +254,9 @@ class TripItineraryViewModel @Inject constructor(
                         delay(400)
                         refreshItinerary(isUserRefresh = false)
                     } else {
-                        emitToast(uiErrorMapper.messageRes(result))
+                        if (isUserRefresh) {
+                            emitToast(uiErrorMapper.messageRes(result))
+                        }
                     }
                 }
             }
@@ -515,7 +527,6 @@ class TripItineraryViewModel @Inject constructor(
                     cityName = selectedCityName,
                 )
                 runCatching { itineraryRepository.refreshItinerary(tripId).getOrThrow() }
-                emitToast(R.string.itinerary_choose_city_applied_following_toast)
             } else if (firstFailure != null) {
                 emitToast(uiErrorMapper.messageRes(checkNotNull(firstFailure)))
             } else {
@@ -586,7 +597,7 @@ class TripItineraryViewModel @Inject constructor(
         val current = _state.value
         if (!current.isCitySelectionRequired) return
         if (current.pendingCitySelectionCount > 0) {
-            emitToast(R.string.itinerary_city_setup_required_toast)
+            _state.update { it.copy(inlineErrorRes = R.string.itinerary_city_setup_required_toast) }
             return
         }
         viewModelScope.launch {

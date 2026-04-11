@@ -155,13 +155,15 @@ class TripIdeasViewModel @Inject constructor(
                 itineraryRepository.refreshItinerary(tripId).getOrThrow()
             }) {
                 is ApiResult.Success -> Unit
-                is ApiResult.Failure -> emit(
-                    TripIdeasEffect.ShowToastRes(
-                        uiErrorMapper.messageRes(
-                            result
+                is ApiResult.Failure -> if (isUserRefresh) {
+                    emit(
+                        TripIdeasEffect.ShowToastRes(
+                            uiErrorMapper.messageRes(
+                                result
+                            )
                         )
-                        )
-                )
+                    )
+                }
             }
             isRefreshing.value = false
         }
@@ -201,7 +203,6 @@ class TripIdeasViewModel @Inject constructor(
                         }
                     )
                     itineraryRepository.refreshItinerary(tripId).getOrThrow()
-                    emit(TripIdeasEffect.ShowToastRes(R.string.ideas_added_to_itinerary_toast))
                 }
 
                 is ApiResult.Failure -> emit(

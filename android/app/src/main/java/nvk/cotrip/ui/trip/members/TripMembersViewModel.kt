@@ -11,7 +11,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import nvk.cotrip.R
 import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.repository.TripRepository
@@ -138,13 +137,10 @@ class TripMembersViewModel @Inject constructor(
                         _state.value = latest.copy(isLoadingAction = false)
                     }
                     if (isSelf) {
-                        emit(TripMembersEffect.ShowToastRes(R.string.trip_members_left_toast))
                         appNavigator.navigate(Destination.Trips) {
                             popUpTo(Destination.Trips.route) { inclusive = true }
                             launchSingleTop = true
                         }
-                    } else {
-                        emit(TripMembersEffect.ShowToastRes(R.string.trip_members_removed_toast))
                     }
                 }
                 is ApiResult.Failure -> {

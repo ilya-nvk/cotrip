@@ -231,6 +231,16 @@ fun TripItineraryScreen(
                             )
                         }
                     }
+                    state.inlineErrorRes?.let { inlineError ->
+                        item(key = "required_cities_inline_error") {
+                            Text(
+                                text = stringResource(inlineError),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
                 }
 
                 when (state.mode) {

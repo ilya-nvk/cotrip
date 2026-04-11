@@ -81,7 +81,7 @@ class CreateExpenseViewModel @Inject constructor(
         when (event) {
             ExpenseFormEvent.OnBackClick -> appNavigator.popBackStack()
             ExpenseFormEvent.OnPrimaryClick -> createExpense()
-            ExpenseFormEvent.OnDeleteClick -> emit(ExpenseFormEffect.ShowToastRes(R.string.expense_form_delete_not_available))
+            ExpenseFormEvent.OnDeleteClick -> Unit
             ExpenseFormEvent.OnDismissLimitDialog -> _state.update { it.copy(limitDialog = null) }
             ExpenseFormEvent.OnConfirmDeleteOldestAndRetry -> deleteOldestAndRetry()
             ExpenseFormEvent.OnDateClick -> Unit
@@ -231,7 +231,6 @@ class CreateExpenseViewModel @Inject constructor(
                 )
             }) {
                 is ApiResult.Success -> {
-                    emit(ExpenseFormEffect.ShowToastRes(R.string.expense_form_created_toast))
                     appNavigator.popBackStack()
                 }
 
@@ -280,7 +279,6 @@ class CreateExpenseViewModel @Inject constructor(
                 )
             }) {
                 is ApiResult.Success -> {
-                    emit(ExpenseFormEffect.ShowToastRes(R.string.expense_form_created_toast))
                     appNavigator.popBackStack()
                 }
 

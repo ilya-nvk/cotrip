@@ -153,7 +153,6 @@ class RouteSuggestionsViewModel @Inject constructor(
                             }
                         }
                     )
-                    emit(RouteSuggestionsEffect.ShowToastRes(R.string.ai_suggestions_saved))
                 }
 
                 is ApiResult.Failure -> {

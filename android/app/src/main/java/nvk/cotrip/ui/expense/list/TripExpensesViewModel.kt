@@ -179,7 +179,9 @@ class TripExpensesViewModel @Inject constructor(
             }) {
                 is ApiResult.Success -> Unit
                 is ApiResult.Failure -> {
-                    _effects.emit(TripExpensesEffect.ShowToastRes(uiErrorMapper.messageRes(result)))
+                    if (isUserRefresh) {
+                        _effects.emit(TripExpensesEffect.ShowToastRes(uiErrorMapper.messageRes(result)))
+                    }
                 }
             }
             isRefreshing.value = false

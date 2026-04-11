@@ -48,6 +48,7 @@ class JoinTripViewModel @Inject constructor(
             inviteInput = "",
             isLoading = false,
             isInviteValid = false,
+            inlineErrorRes = null,
         )
     )
     val state = _state.asStateFlow()
@@ -81,6 +82,7 @@ class JoinTripViewModel @Inject constructor(
                     it.copy(
                         inviteInput = input,
                         isInviteValid = isValid,
+                        inlineErrorRes = null,
                     )
                 }
             }
@@ -91,13 +93,13 @@ class JoinTripViewModel @Inject constructor(
     private fun joinTrip(targetOverride: JoinTarget? = null) {
         val target = targetOverride ?: parseJoinTarget(_state.value.inviteInput)
         if (target == null) {
-            emit(JoinTripEffect.ShowToastRes(R.string.join_trip_invalid))
+            _state.update { it.copy(inlineErrorRes = R.string.join_trip_invalid) }
             return
         }
         if (_state.value.isLoading) return
 
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true) }
+            _state.update { it.copy(isLoading = true, inlineErrorRes = null) }
             val preflight = apiCaller.call {
                 runCatching { tripRepository.refreshTrips() }
                 val joinedIds = tripRepository.trips.first().mapTo(mutableSetOf()) { it.id }
@@ -113,8 +115,12 @@ class JoinTripViewModel @Inject constructor(
             when (preflight) {
                 is ApiResult.Success -> {
                     if (preflight.data) {
-                        _state.update { it.copy(isLoading = false) }
-                        emit(JoinTripEffect.ShowToastRes(R.string.join_trip_already_joined))
+                        _state.update {
+                            it.copy(
+                                isLoading = false,
+                                inlineErrorRes = R.string.join_trip_already_joined,
+                            )
+                        }
                         return@launch
                     }
                 }
@@ -144,7 +150,6 @@ class JoinTripViewModel @Inject constructor(
                 is ApiResult.Success -> {
                     val tripId = result.data
                     _state.update { it.copy(isLoading = false) }
-                    emit(JoinTripEffect.ShowToastRes(R.string.join_trip_success))
                     appNavigator.navigate(Destination.TripDetails(tripId)) {
                         popUpTo(Destination.Trips.route) { inclusive = false }
                         launchSingleTop = true
