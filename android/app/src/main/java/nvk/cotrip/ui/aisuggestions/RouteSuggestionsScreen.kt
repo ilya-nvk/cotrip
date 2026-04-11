@@ -173,6 +173,11 @@ private fun LoadingState(modifier: Modifier = Modifier) {
                 style = MaterialTheme.typography.headlineSmall,
                 color = TextSecondary
             )
+            Text(
+                text = stringResource(R.string.ai_suggestions_disclaimer),
+                style = MaterialTheme.typography.bodyMedium,
+                color = TextSecondary
+            )
         }
     }
 }

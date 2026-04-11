@@ -212,20 +212,31 @@ private fun HintCard() {
         border = BorderStroke(1.dp, HintPurpleBorder),
         color = HintPurple
     ) {
-        Row(
+        Column(
             modifier = Modifier.padding(CoTripTokens.spacing.x2),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x1)
+            verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x1)
         ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x1)
+            ) {
+                Text(
+                    text = stringResource(R.string.ai_suggestions_hint_symbol),
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = HintPurpleText
+                )
+                Text(
+                    text = stringResource(R.string.ai_suggestions_hint),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = HintPurpleText
+                )
+            }
+
             Text(
-                text = stringResource(R.string.ai_suggestions_hint_symbol),
-                style = MaterialTheme.typography.headlineSmall,
-                color = HintPurpleText
-            )
-            Text(
-                text = stringResource(R.string.ai_suggestions_hint),
-                style = MaterialTheme.typography.bodyLarge,
-                color = HintPurpleText
+                text = stringResource(R.string.ai_suggestions_disclaimer),
+                style = MaterialTheme.typography.bodyMedium,
+                color = HintPurpleText,
+                fontWeight = FontWeight.Medium
             )
         }
     }

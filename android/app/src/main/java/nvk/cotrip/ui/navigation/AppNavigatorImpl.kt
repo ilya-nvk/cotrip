@@ -1,5 +1,6 @@
 package nvk.cotrip.ui.navigation
 
+import android.os.SystemClock
 import androidx.navigation.NavHostController
 import androidx.navigation.NavOptionsBuilder
 import java.util.concurrent.atomic.AtomicReference
@@ -10,6 +11,8 @@ import javax.inject.Singleton
 class AppNavigatorImpl @Inject constructor() : AppNavigator {
 
     private val controllerRef = AtomicReference<NavHostController?>(null)
+    private var lastPopRoute: String? = null
+    private var lastPopTimestampMs: Long = 0L
 
     fun attachController(controller: NavHostController) {
         controllerRef.set(controller)
@@ -21,6 +24,25 @@ class AppNavigatorImpl @Inject constructor() : AppNavigator {
     }
 
     override fun popBackStack(): Boolean {
-        return controllerRef.get()?.popBackStack() ?: false
+        val controller = controllerRef.get() ?: return false
+        val currentRoute = controller.currentBackStackEntry?.destination?.route
+        val now = SystemClock.elapsedRealtime()
+        val shouldIgnore = synchronized(this) {
+            currentRoute != null &&
+                currentRoute == lastPopRoute &&
+                now - lastPopTimestampMs < POP_BACK_DEBOUNCE_MS
+        }
+        if (shouldIgnore) return false
+
+        val popped = controller.popBackStack()
+        if (popped) {
+            synchronized(this) {
+                lastPopRoute = currentRoute
+                lastPopTimestampMs = now
+            }
+        }
+        return popped
     }
 }
+
+private const val POP_BACK_DEBOUNCE_MS = 350L

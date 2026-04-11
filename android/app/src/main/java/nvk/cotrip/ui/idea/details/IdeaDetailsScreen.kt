@@ -87,6 +87,11 @@ fun IdeaDetailsScreen(
     val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val lifecycleOwner = LocalLifecycleOwner.current
+    val selectedTab = if (state.isDiscussionAvailable) {
+        state.selectedTab
+    } else {
+        IdeaDetailsTab.Details
+    }
 
     DisposableEffect(lifecycleOwner, viewModel) {
         val observer = LifecycleEventObserver { _, event ->
@@ -115,8 +120,8 @@ fun IdeaDetailsScreen(
     }
 
     val dayPicker = state.dayPicker
-    DisposableEffect(state.selectedTab, state.ideaId) {
-        if (state.selectedTab == IdeaDetailsTab.Discussion) {
+    DisposableEffect(selectedTab, state.ideaId) {
+        if (selectedTab == IdeaDetailsTab.Discussion) {
             AppRuntimeState.setActiveDiscussionIdeaId(state.ideaId)
         } else {
             AppRuntimeState.clearActiveDiscussionIdeaId(state.ideaId)
@@ -175,7 +180,7 @@ fun IdeaDetailsScreen(
             )
         },
         bottomBar = {
-            when (state.selectedTab) {
+            when (selectedTab) {
                 IdeaDetailsTab.Details -> DetailsBottomBar(
                     addedDay = state.addedDay,
                     onAddClick = { viewModel.onEvent(IdeaDetailsEvent.OnAddToItineraryClick) },
@@ -196,12 +201,13 @@ fun IdeaDetailsScreen(
                 .padding(padding)
         ) {
             IdeaDetailsTabs(
-                selectedTab = state.selectedTab,
+                selectedTab = selectedTab,
+                isDiscussionAvailable = state.isDiscussionAvailable,
                 commentsCount = state.commentsCount,
                 onTabSelected = { viewModel.onEvent(IdeaDetailsEvent.OnTabSelected(it)) }
             )
 
-            when (state.selectedTab) {
+            when (selectedTab) {
                 IdeaDetailsTab.Details -> IdeaDetailsContent(
                     state = state,
                     modifier = Modifier.weight(1f)
@@ -225,6 +231,7 @@ fun IdeaDetailsScreen(
 @Composable
 private fun IdeaDetailsTabs(
     selectedTab: IdeaDetailsTab,
+    isDiscussionAvailable: Boolean,
     commentsCount: Int,
     onTabSelected: (IdeaDetailsTab) -> Unit,
 ) {
@@ -243,24 +250,26 @@ private fun IdeaDetailsTabs(
                 )
             }
         )
-        Tab(
-            selected = selectedTab == IdeaDetailsTab.Discussion,
-            onClick = { onTabSelected(IdeaDetailsTab.Discussion) },
-            text = {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x0_5)
-                ) {
-                    Text(
-                        text = stringResource(R.string.idea_details_tab_discussion),
-                        style = MaterialTheme.typography.labelLarge
-                    )
-                    if (commentsCount > 0) {
-                        DiscussionBadge(count = commentsCount)
+        if (isDiscussionAvailable) {
+            Tab(
+                selected = selectedTab == IdeaDetailsTab.Discussion,
+                onClick = { onTabSelected(IdeaDetailsTab.Discussion) },
+                text = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x0_5)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.idea_details_tab_discussion),
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                        if (commentsCount > 0) {
+                            DiscussionBadge(count = commentsCount)
+                        }
                     }
                 }
-            }
-        )
+            )
+        }
     }
 }
 

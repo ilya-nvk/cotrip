@@ -112,6 +112,7 @@ class IdeaDetailsViewModel @Inject constructor(
             isOwner = false,
             isUpdatingStatus = false,
             selectedTab = IdeaDetailsTab.Details,
+            isDiscussionAvailable = true,
             commentsCount = 0,
             discussion = emptyList(),
             commentInput = "",
@@ -159,6 +160,9 @@ class IdeaDetailsViewModel @Inject constructor(
             IdeaDetailsEvent.OnDismissDayPicker -> dismissDayPicker()
             is IdeaDetailsEvent.OnDaySelected -> selectDay(event.day)
             is IdeaDetailsEvent.OnTabSelected -> {
+                if (event.tab == IdeaDetailsTab.Discussion && !_state.value.isDiscussionAvailable) {
+                    return
+                }
                 _state.update { it.copy(selectedTab = event.tab) }
                 if (event.tab == IdeaDetailsTab.Discussion) {
                     markDiscussionNotificationsRead()
@@ -230,6 +234,8 @@ class IdeaDetailsViewModel @Inject constructor(
                     membersById = membersById,
                     youFallback = youName,
                 )
+                val isDiscussionAvailable = payload.comments.isNotEmpty() ||
+                    payload.membersById.isNotEmpty()
                 _state.update { current ->
                     current.copy(
                         title = payload.idea.title,
@@ -241,6 +247,12 @@ class IdeaDetailsViewModel @Inject constructor(
                         status = payload.idea.status,
                         addedDay = payload.addedDay,
                         isOwner = payload.isOwner,
+                        selectedTab = if (isDiscussionAvailable) {
+                            current.selectedTab
+                        } else {
+                            IdeaDetailsTab.Details
+                        },
+                        isDiscussionAvailable = isDiscussionAvailable,
                         commentsCount = serverDiscussion.count { it is IdeaDiscussionItemUi.Message },
                         discussion = discussion
                     )
@@ -407,6 +419,7 @@ class IdeaDetailsViewModel @Inject constructor(
     }
 
     private fun sendComment() {
+        if (!_state.value.isDiscussionAvailable) return
         val input = _state.value.commentInput.trim()
         if (input.isBlank()) return
         val token = sessionStore.getAccessToken()
