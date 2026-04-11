@@ -235,6 +235,7 @@
     <!--AI Suggestions-->
     <string name="ai_suggestions_title">AI-подсказки</string>
     <string name="ai_suggestions_hint">Опишите, что вы ищете, и AI предложит активности под вашу поездку.</string>
+    <string name="ai_suggestions_disclaimer">AI может ошибаться. Проверяйте важные детали перед сохранением.</string>
     <string name="ai_suggestions_city_label">Город *</string>
     <string name="ai_suggestions_city_hint">Города из вашего маршрута</string>
     <string name="ai_suggestions_select_city">Выбрать город</string>

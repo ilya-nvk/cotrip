@@ -15,6 +15,7 @@ data class IdeaDetailsState(
     val isOwner: Boolean,
     val isUpdatingStatus: Boolean,
     val selectedTab: IdeaDetailsTab,
+    val isDiscussionAvailable: Boolean,
     val commentsCount: Int,
     val discussion: List<IdeaDiscussionItemUi>,
     val commentInput: String,

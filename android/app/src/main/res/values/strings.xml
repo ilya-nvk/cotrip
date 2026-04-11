@@ -231,6 +231,7 @@
     <!--AI Suggestions-->
     <string name="ai_suggestions_title">AI suggestions</string>
     <string name="ai_suggestions_hint">Describe what you are looking for and the AI will suggest activities tailored to your trip.</string>
+    <string name="ai_suggestions_disclaimer">AI can make mistakes. Double-check important details before saving.</string>
     <string name="ai_suggestions_city_label">City *</string>
     <string name="ai_suggestions_city_hint">Cities from your itinerary</string>
     <string name="ai_suggestions_select_city">Select a city</string>
