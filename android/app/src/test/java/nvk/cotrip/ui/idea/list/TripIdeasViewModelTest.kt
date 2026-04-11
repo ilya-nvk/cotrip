@@ -11,7 +11,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
-import nvk.cotrip.R
 import nvk.cotrip.data.auth.SessionStore
 import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.NetworkStateProvider
@@ -223,7 +222,7 @@ class TripIdeasViewModelTest {
     }
 
     @Test
-    fun given_dayPickerOpen_when_onDaySelectedSuccess_then_emitsToast() = runTest {
+    fun given_dayPickerOpen_when_onDaySelectedSuccess_then_updatesIdeaUi() = runTest {
         // GIVEN
         every { networkStateProvider.isOnline() } returns true
         val start = LocalDate.now()
@@ -243,16 +242,13 @@ class TripIdeasViewModelTest {
 
         val state = viewModel.state.value as TripIdeasState.Content
         val dayOption = state.dayPicker!!.days.single()
-        val effects = mutableListOf<TripIdeasEffect>()
-        launch { viewModel.effects.take(1).toList(effects) }
-        advanceUntilIdle()
         // WHEN
         viewModel.onEvent(TripIdeasEvent.OnDaySelected(dayOption))
         advanceUntilIdle()
 
         // THEN
-        assertTrue(effects.any { it is TripIdeasEffect.ShowToastRes })
-        assertEquals(R.string.ideas_added_to_itinerary_toast, (effects.single() as TripIdeasEffect.ShowToastRes).resId)
+        val updated = viewModel.state.value as TripIdeasState.Content
+        assertEquals(1, updated.ideas.single().addedDay)
     }
 
     private fun createViewModel(

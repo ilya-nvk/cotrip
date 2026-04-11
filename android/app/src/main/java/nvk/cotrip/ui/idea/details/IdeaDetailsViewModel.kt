@@ -397,7 +397,6 @@ class IdeaDetailsViewModel @Inject constructor(
                 is ApiResult.Success -> {
                     itineraryRepository.refreshItinerary(tripId).getOrThrow()
                     _state.update { it.copy(addedDay = day.dayNumber) }
-                    emit(IdeaDetailsEffect.ShowToastRes(R.string.idea_details_added_toast))
                 }
 
                 is ApiResult.Failure -> {
@@ -592,12 +591,6 @@ class IdeaDetailsViewModel @Inject constructor(
                 is ApiResult.Success -> {
                     val idea = result.data
                     _state.update { it.copy(status = idea.status, isUpdatingStatus = false) }
-                    val toast = if (approved) {
-                        R.string.idea_details_approved_toast
-                    } else {
-                        R.string.idea_details_rejected_toast
-                    }
-                    emit(IdeaDetailsEffect.ShowToastRes(toast))
                 }
 
                 is ApiResult.Failure -> {
@@ -614,7 +607,6 @@ class IdeaDetailsViewModel @Inject constructor(
                 ideaRepository.deleteIdea(ideaId)
             }) {
                 is ApiResult.Success -> {
-                    emit(IdeaDetailsEffect.ShowToastRes(R.string.idea_details_deleted_toast))
                     appNavigator.popBackStack()
                 }
 

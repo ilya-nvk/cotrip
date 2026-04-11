@@ -177,7 +177,7 @@ class TripMembersViewModelTest {
     }
 
     @Test
-    fun given_otherMember_when_onRemoveClickSuccess_then_emitsToastAndDoesNotNavigate() = runTest {
+    fun given_otherMember_when_onRemoveClickSuccess_then_doesNotNavigate() = runTest {
         // GIVEN
         every { networkStateProvider.isOnline() } returns true
         val navigator = TripDetailsFakeNavigator()
@@ -200,24 +200,16 @@ class TripMembersViewModelTest {
             tripId = "trip-1",
         )
         advanceUntilIdle()
-        val effects = mutableListOf<TripMembersEffect>()
-        val collector = launch(start = CoroutineStart.UNDISPATCHED) {
-            viewModel.effects.take(1).toList(effects)
-        }
-
         // WHEN
         viewModel.onEvent(TripMembersEvent.OnRemoveClick("guest-1"))
         advanceUntilIdle()
-        collector.join()
 
         // THEN
-        assertEquals(1, effects.size)
-        assertTrue(effects.single() is TripMembersEffect.ShowToastRes)
         assertEquals(0, navigator.destinations.size)
     }
 
     @Test
-    fun given_selfMember_when_onRemoveClickSuccess_then_navigatesToTripsAndEmitsToast() = runTest {
+    fun given_selfMember_when_onRemoveClickSuccess_then_navigatesToTrips() = runTest {
         // GIVEN
         every { networkStateProvider.isOnline() } returns true
         val navigator = TripDetailsFakeNavigator()
@@ -237,18 +229,11 @@ class TripMembersViewModelTest {
             tripId = "trip-1",
         )
         advanceUntilIdle()
-        val effects = mutableListOf<TripMembersEffect>()
-        val collector = launch(start = CoroutineStart.UNDISPATCHED) {
-            viewModel.effects.take(1).toList(effects)
-        }
-
         // WHEN
         viewModel.onEvent(TripMembersEvent.OnRemoveClick("owner-1"))
         advanceUntilIdle()
-        collector.join()
 
         // THEN
-        assertEquals(1, effects.size)
         assertTrue(navigator.destinations.any { it is Destination.Trips })
     }
 

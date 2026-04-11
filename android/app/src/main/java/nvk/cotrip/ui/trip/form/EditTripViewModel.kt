@@ -68,13 +68,23 @@ class EditTripViewModel @Inject constructor(
             }
 
             is TripFormEvent.OnNameChange -> {
-                _state.update { it.copy(name = event.value.take(TextInputLimits.TRIP_TITLE)) }
+                _state.update {
+                    it.copy(
+                        name = event.value.take(TextInputLimits.TRIP_TITLE),
+                        inlineErrorRes = null,
+                    )
+                }
                 recomputeCanSubmit()
             }
 
             is TripFormEvent.OnStartDateSelected -> {
                 if (!isStartDateAllowedForEdit(event.date)) {
-                    emitToastRes(R.string.trip_form_start_date_range_toast)
+                    _state.update {
+                        it.copy(
+                            startDateErrorRes = R.string.trip_form_start_date_range_toast,
+                            endDateErrorRes = null,
+                        )
+                    }
                     return
                 }
                 val previousStart = _state.value.startDate
@@ -92,6 +102,7 @@ class EditTripViewModel @Inject constructor(
                     current.copy(
                         startDate = event.date,
                         endDate = adjustedEnd,
+                        startDateErrorRes = null,
                     )
                 }
 
@@ -102,7 +113,7 @@ class EditTripViewModel @Inject constructor(
                     )
                 ) {
                     if (!isOriginalDatesPair(event.date, selectedEnd)) {
-                        emitToastRes(R.string.trip_form_end_date_range_toast)
+                        _state.update { it.copy(endDateErrorRes = R.string.trip_form_end_date_range_toast) }
                     }
                 }
                 recomputeCanSubmit()
@@ -114,10 +125,10 @@ class EditTripViewModel @Inject constructor(
                 if (!TripDateRules.isEndDateAllowed(startDate = start, endDate = event.date) &&
                     !isOriginalDatesPair(start, event.date)
                 ) {
-                    emitToastRes(R.string.trip_form_end_date_range_toast)
+                    _state.update { it.copy(endDateErrorRes = R.string.trip_form_end_date_range_toast) }
                     return
                 }
-                _state.update { it.copy(endDate = event.date) }
+                _state.update { it.copy(endDate = event.date, endDateErrorRes = null) }
                 recomputeCanSubmit()
             }
 
@@ -229,13 +240,25 @@ class EditTripViewModel @Inject constructor(
                     TripDateRules.isEndDateAllowed(startDate = startDate, endDate = endDate)
             if (!strictDatesOk && !isOriginalDatesPair(startDate, endDate)) {
                 if (!isStartDateAllowedForEdit(startDate)) {
-                    emitToastRes(R.string.trip_form_start_date_range_toast)
+                    _state.update {
+                        it.copy(
+                            startDateErrorRes = R.string.trip_form_start_date_range_toast,
+                            endDateErrorRes = null,
+                        )
+                    }
                 } else {
-                    emitToastRes(R.string.trip_form_end_date_range_toast)
+                    _state.update { it.copy(endDateErrorRes = R.string.trip_form_end_date_range_toast) }
                 }
                 return@launch
             }
-            _state.update { it.copy(isLoading = true) }
+            _state.update {
+                it.copy(
+                    isLoading = true,
+                    startDateErrorRes = null,
+                    endDateErrorRes = null,
+                    inlineErrorRes = null,
+                )
+            }
 
             val result = apiCaller.call {
                 tripRepository.updateTrip(
@@ -259,7 +282,6 @@ class EditTripViewModel @Inject constructor(
                         _state.update { it.copy(isLoading = false) }
                         return@launch
                     }
-                    emitToastRes(R.string.edit_trip_saved_toast)
                     val oldStart = originalStartDate ?: startDate
                     val oldEnd = originalEndDate ?: endDate
                     val oldDuration = ChronoUnit.DAYS.between(oldStart, oldEnd)
@@ -305,7 +327,6 @@ class EditTripViewModel @Inject constructor(
             }
             when (result) {
                 is ApiResult.Success -> {
-                    emitToastRes(R.string.edit_trip_archived_toast)
                     closeScreen()
                 }
 
@@ -325,7 +346,6 @@ class EditTripViewModel @Inject constructor(
             }
             when (result) {
                 is ApiResult.Success -> {
-                    emitToastRes(R.string.edit_trip_deleted_toast)
                     appNavigator.navigate(Destination.Trips) {
                         popUpTo(Destination.Trips.route) { inclusive = false }
                         launchSingleTop = true
@@ -355,7 +375,6 @@ class EditTripViewModel @Inject constructor(
                             coverPreviewUri = result.data,
                         )
                     }
-                    emitToastRes(R.string.trip_form_cover_uploaded_toast)
                 }
 
                 is ApiResult.Failure -> {

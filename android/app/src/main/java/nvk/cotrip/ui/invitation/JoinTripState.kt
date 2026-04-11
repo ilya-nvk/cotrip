@@ -4,4 +4,5 @@ data class JoinTripState(
     val inviteInput: String,
     val isLoading: Boolean,
     val isInviteValid: Boolean,
+    val inlineErrorRes: Int? = null,
 )

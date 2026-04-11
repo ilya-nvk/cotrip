@@ -6,6 +6,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
+import nvk.cotrip.data.network.dto.NotificationSettingDto
 import nvk.cotrip.data.network.dto.UpdateIdeaRequest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -81,6 +82,56 @@ class SyncQueueRepositoryTest {
         assertEquals(2, pending.size)
         assertEquals(listOf("create", "upsert"), pending.map { it.type })
         assertTrue(pending.all { it.entityId == "idea-2" })
+    }
+
+    @Test
+    fun given_twoUpsertsForSameEntityId_when_enqueueUpsert_then_onlyLatestIsKept() = runTest {
+        // GIVEN
+        queue.enqueueUpsert(
+            entity = SyncEntities.EXPENSE,
+            id = "expense-1",
+            payload = mapOf("title" to "first")
+        )
+        queue.enqueueUpsert(
+            entity = SyncEntities.EXPENSE,
+            id = "expense-1",
+            payload = mapOf("title" to "latest")
+        )
+
+        // WHEN
+        val pending = dao.listPending(limit = 50)
+
+        // THEN
+        assertEquals(1, pending.size)
+        assertEquals("upsert", pending.first().type)
+        assertEquals("expense-1", pending.first().entityId)
+    }
+
+    @Test
+    fun given_commandUpsertsForDifferentIds_when_enqueueUpsert_then_keepsSingleLatestItem() = runTest {
+        // GIVEN
+        queue.enqueueUpsert(
+            entity = SyncEntities.NOTIFICATION_SETTINGS,
+            id = "settings-1",
+            payload = SyncNotificationSettingsUpsertPayload(
+                items = listOf(NotificationSettingDto(key = "a", enabled = true))
+            )
+        )
+        queue.enqueueUpsert(
+            entity = SyncEntities.NOTIFICATION_SETTINGS,
+            id = "settings-2",
+            payload = SyncNotificationSettingsUpsertPayload(
+                items = listOf(NotificationSettingDto(key = "b", enabled = false))
+            )
+        )
+
+        // WHEN
+        val pending = dao.listPending(limit = 50)
+
+        // THEN
+        assertEquals(1, pending.size)
+        assertEquals(SyncEntities.NOTIFICATION_SETTINGS, pending.first().entity)
+        assertEquals("settings-2", pending.first().entityId)
     }
 
     private class NoOpSyncScheduler(context: Context) : SyncScheduler(context) {

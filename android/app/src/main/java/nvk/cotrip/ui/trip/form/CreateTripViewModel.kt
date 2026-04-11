@@ -66,23 +66,33 @@ class CreateTripViewModel @Inject constructor(
             }
 
             is TripFormEvent.OnNameChange -> {
-                _state.update { it.copy(name = event.value.take(TextInputLimits.TRIP_TITLE)) }
+                _state.update {
+                    it.copy(
+                        name = event.value.take(TextInputLimits.TRIP_TITLE),
+                        inlineErrorRes = null,
+                    )
+                }
                 recomputeCanSubmit()
             }
 
             is TripFormEvent.OnStartDateSelected -> {
                 if (!TripDateRules.isStartDateAllowed(event.date, LocalDate.now())) {
-                    emitToastRes(R.string.trip_form_start_date_range_toast)
+                    _state.update {
+                        it.copy(
+                            startDateErrorRes = R.string.trip_form_start_date_range_toast,
+                            endDateErrorRes = null,
+                        )
+                    }
                     return
                 }
-                _state.update { it.copy(startDate = event.date) }
+                _state.update { it.copy(startDate = event.date, startDateErrorRes = null) }
                 val selectedEnd = _state.value.endDate
                 if (selectedEnd != null && !TripDateRules.isEndDateAllowed(
                         event.date,
                         selectedEnd
                     )
                 ) {
-                    emitToastRes(R.string.trip_form_end_date_range_toast)
+                    _state.update { it.copy(endDateErrorRes = R.string.trip_form_end_date_range_toast) }
                 }
                 recomputeCanSubmit()
             }
@@ -91,10 +101,10 @@ class CreateTripViewModel @Inject constructor(
                 val selectedStart = _state.value.startDate
                 val start = selectedStart ?: LocalDate.now()
                 if (!TripDateRules.isEndDateAllowed(startDate = start, endDate = event.date)) {
-                    emitToastRes(R.string.trip_form_end_date_range_toast)
+                    _state.update { it.copy(endDateErrorRes = R.string.trip_form_end_date_range_toast) }
                     return
                 }
-                _state.update { it.copy(endDate = event.date) }
+                _state.update { it.copy(endDate = event.date, endDateErrorRes = null) }
                 recomputeCanSubmit()
             }
 
@@ -153,14 +163,26 @@ class CreateTripViewModel @Inject constructor(
             val startDate = s.startDate ?: return@launch
             val endDate = s.endDate ?: return@launch
             if (!TripDateRules.isStartDateAllowed(startDate, LocalDate.now())) {
-                emitToastRes(R.string.trip_form_start_date_range_toast)
+                _state.update {
+                    it.copy(
+                        startDateErrorRes = R.string.trip_form_start_date_range_toast,
+                        endDateErrorRes = null,
+                    )
+                }
                 return@launch
             }
             if (!TripDateRules.isEndDateAllowed(startDate = startDate, endDate = endDate)) {
-                emitToastRes(R.string.trip_form_end_date_range_toast)
+                _state.update { it.copy(endDateErrorRes = R.string.trip_form_end_date_range_toast) }
                 return@launch
             }
-            _state.update { it.copy(isLoading = true) }
+            _state.update {
+                it.copy(
+                    isLoading = true,
+                    startDateErrorRes = null,
+                    endDateErrorRes = null,
+                    inlineErrorRes = null,
+                )
+            }
             val request = CreateTripRequest(
                 title = s.name,
                 description = s.description.takeIf { it.isNotBlank() },
@@ -183,7 +205,6 @@ class CreateTripViewModel @Inject constructor(
                 is ApiResult.Success -> {
                     AppLogger.i(TAG, "createTrip succeeded tripId=${result.data}")
                     markTripCreationPending(result.data)
-                    emitToastRes(R.string.create_trip_created_toast)
                     appNavigator.navigate(
                         Destination.TripItinerary(
                             tripId = result.data,
@@ -217,7 +238,6 @@ class CreateTripViewModel @Inject constructor(
                     if (recoveredTripId != null) {
                         AppLogger.i(TAG, "createTrip recovered via listTrips tripId=$recoveredTripId")
                         markTripCreationPending(recoveredTripId)
-                        emitToastRes(R.string.create_trip_created_toast)
                         appNavigator.navigate(
                             Destination.TripItinerary(
                                 tripId = recoveredTripId,
@@ -246,7 +266,6 @@ class CreateTripViewModel @Inject constructor(
             }) {
                 is ApiResult.Success -> {
                     markTripCreationPending(result.data)
-                    emitToastRes(R.string.create_trip_created_toast)
                     appNavigator.navigate(
                         Destination.TripItinerary(
                             tripId = result.data,
@@ -317,7 +336,6 @@ class CreateTripViewModel @Inject constructor(
                             coverPreviewUri = result.data,
                         )
                     }
-                    emitToastRes(R.string.trip_form_cover_uploaded_toast)
                 }
 
                 is ApiResult.Failure -> {

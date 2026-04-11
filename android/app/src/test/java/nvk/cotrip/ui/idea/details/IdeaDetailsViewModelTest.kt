@@ -8,13 +8,9 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.take
-import kotlinx.coroutines.flow.toList
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
-import nvk.cotrip.R
 import nvk.cotrip.data.auth.SessionStore
 import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.NetworkStateProvider
@@ -186,21 +182,16 @@ class IdeaDetailsViewModelTest {
         )
         advanceUntilIdle()
 
-        val effects = mutableListOf<IdeaDetailsEffect>()
-        launch { viewModel.effects.take(1).toList(effects) }
-        advanceUntilIdle()
         // WHEN
         viewModel.onEvent(IdeaDetailsEvent.OnDeleteClick)
         advanceUntilIdle()
 
         // THEN
-        assertTrue(effects.any { it is IdeaDetailsEffect.ShowToastRes })
-        assertEquals(R.string.idea_details_deleted_toast, (effects.single() as IdeaDetailsEffect.ShowToastRes).resId)
         assertEquals(1, navigator.popCalls)
     }
 
     @Test
-    fun given_ideaLoaded_when_onApproveClickSuccess_then_updatesStatusAndShowsToast() = runTest {
+    fun given_ideaLoaded_when_onApproveClickSuccess_then_updatesStatus() = runTest {
         // GIVEN
         every { networkStateProvider.isOnline() } returns true
         val idea = ideaDto(id = ideaId, tripId = tripId, status = "suggested")
@@ -208,42 +199,32 @@ class IdeaDetailsViewModelTest {
         val viewModel = createViewModel(ideaRepository = ideaRepo)
         advanceUntilIdle()
 
-        val effects = mutableListOf<IdeaDetailsEffect>()
-        launch { viewModel.effects.take(1).toList(effects) }
-        advanceUntilIdle()
         // WHEN
         viewModel.onEvent(IdeaDetailsEvent.OnApproveClick)
         advanceUntilIdle()
 
         // THEN
         assertEquals("approved", viewModel.state.value.status)
-        assertTrue(effects.any { it is IdeaDetailsEffect.ShowToastRes })
-        assertEquals(R.string.idea_details_approved_toast, (effects.single() as IdeaDetailsEffect.ShowToastRes).resId)
     }
 
     @Test
-    fun given_ideaLoaded_when_onRejectClickSuccess_then_updatesStatusAndShowsToast() = runTest {
+    fun given_ideaLoaded_when_onRejectClickSuccess_then_updatesStatus() = runTest {
         // GIVEN
         every { networkStateProvider.isOnline() } returns true
         val idea = ideaDto(id = ideaId, tripId = tripId, status = "suggested")
         val viewModel = createViewModel(ideaRepository = FakeIdeaRepository(initialIdea = idea))
         advanceUntilIdle()
 
-        val effects = mutableListOf<IdeaDetailsEffect>()
-        launch { viewModel.effects.take(1).toList(effects) }
-        advanceUntilIdle()
         // WHEN
         viewModel.onEvent(IdeaDetailsEvent.OnRejectClick)
         advanceUntilIdle()
 
         // THEN
         assertEquals("rejected", viewModel.state.value.status)
-        assertTrue(effects.any { it is IdeaDetailsEffect.ShowToastRes })
-        assertEquals(R.string.idea_details_rejected_toast, (effects.single() as IdeaDetailsEffect.ShowToastRes).resId)
     }
 
     @Test
-    fun given_dayPickerOpen_when_onDaySelected_then_convertsIdeaToActivityAndShowsToast() = runTest {
+    fun given_dayPickerOpen_when_onDaySelected_then_convertsIdeaToActivity() = runTest {
         // GIVEN
         every { networkStateProvider.isOnline() } returns true
         val start = LocalDate.now()
@@ -263,9 +244,6 @@ class IdeaDetailsViewModelTest {
         advanceUntilIdle()
         val dayOption = viewModel.state.value.dayPicker!!.days.single()
 
-        val effects = mutableListOf<IdeaDetailsEffect>()
-        launch { viewModel.effects.take(1).toList(effects) }
-        advanceUntilIdle()
         // WHEN
         viewModel.onEvent(IdeaDetailsEvent.OnDaySelected(dayOption))
         advanceUntilIdle()
@@ -274,8 +252,6 @@ class IdeaDetailsViewModelTest {
         assertEquals(1, ideaRepo.convertIdeaToActivityCalls.size)
         assertEquals(ideaId, ideaRepo.convertIdeaToActivityCalls.single().first)
         assertEquals("day-1", ideaRepo.convertIdeaToActivityCalls.single().second.dayId)
-        assertTrue(effects.any { it is IdeaDetailsEffect.ShowToastRes })
-        assertEquals(R.string.idea_details_added_toast, (effects.single() as IdeaDetailsEffect.ShowToastRes).resId)
     }
 
     private fun createViewModel(

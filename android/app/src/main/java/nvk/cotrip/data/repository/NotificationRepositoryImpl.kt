@@ -10,12 +10,17 @@ import nvk.cotrip.data.network.dto.NotificationSettingDto
 import nvk.cotrip.data.network.dto.NotificationSettingsUpdateRequest
 import nvk.cotrip.data.network.dto.PushTokenUpsertRequest
 import nvk.cotrip.data.network.requireSuccess
+import nvk.cotrip.data.sync.SyncEntities
+import nvk.cotrip.data.sync.SyncNotificationReadUpsertPayload
+import nvk.cotrip.data.sync.SyncNotificationSettingsUpsertPayload
+import nvk.cotrip.data.sync.SyncQueueRepository
 import java.io.IOException
 import javax.inject.Inject
 
 class NotificationRepositoryImpl @Inject constructor(
     private val api: CoTripApi,
     private val notificationsCacheStore: NotificationsCacheStore,
+    private val syncQueueRepository: SyncQueueRepository,
     private val networkStateProvider: NetworkStateProvider,
 ) : NotificationRepository {
 
@@ -36,7 +41,27 @@ class NotificationRepositoryImpl @Inject constructor(
 
     override suspend fun markRead(id: String) {
         if (networkStateProvider.isOnline()) {
-            api.markNotificationRead(id).requireSuccess()
+            try {
+                api.markNotificationRead(id).requireSuccess()
+            } catch (e: IOException) {
+                syncQueueRepository.enqueueUpsert(
+                    entity = SyncEntities.NOTIFICATION_READ,
+                    id = "single",
+                    payload = SyncNotificationReadUpsertPayload(
+                        mode = "single",
+                        notificationId = id,
+                    )
+                )
+            }
+        } else {
+            syncQueueRepository.enqueueUpsert(
+                entity = SyncEntities.NOTIFICATION_READ,
+                id = "single",
+                payload = SyncNotificationReadUpsertPayload(
+                    mode = "single",
+                    notificationId = id,
+                )
+            )
         }
         safeLocalMutation("markRead(notificationId=$id)") {
             notificationsCacheStore.markRead(id)
@@ -49,14 +74,33 @@ class NotificationRepositoryImpl @Inject constructor(
                 api.markNotificationsReadBulk(
                     NotificationReadBulkRequest(mode = "non_comment")
                 ).updated
+            }.onFailure { error ->
+                if (error is IOException) {
+                    syncQueueRepository.enqueueUpsert(
+                        entity = SyncEntities.NOTIFICATION_READ,
+                        id = "non_comment",
+                        payload = SyncNotificationReadUpsertPayload(mode = "non_comment"),
+                    )
+                }
             }
         } else {
+            syncQueueRepository.enqueueUpsert(
+                entity = SyncEntities.NOTIFICATION_READ,
+                id = "non_comment",
+                payload = SyncNotificationReadUpsertPayload(mode = "non_comment"),
+            )
             Result.success(0)
         }
         safeLocalMutation("markReadBulkNonComment") {
             notificationsCacheStore.markReadBulkNonComment()
         }
-        return remoteResult
+        return remoteResult.recoverCatching { error ->
+            if (error is IOException) {
+                0
+            } else {
+                throw error
+            }
+        }
     }
 
     override suspend fun markReadBulkIdeaComments(ideaId: String): Result<Int> {
@@ -68,14 +112,39 @@ class NotificationRepositoryImpl @Inject constructor(
                         ideaId = ideaId
                     )
                 ).updated
+            }.onFailure { error ->
+                if (error is IOException) {
+                    syncQueueRepository.enqueueUpsert(
+                        entity = SyncEntities.NOTIFICATION_READ,
+                        id = "idea_comments",
+                        payload = SyncNotificationReadUpsertPayload(
+                            mode = "idea_comments",
+                            ideaId = ideaId,
+                        ),
+                    )
+                }
             }
         } else {
+            syncQueueRepository.enqueueUpsert(
+                entity = SyncEntities.NOTIFICATION_READ,
+                id = "idea_comments",
+                payload = SyncNotificationReadUpsertPayload(
+                    mode = "idea_comments",
+                    ideaId = ideaId,
+                ),
+            )
             Result.success(0)
         }
         safeLocalMutation("markReadBulkIdeaComments(ideaId=$ideaId)") {
             notificationsCacheStore.markReadBulkIdeaComments(ideaId)
         }
-        return remoteResult
+        return remoteResult.recoverCatching { error ->
+            if (error is IOException) {
+                0
+            } else {
+                throw error
+            }
+        }
     }
 
     override suspend fun refreshSettings(): Result<Unit> {
@@ -92,7 +161,15 @@ class NotificationRepositoryImpl @Inject constructor(
 
     override suspend fun updateSettings(items: List<NotificationSettingDto>): Result<Unit> {
         if (!networkStateProvider.isOnline()) {
-            return Result.failure(IOException("Notification settings update requires network"))
+            syncQueueRepository.enqueueUpsert(
+                entity = SyncEntities.NOTIFICATION_SETTINGS,
+                id = "me",
+                payload = SyncNotificationSettingsUpsertPayload(items = items),
+            )
+            safeLocalMutation("updateSettings.offlineSetSettings") {
+                notificationsCacheStore.setSettings(items)
+            }
+            return Result.success(Unit)
         }
         return runCatching {
             val response = api.updateNotificationSettings(
@@ -101,6 +178,17 @@ class NotificationRepositoryImpl @Inject constructor(
             safeLocalMutation("updateSettings.setSettings") {
                 notificationsCacheStore.setSettings(response.items)
             }
+        }.recoverCatching { error ->
+            if (error !is IOException) throw error
+            syncQueueRepository.enqueueUpsert(
+                entity = SyncEntities.NOTIFICATION_SETTINGS,
+                id = "me",
+                payload = SyncNotificationSettingsUpsertPayload(items = items),
+            )
+            safeLocalMutation("updateSettings.offlineFallbackSetSettings") {
+                notificationsCacheStore.setSettings(items)
+            }
+            Unit
         }
     }
 

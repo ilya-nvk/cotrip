@@ -20,7 +20,9 @@ import nvk.cotrip.data.network.dto.UpdateActivityRequest
 import nvk.cotrip.data.network.dto.UpdateDayRequest
 import nvk.cotrip.data.network.requireSuccess
 import nvk.cotrip.data.sync.SyncActivityCreatePayload
+import nvk.cotrip.data.sync.SyncActivityReorderUpsertPayload
 import nvk.cotrip.data.sync.SyncEntities
+import nvk.cotrip.data.sync.SyncItineraryTrimUpsertPayload
 import nvk.cotrip.data.sync.SyncQueueRepository
 import nvk.cotrip.util.AppLogger
 import retrofit2.HttpException
@@ -82,26 +84,8 @@ class ItineraryRepositoryImpl @Inject constructor(
             api.updateDay(dayId, request).requireSuccess()
         } catch (e: IOException) {
             syncQueueRepository.enqueueUpsert(SyncEntities.DAY, dayId, request)
-            return
         }
-
-        safeLocalMutation("updateDay.updateItinerary(dayId=$dayId)") {
-            val tripId = findTripIdForDay(dayId) ?: return@safeLocalMutation
-            itineraryCacheStore.updateItinerary(tripId) { days ->
-                days.map { day ->
-                    if (day.id == dayId) {
-                        day.copy(
-                            city = request.city,
-                            cityProviderId = request.cityProviderId,
-                            cityLat = request.cityLat,
-                            cityLon = request.cityLon,
-                        )
-                    } else {
-                        day
-                    }
-                }
-            }
-        }
+        applyDayUpdateLocally(dayId = dayId, request = request)
     }
 
     override suspend fun createActivity(dayId: String, request: CreateActivityRequest): ActivityDto {
@@ -159,6 +143,7 @@ class ItineraryRepositoryImpl @Inject constructor(
             api.updateActivity(activityId, request)
         } catch (e: IOException) {
             syncQueueRepository.enqueueUpsert(SyncEntities.ACTIVITY, activityId, request)
+            applyActivityUpdateLocally(activityId = activityId, request = request)
             return
         }
         safeLocalMutation("updateActivity.updateItinerary(activityId=$activityId)") {
@@ -183,6 +168,7 @@ class ItineraryRepositoryImpl @Inject constructor(
             api.moveActivity(activityId, request)
         } catch (e: IOException) {
             syncQueueRepository.enqueueUpsert(SyncEntities.ACTIVITY, activityId, request)
+            applyActivityMoveLocally(activityId = activityId, request = request)
             return
         }
         safeLocalMutation("moveActivity.updateItinerary(activityId=$activityId)") {
@@ -208,7 +194,6 @@ class ItineraryRepositoryImpl @Inject constructor(
             api.deleteActivity(activityId).requireSuccess()
         } catch (e: IOException) {
             syncQueueRepository.enqueueDelete(SyncEntities.ACTIVITY, activityId)
-            return
         } catch (e: HttpException) {
             if (e.code() != 404) throw e
             AppLogger.i(TAG, "deleteActivity got 404 for activityId=$activityId, treating as already deleted")
@@ -229,7 +214,18 @@ class ItineraryRepositoryImpl @Inject constructor(
     }
 
     override suspend fun reorderActivities(dayId: String, orderedIds: List<String>) {
-        api.reorderActivities(dayId, ReorderActivitiesRequest(orderedIds)).requireSuccess()
+        try {
+            api.reorderActivities(dayId, ReorderActivitiesRequest(orderedIds)).requireSuccess()
+        } catch (e: IOException) {
+            syncQueueRepository.enqueueUpsert(
+                entity = SyncEntities.ACTIVITY_REORDER,
+                id = dayId,
+                payload = SyncActivityReorderUpsertPayload(
+                    dayId = dayId,
+                    orderedIds = orderedIds,
+                ),
+            )
+        }
         safeLocalMutation("reorderActivities.updateItinerary(dayId=$dayId)") {
             val tripId = findTripIdForDay(dayId) ?: return@safeLocalMutation
             itineraryCacheStore.updateItinerary(tripId) { days ->
@@ -244,8 +240,21 @@ class ItineraryRepositoryImpl @Inject constructor(
     }
 
     override suspend fun trimOutOfRange(tripId: String, request: TrimOutOfRangeRequest) {
-        api.trimOutOfRangeDays(tripId, request).requireSuccess()
-        refreshItinerary(tripId).getOrThrow()
+        try {
+            api.trimOutOfRangeDays(tripId, request).requireSuccess()
+            refreshItinerary(tripId).getOrThrow()
+        } catch (e: IOException) {
+            syncQueueRepository.enqueueUpsert(
+                entity = SyncEntities.ITINERARY_TRIM,
+                id = tripId,
+                payload = SyncItineraryTrimUpsertPayload(
+                    tripId = tripId,
+                    action = request.action,
+                    dayIds = request.dayIds,
+                ),
+            )
+            applyTrimOutOfRangeLocally(tripId = tripId, request = request)
+        }
     }
 
     private suspend fun findTripIdForDay(dayId: String): String? {
@@ -285,5 +294,136 @@ class ItineraryRepositoryImpl @Inject constructor(
         val day = itinerary.firstOrNull { it.id == dayId } ?: return 0
         val maxOrder = day.activities.maxOfOrNull { it.orderIndex } ?: -1
         return maxOrder + 1
+    }
+
+    private suspend fun applyDayUpdateLocally(
+        dayId: String,
+        request: UpdateDayRequest,
+    ) {
+        safeLocalMutation("updateDay.updateItinerary(dayId=$dayId)") {
+            val tripId = findTripIdForDay(dayId) ?: return@safeLocalMutation
+            itineraryCacheStore.updateItinerary(tripId) { days ->
+                days.map { day ->
+                    if (day.id == dayId) {
+                        day.copy(
+                            city = request.city,
+                            cityProviderId = request.cityProviderId,
+                            cityLat = request.cityLat,
+                            cityLon = request.cityLon,
+                        )
+                    } else {
+                        day
+                    }
+                }
+            }
+        }
+    }
+
+    private suspend fun applyActivityUpdateLocally(
+        activityId: String,
+        request: UpdateActivityRequest,
+    ) {
+        val lookup = findTripAndDayForActivity(activityId) ?: return
+        safeLocalMutation("updateActivity.offlineUpdate(activityId=$activityId)") {
+            itineraryCacheStore.updateItinerary(lookup.first) { days ->
+                days.map { day ->
+                    if (day.id != lookup.second) {
+                        day
+                    } else {
+                        day.copy(
+                            activities = day.activities.map { activity ->
+                                if (activity.id == activityId) {
+                                    activity.copy(
+                                        title = request.title ?: activity.title,
+                                        timeText = request.timeText ?: activity.timeText,
+                                        locationName = request.locationName ?: activity.locationName,
+                                        link = request.link ?: activity.link,
+                                        costAmount = request.costAmount ?: activity.costAmount,
+                                        costType = request.costType ?: activity.costType,
+                                        notes = request.notes ?: activity.notes,
+                                    )
+                                } else {
+                                    activity
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private suspend fun applyActivityMoveLocally(
+        activityId: String,
+        request: MoveActivityRequest,
+    ) {
+        val source = findTripAndDayForActivity(activityId) ?: return
+        safeLocalMutation("moveActivity.offlineMove(activityId=$activityId)") {
+            itineraryCacheStore.updateItinerary(source.first) { days ->
+                var movedActivity: ActivityDto? = null
+                val without = days.map { day ->
+                    if (day.id == source.second) {
+                        val remaining = day.activities.filterNot { activity ->
+                            val shouldRemove = activity.id == activityId
+                            if (shouldRemove) {
+                                movedActivity = activity
+                            }
+                            shouldRemove
+                        }
+                        day.copy(activities = remaining)
+                    } else {
+                        day
+                    }
+                }
+                val candidate = movedActivity ?: return@updateItinerary without
+                without.map { day ->
+                    if (day.id != request.dayId) {
+                        day
+                    } else {
+                        val targetOrder = request.orderIndex
+                            ?: ((day.activities.maxOfOrNull { it.orderIndex } ?: -1) + 1)
+                        val moved = candidate.copy(dayId = request.dayId, orderIndex = targetOrder)
+                        day.copy(activities = (day.activities + moved).sortedBy { it.orderIndex })
+                    }
+                }
+            }
+        }
+    }
+
+    private suspend fun applyTrimOutOfRangeLocally(
+        tripId: String,
+        request: TrimOutOfRangeRequest,
+    ) {
+        safeLocalMutation("trimOutOfRange.offlineApply(action=${request.action},tripId=$tripId)") {
+            itineraryCacheStore.updateItinerary(tripId) { days ->
+                when (request.action) {
+                    "keep" -> {
+                        days.map { day ->
+                            if (day.id in request.dayIds) {
+                                day.copy(isOutOfRange = true)
+                            } else {
+                                day
+                            }
+                        }
+                    }
+
+                    "remove" -> {
+                        days.filterNot { it.id in request.dayIds }
+                    }
+
+                    "extend_end" -> {
+                        days.map { day ->
+                            if (day.id in request.dayIds) {
+                                day.copy(isOutOfRange = false)
+                            } else {
+                                day
+                            }
+                        }
+                    }
+
+                    else -> days
+                }
+            }
+        }
     }
 }

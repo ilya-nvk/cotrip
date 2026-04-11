@@ -50,7 +50,6 @@ class InvitePeopleViewModel @Inject constructor(
                 val link = (_state.value as? InvitePeopleState.Content)?.inviteLink.orEmpty()
                 if (link.isNotBlank()) {
                     emit(InvitePeopleEffect.CopyToClipboard(link))
-                    emitToast(R.string.invite_people_copied_toast)
                 }
             }
 

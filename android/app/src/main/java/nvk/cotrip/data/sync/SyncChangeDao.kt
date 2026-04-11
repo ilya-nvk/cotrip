@@ -21,6 +21,15 @@ interface SyncChangeDao {
     @Query("DELETE FROM sync_changes WHERE entity = :entity AND entityId = :entityId")
     suspend fun deleteByEntity(entity: String, entityId: String)
 
+    @Query("DELETE FROM sync_changes WHERE entity = :entity")
+    suspend fun deleteAllByEntity(entity: String)
+
+    @Query("DELETE FROM sync_changes WHERE entity = :entity AND type = :type")
+    suspend fun deleteByEntityAndType(entity: String, type: String)
+
+    @Query("DELETE FROM sync_changes WHERE entity = :entity AND entityId = :entityId AND type = :type")
+    suspend fun deleteByEntityAndEntityIdAndType(entity: String, entityId: String, type: String)
+
     @Query(
         """
         SELECT EXISTS(

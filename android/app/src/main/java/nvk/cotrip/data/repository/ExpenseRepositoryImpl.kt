@@ -20,6 +20,7 @@ import nvk.cotrip.data.sync.SyncQueueRepository
 import nvk.cotrip.util.AppLogger
 import retrofit2.HttpException
 import java.io.IOException
+import java.time.OffsetDateTime
 import java.util.UUID
 import javax.inject.Inject
 
@@ -118,6 +119,7 @@ class ExpenseRepositoryImpl @Inject constructor(
             api.updateExpense(expenseId, request)
         } catch (e: IOException) {
             syncQueueRepository.enqueueUpsert(SyncEntities.EXPENSE, expenseId, request)
+            applyExpenseUpdateLocally(expenseId = expenseId, request = request)
             return
         }
         safeLocalMutation("updateExpense.upsertExpense(expenseId=$expenseId)") {
@@ -135,7 +137,6 @@ class ExpenseRepositoryImpl @Inject constructor(
             api.deleteExpense(expenseId).requireSuccess()
         } catch (e: IOException) {
             syncQueueRepository.enqueueDelete(SyncEntities.EXPENSE, expenseId)
-            return
         } catch (e: HttpException) {
             if (e.code() != 404) throw e
             AppLogger.i(TAG, "deleteExpense got 404 for expenseId=$expenseId, treating as already deleted")
@@ -159,6 +160,34 @@ class ExpenseRepositoryImpl @Inject constructor(
             safeLocalMutation("refreshExpenses.setExpenses(tripId=$tripId)") {
                 expensesCacheStore.setExpenses(tripId, expenses)
             }
+        }
+    }
+
+    private suspend fun applyExpenseUpdateLocally(
+        expenseId: String,
+        request: ExpenseUpdateRequest,
+    ) {
+        val local = runCatching { expensesCacheStore.findExpenseById(expenseId) }.getOrNull() ?: return
+        val updated = local.copy(
+            title = request.title ?: local.title,
+            amount = request.amount ?: local.amount,
+            status = request.status ?: local.status,
+            paidById = request.paidById ?: local.paidById,
+            date = request.date ?: local.date,
+            splitType = request.splitType ?: local.splitType,
+            note = request.note ?: local.note,
+            participants = request.participants?.map { participant ->
+                ExpenseParticipantDto(
+                    userId = participant.userId,
+                    shareAmount = participant.shareAmount,
+                    isIncluded = participant.isIncluded,
+                    isPaid = participant.isPaid,
+                    name = null,
+                )
+            } ?: local.participants,
+        )
+        safeLocalMutation("updateExpense.offlineUpsert(expenseId=$expenseId)") {
+            expensesCacheStore.upsertExpense(updated.tripId, updated)
         }
     }
 }

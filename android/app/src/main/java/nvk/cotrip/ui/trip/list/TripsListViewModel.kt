@@ -114,14 +114,16 @@ class TripsListViewModel @Inject constructor(
 
             val result = tripRepository.refreshTrips()
             val syncResult = syncPullRepository.pull()
-            if (result.isFailure) {
-                _effects.tryEmit(
-                    TripsListEffect.ShowToast(appContext.getString(R.string.trips_list_load_failed))
-                )
-            } else if (syncResult.isFailure) {
-                _effects.tryEmit(
-                    TripsListEffect.ShowToast(appContext.getString(R.string.trips_list_sync_failed))
-                )
+            if (isUserRefresh) {
+                if (result.isFailure) {
+                    _effects.tryEmit(
+                        TripsListEffect.ShowToast(appContext.getString(R.string.trips_list_load_failed))
+                    )
+                } else if (syncResult.isFailure) {
+                    _effects.tryEmit(
+                        TripsListEffect.ShowToast(appContext.getString(R.string.trips_list_sync_failed))
+                    )
+                }
             }
             isRefreshing.value = false
         }

@@ -40,11 +40,13 @@ fun JoinTripScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
-    val inviteErrorText = if (state.inviteInput.isNotBlank() && !state.isInviteValid) {
-        stringResource(R.string.join_trip_invalid)
-    } else {
-        null
-    }
+    val inlineErrorRes = state.inlineErrorRes
+        ?: if (state.inviteInput.isNotBlank() && !state.isInviteValid) {
+            R.string.join_trip_invalid
+        } else {
+            null
+        }
+    val inviteErrorText = inlineErrorRes?.let { stringResource(it) }
 
     LaunchedEffect(viewModel) {
         viewModel.effects.collectLatest { effect ->

@@ -1,5 +1,7 @@
 package nvk.cotrip.ui.itinerary
 
+import androidx.annotation.StringRes
+
 data class TripItineraryState(
     val tripId: String,
     val dateRange: String,
@@ -10,4 +12,5 @@ data class TripItineraryState(
     val isCitySelectionRequired: Boolean,
     val pendingCitySelectionCount: Int,
     val isRefreshing: Boolean = false,
+    @StringRes val inlineErrorRes: Int? = null,
 )

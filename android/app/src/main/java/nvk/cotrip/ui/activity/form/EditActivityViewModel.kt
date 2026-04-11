@@ -208,7 +208,6 @@ class EditActivityViewModel @Inject constructor(
                 )
             }) {
                 is ApiResult.Success -> {
-                    emit(ActivityFormEffect.ShowToastRes(R.string.activity_form_saved_toast))
                     appNavigator.popBackStack()
                 }
 
@@ -285,7 +284,6 @@ class EditActivityViewModel @Inject constructor(
                 itineraryRepository.deleteActivity(activityId)
             }) {
                 is ApiResult.Success -> {
-                    emit(ActivityFormEffect.ShowToastRes(R.string.activity_form_deleted_toast))
                     appNavigator.popBackStack()
                 }
 

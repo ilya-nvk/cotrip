@@ -17,16 +17,20 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.decodeFromJsonElement
 import nvk.cotrip.backend.db.ActivityRepository
+import nvk.cotrip.backend.db.AiRepository
 import nvk.cotrip.backend.db.DayRepository
 import nvk.cotrip.backend.db.ExpenseParticipantRow
 import nvk.cotrip.backend.db.ExpenseRepository
 import nvk.cotrip.backend.db.IdeaRepository
 import nvk.cotrip.backend.db.ItineraryDayRepository
+import nvk.cotrip.backend.db.NotificationRepository
+import nvk.cotrip.backend.db.NotificationSettingRow
 import nvk.cotrip.backend.db.SyncRepository
 import nvk.cotrip.backend.db.TripMemberRepository
 import nvk.cotrip.backend.db.TripDaySeed
 import nvk.cotrip.backend.db.TripRepository
 import nvk.cotrip.backend.db.TripUpdate
+import nvk.cotrip.backend.db.UserRepository
 import nvk.cotrip.backend.limits.LimitReachedException
 import java.time.LocalDate
 import java.time.OffsetDateTime
@@ -135,6 +139,60 @@ private data class SyncActivityCreatePayload(
     val orderIndex: Int? = null,
 )
 
+@Serializable
+private data class SyncTripMemberDeletePayload(
+    val tripId: String,
+    val memberId: String,
+)
+
+@Serializable
+private data class SyncIdeaStatusUpsertPayload(
+    val status: String,
+)
+
+@Serializable
+private data class SyncIdeaConvertCreatePayload(
+    val dayId: String,
+    val timeText: String? = null,
+    val orderIndex: Int? = null,
+)
+
+@Serializable
+private data class SyncActivityReorderUpsertPayload(
+    val dayId: String,
+    val orderedIds: List<String> = emptyList(),
+)
+
+@Serializable
+private data class SyncItineraryTrimUpsertPayload(
+    val tripId: String,
+    val action: String,
+    val dayIds: List<String>,
+)
+
+@Serializable
+private data class SyncNotificationSettingsUpsertPayload(
+    val items: List<NotificationSettingDto> = emptyList(),
+)
+
+@Serializable
+private data class SyncNotificationReadUpsertPayload(
+    val mode: String,
+    val notificationId: String? = null,
+    val ideaId: String? = null,
+)
+
+@Serializable
+private data class SyncUserProfileUpsertPayload(
+    val name: String,
+    val photoUrl: String? = null,
+)
+
+@Serializable
+private data class SyncAiSuggestionSaveUpsertPayload(
+    val suggestionId: String? = null,
+)
+
 private const val OP_UPSERT = "upsert"
 private const val OP_DELETE = "delete"
 private const val OP_CREATE = "create"
@@ -147,6 +205,9 @@ private const val REASON_DEPENDENCY_NOT_READY = "dependency_not_ready"
 private const val REASON_UNSUPPORTED_OPERATION = "unsupported_operation"
 private const val REASON_UNSUPPORTED_ENTITY = "unsupported_entity"
 private const val REASON_INTERNAL_ERROR = "internal_error"
+
+private const val READ_BULK_MODE_NON_COMMENT = "non_comment"
+private const val READ_BULK_MODE_IDEA_COMMENTS = "idea_comments"
 
 private val syncJson = Json { ignoreUnknownKeys = true }
 
@@ -275,6 +336,7 @@ private fun applyCreate(userId: String, item: SyncPushItem) {
         "idea" -> applyIdeaCreate(userId = userId, item = item)
         "activity" -> applyActivityCreate(userId = userId, item = item)
         "expense" -> applyExpenseCreate(userId = userId, item = item)
+        "idea_convert" -> applyIdeaConvertCreate(userId = userId, item = item)
         "itinerary_day" -> throw SyncApplyException(REASON_UNSUPPORTED_OPERATION)
         else -> throw SyncApplyException(REASON_UNSUPPORTED_ENTITY)
     }
@@ -287,6 +349,13 @@ private fun applyUpsert(userId: String, item: SyncPushItem) {
         "itinerary_day" -> applyDayUpsert(userId = userId, item = item)
         "activity" -> applyActivityUpsert(userId = userId, item = item)
         "expense" -> applyExpenseUpsert(userId = userId, item = item)
+        "idea_status" -> applyIdeaStatusUpsert(userId = userId, item = item)
+        "activity_reorder" -> applyActivityReorderUpsert(userId = userId, item = item)
+        "itinerary_trim" -> applyItineraryTrimUpsert(userId = userId, item = item)
+        "notification_settings" -> applyNotificationSettingsUpsert(userId = userId, item = item)
+        "notification_read" -> applyNotificationReadUpsert(userId = userId, item = item)
+        "user_profile" -> applyUserProfileUpsert(userId = userId, item = item)
+        "ai_suggestion_save" -> applyAiSuggestionSaveUpsert(userId = userId, item = item)
         else -> throw SyncApplyException(REASON_UNSUPPORTED_ENTITY)
     }
 }
@@ -297,6 +366,7 @@ private fun applyDelete(userId: String, item: SyncPushItem) {
         "idea" -> applyIdeaDelete(userId = userId, item = item)
         "activity" -> applyActivityDelete(userId = userId, item = item)
         "expense" -> applyExpenseDelete(userId = userId, item = item)
+        "trip_member" -> applyTripMemberDelete(userId = userId, item = item)
         "itinerary_day" -> throw SyncApplyException(REASON_UNSUPPORTED_OPERATION)
         else -> throw SyncApplyException(REASON_UNSUPPORTED_ENTITY)
     }
@@ -783,6 +853,215 @@ private fun applyExpenseDelete(userId: String, item: SyncPushItem) {
     if (!deleted) {
         throw SyncApplyException(REASON_NOT_FOUND)
     }
+}
+
+private fun applyTripMemberDelete(userId: String, item: SyncPushItem) {
+    val payload = decodePayload<SyncTripMemberDeletePayload>(item.payload)
+    val tripId = normalizeUuid(payload.tripId)
+    val memberId = normalizeUuid(payload.memberId)
+
+    if (!TripRepository.isMember(tripId, userId)) {
+        throw SyncApplyException(REASON_FORBIDDEN)
+    }
+
+    val target = TripMemberRepository.findMember(tripId, memberId) ?: return
+    if (target.role == "owner") {
+        throw SyncApplyException(REASON_FORBIDDEN)
+    }
+
+    val isOwner = TripRepository.isOwner(tripId, userId)
+    if (!isOwner && userId != memberId) {
+        throw SyncApplyException(REASON_FORBIDDEN)
+    }
+
+    val removed = TripMemberRepository.removeMember(tripId, memberId)
+    if (!removed) {
+        throw SyncApplyException(REASON_NOT_FOUND)
+    }
+}
+
+private fun applyIdeaStatusUpsert(userId: String, item: SyncPushItem) {
+    val ideaId = normalizeUuid(item.id)
+    val payload = decodePayload<SyncIdeaStatusUpsertPayload>(item.payload)
+    val status = payload.status.trim().lowercase()
+    if (status != "approved" && status != "rejected") {
+        throw SyncApplyException(REASON_INVALID_PAYLOAD)
+    }
+
+    val existing = IdeaRepository.get(ideaId)
+        ?: throw SyncApplyException(REASON_DEPENDENCY_NOT_READY, retryable = true)
+    if (!TripRepository.isOwner(existing.tripId, userId)) {
+        throw SyncApplyException(REASON_FORBIDDEN)
+    }
+    if (existing.status == status) {
+        return
+    }
+    val updated = IdeaRepository.updateStatus(ideaId, status)
+    if (updated == null) {
+        throw SyncApplyException(REASON_NOT_FOUND)
+    }
+}
+
+private fun applyIdeaConvertCreate(userId: String, item: SyncPushItem) {
+    val ideaId = normalizeUuid(item.id)
+    val idea = IdeaRepository.get(ideaId)
+        ?: throw SyncApplyException(REASON_DEPENDENCY_NOT_READY, retryable = true)
+    if (!TripRepository.isMember(idea.tripId, userId)) {
+        throw SyncApplyException(REASON_FORBIDDEN)
+    }
+
+    val payload = decodePayload<SyncIdeaConvertCreatePayload>(item.payload)
+    val dayId = normalizeUuid(payload.dayId)
+    val dayTripId = DayRepository.findTripIdByDayId(dayId)
+        ?: throw SyncApplyException(REASON_DEPENDENCY_NOT_READY, retryable = true)
+    if (dayTripId != idea.tripId) {
+        throw SyncApplyException(REASON_INVALID_PAYLOAD)
+    }
+
+    val existingActivity = ActivityRepository.findBySourceIdea(dayId = dayId, sourceIdeaId = ideaId)
+    if (existingActivity != null) {
+        return
+    }
+
+    val orderIndex = payload.orderIndex ?: ActivityRepository.nextOrderIndex(dayId)
+    ActivityRepository.createFromIdea(
+        dayId = dayId,
+        idea = idea,
+        timeText = payload.timeText,
+        orderIndex = orderIndex,
+    )
+}
+
+private fun applyActivityReorderUpsert(userId: String, item: SyncPushItem) {
+    val payload = decodePayload<SyncActivityReorderUpsertPayload>(item.payload)
+    val rawDayId = payload.dayId.ifBlank { item.id }
+    val dayId = normalizeUuid(rawDayId)
+    val tripId = DayRepository.findTripIdByDayId(dayId)
+        ?: throw SyncApplyException(REASON_DEPENDENCY_NOT_READY, retryable = true)
+    if (!TripRepository.isMember(tripId, userId)) {
+        throw SyncApplyException(REASON_FORBIDDEN)
+    }
+
+    val orderedIds = payload.orderedIds.map(::normalizeUuid)
+    ActivityRepository.reorder(dayId, orderedIds)
+}
+
+private fun applyItineraryTrimUpsert(userId: String, item: SyncPushItem) {
+    val payload = decodePayload<SyncItineraryTrimUpsertPayload>(item.payload)
+    val tripId = normalizeUuid(payload.tripId)
+    if (!TripRepository.isMember(tripId, userId)) {
+        throw SyncApplyException(REASON_FORBIDDEN)
+    }
+    val dayIds = payload.dayIds.map(::normalizeUuid)
+
+    when (payload.action.trim().lowercase()) {
+        "keep" -> ItineraryDayRepository.markOutOfRange(dayIds, true)
+        "remove" -> ItineraryDayRepository.deleteDays(dayIds)
+        "extend_end" -> {
+            val updated = TripRepository.extendTripEndByOutOfRangeDays(
+                ownerId = userId,
+                tripId = tripId,
+                dayIds = dayIds,
+            )
+            if (updated == null) {
+                throw SyncApplyException(REASON_FORBIDDEN)
+            }
+        }
+
+        else -> throw SyncApplyException(REASON_INVALID_PAYLOAD)
+    }
+}
+
+private fun applyNotificationSettingsUpsert(userId: String, item: SyncPushItem) {
+    val payload = decodePayload<SyncNotificationSettingsUpsertPayload>(item.payload)
+    val rows = payload.items.map { setting ->
+        val key = setting.key.trim()
+        if (key.isBlank()) {
+            throw SyncApplyException(REASON_INVALID_PAYLOAD)
+        }
+        NotificationSettingRow(
+            userId = userId,
+            key = key,
+            enabled = setting.enabled,
+        )
+    }
+    NotificationRepository.upsertSettings(userId, rows)
+}
+
+private fun applyNotificationReadUpsert(userId: String, item: SyncPushItem) {
+    val payload = decodePayload<SyncNotificationReadUpsertPayload>(item.payload)
+    when (payload.mode.trim().lowercase()) {
+        "single" -> {
+            val rawId = payload.notificationId?.trim().orEmpty().ifBlank { item.id.trim() }
+            val notificationId = normalizeUuid(rawId)
+            val updated = NotificationRepository.markRead(userId, notificationId)
+            if (!updated) {
+                val exists = NotificationRepository.listForUser(userId).any { it.id == notificationId }
+                if (!exists) {
+                    throw SyncApplyException(REASON_NOT_FOUND)
+                }
+            }
+        }
+
+        READ_BULK_MODE_NON_COMMENT -> NotificationRepository.markReadBulkNonComment(userId)
+        READ_BULK_MODE_IDEA_COMMENTS -> {
+            val ideaId = payload.ideaId?.trim().orEmpty()
+            if (ideaId.isBlank()) {
+                throw SyncApplyException(REASON_INVALID_PAYLOAD)
+            }
+            NotificationRepository.markReadBulkIdeaComments(userId, normalizeUuid(ideaId))
+        }
+
+        else -> throw SyncApplyException(REASON_INVALID_PAYLOAD)
+    }
+}
+
+private fun applyUserProfileUpsert(userId: String, item: SyncPushItem) {
+    val payload = decodePayload<SyncUserProfileUpsertPayload>(item.payload)
+    val existing = UserRepository.findById(userId) ?: throw SyncApplyException(REASON_NOT_FOUND)
+
+    val normalizedName = payload.name.trim().takeIf { it.isNotBlank() }
+        ?: throw SyncApplyException(REASON_INVALID_PAYLOAD)
+    val normalizedPhotoUrl = when (val raw = payload.photoUrl) {
+        null -> existing.photoUrl
+        else -> raw.trim().takeIf { it.isNotBlank() }
+    }
+
+    val updated = UserRepository.updateUser(
+        userId = userId,
+        name = normalizedName,
+        photoUrl = normalizedPhotoUrl,
+    )
+    if (updated == null) {
+        throw SyncApplyException(REASON_NOT_FOUND)
+    }
+}
+
+private fun applyAiSuggestionSaveUpsert(userId: String, item: SyncPushItem) {
+    val payload = decodePayload<SyncAiSuggestionSaveUpsertPayload>(item.payload)
+    val suggestionIdRaw = payload.suggestionId?.trim().orEmpty().ifBlank { item.id.trim() }
+    val suggestionId = normalizeUuid(suggestionIdRaw)
+
+    val suggestion = AiRepository.getSuggestionWithRequest(suggestionId)
+        ?: throw SyncApplyException(REASON_DEPENDENCY_NOT_READY, retryable = true)
+    if (!TripRepository.isMember(suggestion.tripId, userId)) {
+        throw SyncApplyException(REASON_FORBIDDEN)
+    }
+    if (suggestion.suggestion.isSaved) {
+        return
+    }
+
+    val idea = IdeaRepository.create(
+        tripId = suggestion.tripId,
+        authorId = userId,
+        title = suggestion.suggestion.title,
+        city = suggestion.suggestion.place?.trim()?.ifBlank { null },
+        link = null,
+        costAmount = suggestion.suggestion.estimatedCost,
+        costType = null,
+        notes = suggestion.suggestion.description ?: suggestion.requestDescription,
+    )
+    AiRepository.markSuggestionSaved(suggestionId, idea.id)
 }
 
 private fun normalizeEntity(raw: String): String {

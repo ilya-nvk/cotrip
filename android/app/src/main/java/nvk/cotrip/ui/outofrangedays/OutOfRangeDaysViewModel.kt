@@ -114,12 +114,6 @@ class OutOfRangeDaysViewModel @Inject constructor(
                 )
             }) {
                 is ApiResult.Success -> {
-                    val toast = when (action) {
-                        "extend_end" -> R.string.out_of_range_days_extended_toast
-                        "remove" -> R.string.out_of_range_days_removed_toast
-                        else -> R.string.out_of_range_days_kept_toast
-                    }
-                    emitToast(toast)
                     appNavigator.popBackStack()
                 }
 

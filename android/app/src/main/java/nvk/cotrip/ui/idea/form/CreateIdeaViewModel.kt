@@ -75,7 +75,7 @@ class CreateIdeaViewModel @Inject constructor(
         when (event) {
             IdeaFormEvent.OnBackClick -> appNavigator.popBackStack()
             IdeaFormEvent.OnPrimaryClick -> createIdea()
-            IdeaFormEvent.OnDeleteClick -> emit(IdeaFormEffect.ShowToastRes(R.string.idea_form_delete_not_available))
+            IdeaFormEvent.OnDeleteClick -> Unit
             IdeaFormEvent.OnDismissLimitDialog -> _state.update { it.copy(limitDialog = null) }
             IdeaFormEvent.OnConfirmDeleteOldestAndRetry -> deleteOldestAndRetry()
             is IdeaFormEvent.OnCitySelected -> onCitySuggestionSelected(event.city)
@@ -201,7 +201,6 @@ class CreateIdeaViewModel @Inject constructor(
                 )
             }) {
                 is ApiResult.Success -> {
-                    emit(IdeaFormEffect.ShowToastRes(R.string.idea_form_created_toast))
                     appNavigator.popBackStack()
                 }
 
@@ -247,7 +246,6 @@ class CreateIdeaViewModel @Inject constructor(
                 )
             }) {
                 is ApiResult.Success -> {
-                    emit(IdeaFormEffect.ShowToastRes(R.string.idea_form_created_toast))
                     appNavigator.popBackStack()
                 }
 

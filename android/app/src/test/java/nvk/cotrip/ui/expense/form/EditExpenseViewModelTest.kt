@@ -1,9 +1,7 @@
 package nvk.cotrip.ui.expense.form
 
 import android.app.Application
-import android.content.Context
 import androidx.lifecycle.SavedStateHandle
-import androidx.test.core.app.ApplicationProvider
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CoroutineStart
@@ -142,7 +140,7 @@ class EditExpenseViewModelTest {
     }
 
     @Test
-    fun given_validData_when_onPrimaryClick_then_callsUpdateAndEitherPopsOrShowsToast() = runTest {
+    fun given_validData_when_onPrimaryClick_then_callsUpdateAndPopsBack() = runTest {
         // GIVEN
         every { networkStateProvider.isOnline() } returns true
         val navigator = ExpenseFormFakeNavigator()
@@ -157,26 +155,17 @@ class EditExpenseViewModelTest {
 
         viewModel.onEvent(ExpenseFormEvent.OnTitleChange("Updated Lunch"))
         viewModel.onEvent(ExpenseFormEvent.OnAmountChange("35"))
+        viewModel.onEvent(ExpenseFormEvent.OnParticipantChecked("user-1", true))
+        viewModel.onEvent(ExpenseFormEvent.OnParticipantChecked("user-2", true))
         viewModel.onEvent(ExpenseFormEvent.OnPaidBySelected("user-2"))
-        val effects = mutableListOf<ExpenseFormEffect>()
-        val collectJob = launch(start = CoroutineStart.UNDISPATCHED) {
-            viewModel.effects.take(1).toList(effects)
-        }
         // WHEN
         viewModel.onEvent(ExpenseFormEvent.OnPrimaryClick)
         advanceUntilIdle()
         advanceUntilIdle()
-        collectJob.join()
 
         // THEN
-        assertTrue(
-            "Expected either navigation back (success) or an effect (toast)",
-            navigator.popCalls == 1 || effects.isNotEmpty()
-        )
-        if (effects.isNotEmpty()) {
-            assertTrue((effects.single() as ExpenseFormEffect.ShowToastRes).resId == R.string.expense_form_saved_toast ||
-                (effects.single() as ExpenseFormEffect.ShowToastRes).resId == R.string.common_error_message)
-        }
+        assertEquals(1, expenseRepository.updateExpenseCalls.size)
+        assertEquals(1, navigator.popCalls)
     }
 
     @Test
@@ -193,19 +182,13 @@ class EditExpenseViewModelTest {
         )
         advanceUntilIdle()
 
-        val effects = mutableListOf<ExpenseFormEffect>()
-        val collectJob = launch(start = CoroutineStart.UNDISPATCHED) {
-            viewModel.effects.take(1).toList(effects)
-        }
         // WHEN
         viewModel.onEvent(ExpenseFormEvent.OnDeleteClick)
         advanceUntilIdle()
-        collectJob.join()
 
         // THEN
         assertEquals(1, expenseRepository.deleteExpenseCalls.size)
         assertEquals("exp-1", expenseRepository.deleteExpenseCalls.single())
-        assertEquals(R.string.expense_form_deleted_toast, (effects.single() as ExpenseFormEffect.ShowToastRes).resId)
         assertEquals(1, navigator.popCalls)
     }
 
@@ -328,7 +311,6 @@ class EditExpenseViewModelTest {
             ),
         ),
     ): EditExpenseViewModel {
-        val appContext: Context = ApplicationProvider.getApplicationContext()
         return EditExpenseViewModel(
             savedStateHandle = SavedStateHandle(
                 mapOf(

@@ -86,7 +86,7 @@ class CreateActivityViewModel @Inject constructor(
         when (event) {
             ActivityFormEvent.OnBackClick -> appNavigator.popBackStack()
             ActivityFormEvent.OnPrimaryClick -> createActivity()
-            ActivityFormEvent.OnDeleteClick -> emit(ActivityFormEffect.ShowToastRes(R.string.activity_form_delete_not_available))
+            ActivityFormEvent.OnDeleteClick -> Unit
             ActivityFormEvent.OnDismissLimitDialog -> _state.update { it.copy(limitDialog = null) }
             ActivityFormEvent.OnConfirmDeleteOldestAndRetry -> deleteOldestAndRetry()
             ActivityFormEvent.OnPickDateClick -> Unit
@@ -201,7 +201,6 @@ class CreateActivityViewModel @Inject constructor(
                 )
             }) {
                 is ApiResult.Success -> {
-                    emit(ActivityFormEffect.ShowToastRes(R.string.activity_form_created_toast))
                     appNavigator.popBackStack()
                 }
 
@@ -249,7 +248,6 @@ class CreateActivityViewModel @Inject constructor(
                 )
             }) {
                 is ApiResult.Success -> {
-                    emit(ActivityFormEffect.ShowToastRes(R.string.activity_form_created_toast))
                     appNavigator.popBackStack()
                 }
 

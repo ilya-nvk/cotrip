@@ -2,6 +2,7 @@ package nvk.cotrip.data.sync
 
 import kotlinx.serialization.Serializable
 import nvk.cotrip.data.network.dto.ExpenseParticipantInput
+import nvk.cotrip.data.network.dto.NotificationSettingDto
 
 @Serializable
 data class SyncTripCreateDayPayload(
@@ -58,4 +59,58 @@ data class SyncActivityCreatePayload(
     val costType: String? = null,
     val notes: String? = null,
     val orderIndex: Int? = null,
+)
+
+@Serializable
+data class SyncTripMemberDeletePayload(
+    val tripId: String,
+    val memberId: String,
+)
+
+@Serializable
+data class SyncIdeaStatusUpsertPayload(
+    val status: String,
+)
+
+@Serializable
+data class SyncIdeaConvertCreatePayload(
+    val dayId: String,
+    val timeText: String? = null,
+    val orderIndex: Int? = null,
+)
+
+@Serializable
+data class SyncActivityReorderUpsertPayload(
+    val dayId: String,
+    val orderedIds: List<String>,
+)
+
+@Serializable
+data class SyncItineraryTrimUpsertPayload(
+    val tripId: String,
+    val action: String,
+    val dayIds: List<String>,
+)
+
+@Serializable
+data class SyncNotificationSettingsUpsertPayload(
+    val items: List<NotificationSettingDto>,
+)
+
+@Serializable
+data class SyncNotificationReadUpsertPayload(
+    val mode: String,
+    val notificationId: String? = null,
+    val ideaId: String? = null,
+)
+
+@Serializable
+data class SyncUserProfileUpsertPayload(
+    val name: String,
+    val photoUrl: String? = null,
+)
+
+@Serializable
+data class SyncAiSuggestionSaveUpsertPayload(
+    val suggestionId: String,
 )

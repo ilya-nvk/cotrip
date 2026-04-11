@@ -79,7 +79,7 @@ class JoinTripViewModelTest {
     }
 
     @Test
-    fun given_invalidInput_when_joinClick_then_showsValidationToast() = runTest {
+    fun given_invalidInput_when_joinClick_then_setsInlineValidationError() = runTest {
         // GIVEN
         every { networkStateProvider.isOnline() } returns true
         val viewModel = createViewModel(
@@ -87,25 +87,18 @@ class JoinTripViewModelTest {
             tripRepository = FakeTripRepository(),
             navigator = FakeNavigator(),
         )
-        val collected = mutableListOf<JoinTripEffect>()
-        val collector = launch(start = CoroutineStart.UNDISPATCHED) {
-            viewModel.effects.take(1).toList(collected)
-        }
-
         // WHEN
         viewModel.onEvent(JoinTripEvent.OnInviteInputChange("invalid"))
         viewModel.onEvent(JoinTripEvent.OnJoinClick)
         advanceUntilIdle()
-        collector.join()
 
         // THEN
-        val effect = collected.single()
-        assertEquals(JoinTripEffect.ShowToastRes(R.string.join_trip_invalid), effect)
+        assertEquals(R.string.join_trip_invalid, viewModel.state.value.inlineErrorRes)
         assertFalse(viewModel.state.value.isLoading)
     }
 
     @Test
-    fun given_validToken_when_joinByTokenSuccess_then_navigatesAndResetsLoading() = runTest {
+    fun given_validToken_when_joinByTokenSuccess_then_navigatesAndResetsLoadingWithoutToast() = runTest {
         // GIVEN
         every { networkStateProvider.isOnline() } returns true
         val token = "b".repeat(32)
@@ -116,26 +109,20 @@ class JoinTripViewModelTest {
         val tripRepository = FakeTripRepository()
         val navigator = FakeNavigator()
         val viewModel = createViewModel(inviteRepository, tripRepository, navigator)
-        val collected = mutableListOf<JoinTripEffect>()
-        val collector = launch(start = CoroutineStart.UNDISPATCHED) {
-            viewModel.effects.take(1).toList(collected)
-        }
 
         // WHEN
         viewModel.onEvent(JoinTripEvent.OnInviteInputChange(token))
         viewModel.onEvent(JoinTripEvent.OnJoinClick)
         advanceUntilIdle()
-        collector.join()
 
         // THEN
-        assertEquals(JoinTripEffect.ShowToastRes(R.string.join_trip_success), collected.single())
         assertEquals(Destination.TripDetails("trip-1"), navigator.lastDestination)
         assertFalse(viewModel.state.value.isLoading)
         assertEquals(listOf(token), inviteRepository.acceptCalls)
     }
 
     @Test
-    fun given_alreadyMember_when_joinByToken_then_showsAlreadyJoinedToast() = runTest {
+    fun given_alreadyMember_when_joinByToken_then_setsInlineError() = runTest {
         // GIVEN
         every { networkStateProvider.isOnline() } returns true
         val token = "c".repeat(32)
@@ -146,22 +133,14 @@ class JoinTripViewModelTest {
             trips = MutableStateFlow(listOf(trip("joined-trip")))
         )
         val viewModel = createViewModel(inviteRepository, tripRepository, FakeNavigator())
-        val collected = mutableListOf<JoinTripEffect>()
-        val collector = launch(start = CoroutineStart.UNDISPATCHED) {
-            viewModel.effects.take(1).toList(collected)
-        }
 
         // WHEN
         viewModel.onEvent(JoinTripEvent.OnInviteInputChange(token))
         viewModel.onEvent(JoinTripEvent.OnJoinClick)
         advanceUntilIdle()
-        collector.join()
 
         // THEN
-        assertEquals(
-            JoinTripEffect.ShowToastRes(R.string.join_trip_already_joined),
-            collected.single(),
-        )
+        assertEquals(R.string.join_trip_already_joined, viewModel.state.value.inlineErrorRes)
         assertTrue(inviteRepository.acceptCalls.isEmpty())
         assertFalse(viewModel.state.value.isLoading)
     }
@@ -200,7 +179,7 @@ class JoinTripViewModelTest {
     }
 
     @Test
-    fun given_joinByTripIdWithBlankServerResponse_when_joinClick_then_fallsBackToInputTripId() = runTest {
+    fun given_joinByTripIdWithBlankServerResponse_when_joinClick_then_fallsBackToInputTripIdAndNavigates() = runTest {
         // GIVEN
         every { networkStateProvider.isOnline() } returns true
         val tripId = "550e8400-e29b-41d4-a716-446655440000"
@@ -213,19 +192,13 @@ class JoinTripViewModelTest {
             tripRepository = FakeTripRepository(),
             navigator = navigator,
         )
-        val collected = mutableListOf<JoinTripEffect>()
-        val collector = launch(start = CoroutineStart.UNDISPATCHED) {
-            viewModel.effects.take(1).toList(collected)
-        }
 
         // WHEN
         viewModel.onEvent(JoinTripEvent.OnInviteInputChange(tripId))
         viewModel.onEvent(JoinTripEvent.OnJoinClick)
         advanceUntilIdle()
-        collector.join()
 
         // THEN
-        assertEquals(JoinTripEffect.ShowToastRes(R.string.join_trip_success), collected.single())
         assertEquals(Destination.TripDetails(tripId), navigator.lastDestination)
         assertEquals(listOf(tripId), inviteRepository.joinByIdCalls)
     }

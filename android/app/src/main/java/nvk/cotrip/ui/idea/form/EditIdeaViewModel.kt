@@ -221,7 +221,6 @@ class EditIdeaViewModel @Inject constructor(
                 )
             }) {
                 is ApiResult.Success -> {
-                    emit(IdeaFormEffect.ShowToastRes(R.string.idea_form_saved_toast))
                     appNavigator.popBackStack()
                 }
 
@@ -239,7 +238,6 @@ class EditIdeaViewModel @Inject constructor(
                 ideaRepository.deleteIdea(ideaId)
             }) {
                 is ApiResult.Success -> {
-                    emit(IdeaFormEffect.ShowToastRes(R.string.idea_form_deleted_toast))
                     appNavigator.popBackStack()
                 }
 

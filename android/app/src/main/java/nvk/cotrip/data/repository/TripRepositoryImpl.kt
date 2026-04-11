@@ -20,6 +20,7 @@ import nvk.cotrip.data.network.dto.UpdateTripRequest
 import nvk.cotrip.data.network.requireSuccess
 import nvk.cotrip.data.sync.SyncEntities
 import nvk.cotrip.data.sync.SyncQueueRepository
+import nvk.cotrip.data.sync.SyncTripMemberDeletePayload
 import nvk.cotrip.data.sync.SyncTripCreateDayPayload
 import nvk.cotrip.data.sync.SyncTripCreatePayload
 import nvk.cotrip.util.AppLogger
@@ -156,7 +157,7 @@ class TripRepositoryImpl @Inject constructor(
                     tripsCacheStore.upsertTrip(updatedLocal)
                 }
             }
-            Result.failure(e)
+            Result.success(Unit)
         }
     }
 
@@ -217,7 +218,18 @@ class TripRepositoryImpl @Inject constructor(
     }
 
     override suspend fun removeMember(tripId: String, memberId: String) {
-        api.removeMember(tripId, memberId).requireSuccess()
+        try {
+            api.removeMember(tripId, memberId).requireSuccess()
+        } catch (e: IOException) {
+            syncQueueRepository.enqueueDelete(
+                entity = SyncEntities.TRIP_MEMBER,
+                id = "$tripId:$memberId",
+                payload = SyncTripMemberDeletePayload(
+                    tripId = tripId,
+                    memberId = memberId,
+                ),
+            )
+        }
         safeLocalMutation("removeMember.removeMember(tripId=$tripId, memberId=$memberId)") {
             tripMembersCacheStore.removeMember(tripId, memberId)
         }

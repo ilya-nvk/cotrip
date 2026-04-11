@@ -105,7 +105,7 @@ class OutOfRangeDaysViewModelTest {
     }
 
     @Test
-    fun given_contentShown_when_extendEndClick_then_trimsAndEmitsToastAndPops() = runTest {
+    fun given_contentShown_when_extendEndClick_then_trimsAndPops() = runTest {
         // GIVEN
         every { networkStateProvider.isOnline() } returns true
         val navigator = FakeNavigator()
@@ -121,24 +121,14 @@ class OutOfRangeDaysViewModelTest {
         )
         advanceUntilIdle()
 
-        val collected = mutableListOf<OutOfRangeDaysEffect>()
-        val collector = launch(start = CoroutineStart.UNDISPATCHED) {
-            viewModel.effects.take(1).toList(collected)
-        }
-
         // WHEN
         viewModel.onEvent(OutOfRangeDaysEvent.OnExtendEndClick)
         advanceUntilIdle()
-        collector.join()
 
         // THEN
         assertEquals(1, itineraryRepository.trimCalls.size)
         assertEquals("extend_end", itineraryRepository.trimCalls.single().action)
         assertEquals(listOf("day-3"), itineraryRepository.trimCalls.single().dayIds)
-        assertEquals(
-            OutOfRangeDaysEffect.ShowToastRes(R.string.out_of_range_days_extended_toast),
-            collected.single(),
-        )
         assertEquals(1, navigator.popCalls)
     }
 
