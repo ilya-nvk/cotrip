@@ -5,15 +5,10 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.test.core.app.ApplicationProvider
 import io.mockk.every
 import io.mockk.mockk
-import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.take
-import kotlinx.coroutines.flow.toList
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
-import nvk.cotrip.R
 import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.NetworkStateProvider
 import nvk.cotrip.testing.MainDispatcherRule
@@ -120,7 +115,7 @@ class RouteSuggestionsViewModelTest {
     }
 
     @Test
-    fun given_unsavedSuggestion_when_onSaveClickSuccess_then_updatesStateAndEmitsToast() = runTest {
+    fun given_unsavedSuggestion_when_onSaveClickSuccess_then_updatesState() = runTest {
         // GIVEN
         every { networkStateProvider.isOnline() } returns true
         val aiRepository = FakeAiSuggestionsRepository(
@@ -134,19 +129,12 @@ class RouteSuggestionsViewModelTest {
             city = "Rome",
         )
         advanceUntilIdle()
-        val effects = mutableListOf<RouteSuggestionsEffect>()
-        val collector = launch(start = CoroutineStart.UNDISPATCHED) {
-            viewModel.effects.take(1).toList(effects)
-        }
 
         // WHEN
         viewModel.onEvent(RouteSuggestionsEvent.OnSaveClick("s1"))
         advanceUntilIdle()
-        collector.join()
 
         // THEN
-        assertEquals(1, effects.size)
-        assertEquals(RouteSuggestionsEffect.ShowToastRes(R.string.ai_suggestions_saved), effects.single())
         assertEquals(1, aiRepository.saveSuggestionToIdeasCalls.size)
         assertEquals("s1", aiRepository.saveSuggestionToIdeasCalls.single())
         val content = viewModel.state.value as RouteSuggestionsState.Content

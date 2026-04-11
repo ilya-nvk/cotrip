@@ -5,13 +5,9 @@ import androidx.lifecycle.SavedStateHandle
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.take
-import kotlinx.coroutines.flow.toList
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
-import nvk.cotrip.R
 import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.NetworkStateProvider
 import nvk.cotrip.testing.MainDispatcherRule
@@ -84,7 +80,7 @@ class EditTripViewModelTest {
     }
 
     @Test
-    fun given_validData_when_onPrimaryActionClick_then_callsUpdateTripAndShowsToast() = runTest {
+    fun given_validData_when_onPrimaryActionClick_then_callsUpdateTripAndCloses() = runTest {
         // GIVEN
         every { networkStateProvider.isOnline() } returns true
         val start = LocalDate.now()
@@ -101,21 +97,17 @@ class EditTripViewModelTest {
         advanceUntilIdle()
         viewModel.onEvent(TripFormEvent.OnNameChange("Updated Title"))
         advanceUntilIdle()
-        val effects = mutableListOf<TripFormEffect>()
-        launch { viewModel.effects.take(1).toList(effects) }
-        advanceUntilIdle()
 
         // WHEN
         viewModel.onEvent(TripFormEvent.OnPrimaryActionClick)
         advanceUntilIdle()
 
         // THEN
-        assertTrue(effects.any { it is TripFormEffect.ShowToastRes && it.resId == R.string.edit_trip_saved_toast })
         assertTrue(navigator.popCalls >= 1)
     }
 
     @Test
-    fun given_tripLoaded_when_onArchiveClickSuccess_then_showsToastAndCloses() = runTest {
+    fun given_tripLoaded_when_onArchiveClickSuccess_then_closes() = runTest {
         // GIVEN
         every { networkStateProvider.isOnline() } returns true
         val trip = tripDetailsTripDto(
@@ -132,9 +124,6 @@ class EditTripViewModelTest {
             navigator = navigator,
         )
         advanceUntilIdle()
-        val effects = mutableListOf<TripFormEffect>()
-        launch { viewModel.effects.take(1).toList(effects) }
-        advanceUntilIdle()
 
         // WHEN
         viewModel.onEvent(TripFormEvent.OnArchiveClick)
@@ -142,7 +131,6 @@ class EditTripViewModelTest {
 
         // THEN
         assertEquals(1, navigator.popCalls)
-        assertTrue(effects.any { it is TripFormEffect.ShowToastRes && it.resId == R.string.edit_trip_archived_toast })
     }
 
     @Test

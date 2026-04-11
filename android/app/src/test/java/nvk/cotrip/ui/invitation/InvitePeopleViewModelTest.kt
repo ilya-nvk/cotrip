@@ -4,8 +4,8 @@ import android.app.Application
 import androidx.lifecycle.SavedStateHandle
 import io.mockk.every
 import io.mockk.mockk
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
@@ -15,7 +15,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
-import nvk.cotrip.R
 import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.NetworkStateProvider
 import nvk.cotrip.data.network.dto.InviteInfoDto
@@ -101,7 +100,7 @@ class InvitePeopleViewModelTest {
     }
 
     @Test
-    fun given_contentShown_when_onCopyClick_then_emitsCopyAndToastEffects() = runTest {
+    fun given_contentShown_when_onCopyClick_then_emitsCopyEffect() = runTest {
         // GIVEN
         every { networkStateProvider.isOnline() } returns true
         val viewModel = createViewModel(
@@ -113,7 +112,7 @@ class InvitePeopleViewModelTest {
 
         val collected = mutableListOf<InvitePeopleEffect>()
         val collector = launch(start = CoroutineStart.UNDISPATCHED) {
-            viewModel.effects.take(2).toList(collected)
+            viewModel.effects.take(1).toList(collected)
         }
 
         // WHEN
@@ -123,10 +122,7 @@ class InvitePeopleViewModelTest {
 
         // THEN
         assertEquals(
-            listOf(
-                InvitePeopleEffect.CopyToClipboard("https://api.cotrip.site/invite/token"),
-                InvitePeopleEffect.ShowToastRes(R.string.invite_people_copied_toast),
-            ),
+            listOf(InvitePeopleEffect.CopyToClipboard("https://api.cotrip.site/invite/token")),
             collected,
         )
     }

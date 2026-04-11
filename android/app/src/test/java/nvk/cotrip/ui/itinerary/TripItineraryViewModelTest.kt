@@ -96,7 +96,7 @@ class TripItineraryViewModelTest {
     }
 
     @Test
-    fun given_pendingCities_when_completeRequiredSelection_then_emitsToastAndStays() = runTest {
+    fun given_pendingCities_when_completeRequiredSelection_then_setsInlineErrorAndStays() = runTest {
         // GIVEN
         every { networkStateProvider.isOnline() } returns true
         val today = LocalDate.now()
@@ -125,20 +125,12 @@ class TripItineraryViewModelTest {
         )
         advanceUntilIdle()
 
-        val effects = mutableListOf<TripItineraryEffect>()
-        val collector = launch(start = CoroutineStart.UNDISPATCHED) {
-            viewModel.effects.take(1).toList(effects)
-        }
         // WHEN
         viewModel.onEvent(TripItineraryEvent.OnCompleteRequiredCitySelection)
         advanceUntilIdle()
-        collector.join()
 
         // THEN
-        assertEquals(
-            TripItineraryEffect.ShowToastRes(R.string.itinerary_city_setup_required_toast),
-            effects.single(),
-        )
+        assertEquals(R.string.itinerary_city_setup_required_toast, viewModel.state.value.inlineErrorRes)
         assertTrue(navigator.destinations.isEmpty())
     }
 

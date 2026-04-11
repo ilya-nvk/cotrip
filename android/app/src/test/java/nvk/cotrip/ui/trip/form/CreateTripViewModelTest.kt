@@ -5,9 +5,6 @@ import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.take
-import kotlinx.coroutines.flow.toList
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
@@ -98,32 +95,25 @@ class CreateTripViewModelTest {
     }
 
     @Test
-    fun given_invalidStartDate_when_onStartDateSelected_then_emitsToast() = runTest {
+    fun given_invalidStartDate_when_onStartDateSelected_then_setsStartDateInlineError() = runTest {
         // GIVEN
         every { networkStateProvider.isOnline() } returns true
         val viewModel = createViewModel()
-        val effects = mutableListOf<TripFormEffect>()
-        launch { viewModel.effects.take(1).toList(effects) }
-        advanceUntilIdle()
 
         // WHEN
         viewModel.onEvent(TripFormEvent.OnStartDateSelected(LocalDate.now().minusDays(1)))
         advanceUntilIdle()
 
         // THEN
-        assertTrue(effects.isNotEmpty())
-        assertTrue(effects.any { it is TripFormEffect.ShowToastRes && it.resId == R.string.trip_form_start_date_range_toast })
+        assertEquals(R.string.trip_form_start_date_range_toast, viewModel.state.value.startDateErrorRes)
     }
 
     @Test
-    fun given_invalidEndDate_when_onEndDateSelected_then_emitsToast() = runTest {
+    fun given_invalidEndDate_when_onEndDateSelected_then_setsEndDateInlineError() = runTest {
         // GIVEN
         every { networkStateProvider.isOnline() } returns true
         val viewModel = createViewModel()
         viewModel.onEvent(TripFormEvent.OnStartDateSelected(LocalDate.now()))
-        advanceUntilIdle()
-        val effects = mutableListOf<TripFormEffect>()
-        launch { viewModel.effects.take(1).toList(effects) }
         advanceUntilIdle()
 
         // WHEN
@@ -131,8 +121,7 @@ class CreateTripViewModelTest {
         advanceUntilIdle()
 
         // THEN
-        assertTrue(effects.isNotEmpty())
-        assertTrue(effects.any { it is TripFormEffect.ShowToastRes && it.resId == R.string.trip_form_end_date_range_toast })
+        assertEquals(R.string.trip_form_end_date_range_toast, viewModel.state.value.endDateErrorRes)
     }
 
     @Test
@@ -153,9 +142,6 @@ class CreateTripViewModelTest {
         viewModel.onEvent(TripFormEvent.OnEndDateSelected(LocalDate.now().plusDays(1)))
         advanceUntilIdle()
         assertTrue(viewModel.state.value.canSubmit)
-        val effects = mutableListOf<TripFormEffect>()
-        launch { viewModel.effects.take(1).toList(effects) }
-        advanceUntilIdle()
 
         // WHEN
         viewModel.onEvent(TripFormEvent.OnPrimaryActionClick)
@@ -164,7 +150,6 @@ class CreateTripViewModelTest {
         // THEN
         assertTrue("Expected navigate to TripItinerary, got: ${navigator.destinations}", navigator.destinations.isNotEmpty())
         assertTrue(navigator.destinations.any { it is nvk.cotrip.ui.navigation.Destination.TripItinerary })
-        assertTrue(effects.any { it is TripFormEffect.ShowToastRes })
     }
 
     @Test
