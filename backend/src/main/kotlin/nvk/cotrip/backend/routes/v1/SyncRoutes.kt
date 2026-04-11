@@ -882,16 +882,16 @@ private fun applyTripMemberDelete(userId: String, item: SyncPushItem) {
 
 private fun applyIdeaStatusUpsert(userId: String, item: SyncPushItem) {
     val ideaId = normalizeUuid(item.id)
-    val existing = IdeaRepository.get(ideaId)
-        ?: throw SyncApplyException(REASON_DEPENDENCY_NOT_READY, retryable = true)
-    if (!TripRepository.isOwner(existing.tripId, userId)) {
-        throw SyncApplyException(REASON_FORBIDDEN)
-    }
-
     val payload = decodePayload<SyncIdeaStatusUpsertPayload>(item.payload)
     val status = payload.status.trim().lowercase()
     if (status != "approved" && status != "rejected") {
         throw SyncApplyException(REASON_INVALID_PAYLOAD)
+    }
+
+    val existing = IdeaRepository.get(ideaId)
+        ?: throw SyncApplyException(REASON_DEPENDENCY_NOT_READY, retryable = true)
+    if (!TripRepository.isOwner(existing.tripId, userId)) {
+        throw SyncApplyException(REASON_FORBIDDEN)
     }
     if (existing.status == status) {
         return
