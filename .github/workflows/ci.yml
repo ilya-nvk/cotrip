@@ -136,8 +136,7 @@ jobs:
           for key in \
             ANDROID_RELEASE_KEYSTORE_B64 \
             ANDROID_RELEASE_KEYSTORE_PASSWORD \
-            ANDROID_RELEASE_KEY_ALIAS \
-            ANDROID_RELEASE_KEY_PASSWORD
+            ANDROID_RELEASE_KEY_ALIAS
           do
             if [ -z "${!key}" ]; then
               echo "Missing required secret: $key"
@@ -151,6 +150,20 @@ jobs:
       - name: Restore release keystore from secret
         run: |
           echo "$ANDROID_RELEASE_KEYSTORE_B64" | base64 --decode > android/release-keystore.jks
+
+      - name: Validate keystore and alias
+        working-directory: android
+        run: |
+          keytool -list \
+            -keystore release-keystore.jks \
+            -storepass "$ANDROID_RELEASE_KEYSTORE_PASSWORD" \
+            >/dev/null
+
+          keytool -list \
+            -keystore release-keystore.jks \
+            -storepass "$ANDROID_RELEASE_KEYSTORE_PASSWORD" \
+            -alias "$ANDROID_RELEASE_KEY_ALIAS" \
+            >/dev/null
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -170,6 +183,10 @@ jobs:
         run: |
           BUILD_TOOLS_VERSION="$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -n1)"
           BUILD_TOOLS_DIR="$ANDROID_HOME/build-tools/$BUILD_TOOLS_VERSION"
+          KEY_PASS="$ANDROID_RELEASE_KEY_PASSWORD"
+          if [ -z "$KEY_PASS" ]; then
+            KEY_PASS="$ANDROID_RELEASE_KEYSTORE_PASSWORD"
+          fi
 
           UNSIGNED_APK="app/build/outputs/apk/release/app-release-unsigned.apk"
           ALIGNED_APK="app/build/outputs/apk/release/app-release-aligned.apk"
@@ -180,7 +197,7 @@ jobs:
             --ks release-keystore.jks \
             --ks-key-alias "$ANDROID_RELEASE_KEY_ALIAS" \
             --ks-pass "pass:$ANDROID_RELEASE_KEYSTORE_PASSWORD" \
-            --key-pass "pass:$ANDROID_RELEASE_KEY_PASSWORD" \
+            --key-pass "pass:$KEY_PASS" \
             --out "$SIGNED_APK" \
             "$ALIGNED_APK"
 
