@@ -47,12 +47,14 @@ fun SignInScreen(
     val serverClientId = BuildConfig.GOOGLE_SERVER_CLIENT_ID
     val missingClientIdMessage = stringResource(R.string.sign_in_error_missing_google_client_id)
 
-    val signInClient = remember(serverClientId) {
-        val options = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-            .requestIdToken(serverClientId)
-            .requestEmail()
-            .build()
-        GoogleSignIn.getClient(context, options)
+    val signInClient = remember(context, serverClientId) {
+        serverClientId.takeIf { it.isNotBlank() }?.let { clientId ->
+            val options = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                .requestIdToken(clientId)
+                .requestEmail()
+                .build()
+            GoogleSignIn.getClient(context, options)
+        }
     }
 
     val launcher = rememberLauncherForActivityResult(
@@ -110,14 +112,15 @@ fun SignInScreen(
                     else
                         stringResource(R.string.continue_with_google),
                     onClick = {
-                        if (serverClientId.isBlank()) {
+                        val client = signInClient
+                        if (client == null) {
                             viewModel.onEvent(
                                 SignInEvent.OnGoogleSignInFailed(missingClientIdMessage)
                             )
                             return@PrimaryButton
                         }
                         viewModel.onEvent(SignInEvent.StartGoogleSignIn)
-                        launcher.launch(signInClient.signInIntent)
+                        launcher.launch(client.signInIntent)
                     },
                     enabled = !state.isLoading,
                     modifier = Modifier.fillMaxWidth(),
