@@ -37,9 +37,6 @@ import nvk.cotrip.ui.components.PrimaryButton
 import nvk.cotrip.ui.theme.CoTripTokens
 import nvk.cotrip.ui.theme.TextMedium
 import nvk.cotrip.ui.theme.TextSecondary
-import nvk.cotrip.util.AppLogger
-
-private const val TAG = "SignInScreen"
 
 @Composable
 fun SignInScreen(
@@ -64,14 +61,6 @@ fun SignInScreen(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
         viewModel.onEvent(SignInEvent.OnGoogleSignInResult(result.resultCode, result.data))
-    }
-
-    LaunchedEffect(serverClientId) {
-        AppLogger.w(
-            TAG,
-            "Google client id debug: '$serverClientId', length=${serverClientId.length}, " +
-                "buildType=${BuildConfig.BUILD_TYPE}, debug=${BuildConfig.DEBUG}"
-        )
     }
 
     LaunchedEffect(viewModel) {
@@ -125,11 +114,6 @@ fun SignInScreen(
                     onClick = {
                         val client = signInClient
                         if (client == null) {
-                            AppLogger.e(
-                                TAG,
-                                "Google sign-in unavailable: empty GOOGLE_SERVER_CLIENT_ID. " +
-                                    "BuildConfig value='$serverClientId'"
-                            )
                             viewModel.onEvent(
                                 SignInEvent.OnGoogleSignInFailed(missingClientIdMessage)
                             )
