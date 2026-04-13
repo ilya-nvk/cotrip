@@ -59,14 +59,21 @@ jobs:
     runs-on: ubuntu-latest
     env:
       ANDROID_GOOGLE_SERVICES_JSON_B64: ${{ secrets.ANDROID_GOOGLE_SERVICES_JSON_B64 }}
-      GOOGLE_SERVER_CLIENT_ID: ${{ secrets.GOOGLE_SERVER_CLIENT_ID }}
+      GOOGLE_SERVER_CLIENT_ID: ${{ secrets.GOOGLE_SERVER_CLIENT_ID || vars.GOOGLE_SERVER_CLIENT_ID }}
+      HAS_GOOGLE_SERVER_CLIENT_ID: ${{ secrets.GOOGLE_SERVER_CLIENT_ID != '' || vars.GOOGLE_SERVER_CLIENT_ID != '' }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Debug Google Sign-In config wiring
+        run: |
+          echo "event_name=$GITHUB_EVENT_NAME"
+          echo "is_fork_pr=${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork || false }}"
+          echo "google_client_id_present=$HAS_GOOGLE_SERVER_CLIENT_ID"
 
       - name: Validate Google Sign-In client id
         if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false }}
         run: |
-          if [ -z "$GOOGLE_SERVER_CLIENT_ID" ]; then
+          if [ "$HAS_GOOGLE_SERVER_CLIENT_ID" != "true" ]; then
             echo "GOOGLE_SERVER_CLIENT_ID secret is missing."
             echo "Set it in repository Settings -> Secrets and variables -> Actions."
             exit 1
@@ -98,13 +105,13 @@ jobs:
         working-directory: android
         env:
           REQUIRE_GOOGLE_SERVER_CLIENT_ID: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false }}
-        run: ./gradlew build -x lint -x :app:testReleaseUnitTest
+        run: ./gradlew build -x lint -x :app:testReleaseUnitTest -PGOOGLE_SERVER_CLIENT_ID="$GOOGLE_SERVER_CLIENT_ID"
 
       - name: Test & coverage report
         env:
           REQUIRE_GOOGLE_SERVER_CLIENT_ID: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false }}
         run: |
-          cd android && ./gradlew :app:jacocoDebugUnitTestReport && cd ..
+          cd android && ./gradlew :app:jacocoDebugUnitTestReport -PGOOGLE_SERVER_CLIENT_ID="$GOOGLE_SERVER_CLIENT_ID" && cd ..
           chmod +x .github/scripts/test-coverage-summary.sh
           .github/scripts/test-coverage-summary.sh "Android" \
             android/app/build/test-results/testDebugUnitTest \
@@ -116,7 +123,7 @@ jobs:
         working-directory: android
         env:
           REQUIRE_GOOGLE_SERVER_CLIENT_ID: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false }}
-        run: ./gradlew :app:qualityCheck
+        run: ./gradlew :app:qualityCheck -PGOOGLE_SERVER_CLIENT_ID="$GOOGLE_SERVER_CLIENT_ID"
 
       - name: Upload Android test reports on failure
         if: failure()
