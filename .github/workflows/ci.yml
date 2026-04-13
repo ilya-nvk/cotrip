@@ -59,8 +59,22 @@ jobs:
     runs-on: ubuntu-latest
     env:
       ANDROID_GOOGLE_SERVICES_JSON_B64: ${{ secrets.ANDROID_GOOGLE_SERVICES_JSON_B64 }}
+      GOOGLE_SERVER_CLIENT_ID: ${{ secrets.GOOGLE_SERVER_CLIENT_ID }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Validate Google Sign-In client id
+        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false }}
+        run: |
+          if [ -z "$GOOGLE_SERVER_CLIENT_ID" ]; then
+            echo "GOOGLE_SERVER_CLIENT_ID secret is missing."
+            echo "Set it in repository Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+          if [[ "$GOOGLE_SERVER_CLIENT_ID" != *.apps.googleusercontent.com ]]; then
+            echo "GOOGLE_SERVER_CLIENT_ID looks invalid: expected a Web OAuth client id ending with .apps.googleusercontent.com"
+            exit 1
+          fi
 
       - name: Restore google-services.json from secret
         if: ${{ env.ANDROID_GOOGLE_SERVICES_JSON_B64 != '' }}

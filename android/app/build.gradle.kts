@@ -1,4 +1,5 @@
 import java.util.Properties
+import org.gradle.api.GradleException
 
 plugins {
     alias(libs.plugins.androidApplication)
@@ -30,6 +31,14 @@ val googleServerClientId = (project.findProperty("GOOGLE_SERVER_CLIENT_ID") as S
     ?: (localProps.getProperty("GOOGLE_SERVER_CLIENT_ID")?.takeIf { it.isNotBlank() })
     ?: (System.getenv("GOOGLE_SERVER_CLIENT_ID")?.takeIf { it.isNotBlank() })
     ?: ""
+val isCiBuild = (System.getenv("CI") ?: "false").equals("true", ignoreCase = true)
+
+if (isCiBuild && googleServerClientId.isBlank()) {
+    throw GradleException(
+        "GOOGLE_SERVER_CLIENT_ID is required in CI. " +
+            "Provide it via GitHub Actions secret or environment variable."
+    )
+}
 
 android {
     namespace = "nvk.cotrip"
