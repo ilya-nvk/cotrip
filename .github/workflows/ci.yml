@@ -96,9 +96,13 @@ jobs:
 
       - name: Build
         working-directory: android
+        env:
+          REQUIRE_GOOGLE_SERVER_CLIENT_ID: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false }}
         run: ./gradlew build -x lint -x :app:testReleaseUnitTest
 
       - name: Test & coverage report
+        env:
+          REQUIRE_GOOGLE_SERVER_CLIENT_ID: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false }}
         run: |
           cd android && ./gradlew :app:jacocoDebugUnitTestReport && cd ..
           chmod +x .github/scripts/test-coverage-summary.sh
@@ -110,6 +114,8 @@ jobs:
 
       - name: Quality check
         working-directory: android
+        env:
+          REQUIRE_GOOGLE_SERVER_CLIENT_ID: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false }}
         run: ./gradlew :app:qualityCheck
 
       - name: Upload Android test reports on failure

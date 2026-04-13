@@ -31,12 +31,13 @@ val googleServerClientId = (project.findProperty("GOOGLE_SERVER_CLIENT_ID") as S
     ?: (localProps.getProperty("GOOGLE_SERVER_CLIENT_ID")?.takeIf { it.isNotBlank() })
     ?: (System.getenv("GOOGLE_SERVER_CLIENT_ID")?.takeIf { it.isNotBlank() })
     ?: ""
-val isCiBuild = (System.getenv("CI") ?: "false").equals("true", ignoreCase = true)
+val requireGoogleClientId = (System.getenv("REQUIRE_GOOGLE_SERVER_CLIENT_ID") ?: "false")
+    .equals("true", ignoreCase = true)
 
-if (isCiBuild && googleServerClientId.isBlank()) {
+if (requireGoogleClientId && googleServerClientId.isBlank()) {
     throw GradleException(
-        "GOOGLE_SERVER_CLIENT_ID is required in CI. " +
-            "Provide it via GitHub Actions secret or environment variable."
+        "GOOGLE_SERVER_CLIENT_ID is required for this build. " +
+            "Provide it via GitHub Actions secret/environment or local.properties."
     )
 }
 
