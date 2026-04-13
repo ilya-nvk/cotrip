@@ -11,6 +11,12 @@ fun loadConfig(config: ApplicationConfig): AppConfig {
             ?: error("Missing required config: $envName (or $configKey)")
     }
 
+    val googleAudienceSource = System.getenv("GOOGLE_ALLOWED_AUDIENCES")
+        ?: config.propertyOrNull("ktor.jwt.googleAllowedAudiences")?.getString()
+        // Backward compatibility: some deployments still provide a single audience this way.
+        ?: System.getenv("GOOGLE_SERVER_CLIENT_ID")
+        ?: config.propertyOrNull("ktor.jwt.googleServerClientId")?.getString()
+
     val jwt = JwtConfig(
         issuer = config.propertyOrNull("ktor.jwt.issuer")?.getString() ?: "cotrip",
         audience = config.propertyOrNull("ktor.jwt.audience")?.getString() ?: "cotrip",
@@ -31,10 +37,7 @@ fun loadConfig(config: ApplicationConfig): AppConfig {
                 ?: config.propertyOrNull("ktor.jwt.maxActiveSessions")?.getString()?.toIntOrNull()
                 ?: 5
             ).coerceIn(1, 20),
-        googleAllowedAudiences = (
-            System.getenv("GOOGLE_ALLOWED_AUDIENCES")
-                ?: config.propertyOrNull("ktor.jwt.googleAllowedAudiences")?.getString()
-            )
+        googleAllowedAudiences = googleAudienceSource
             .orEmpty()
             .split(',', ';', '\n')
             .map { it.trim() }

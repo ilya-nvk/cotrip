@@ -2,7 +2,6 @@ package nvk.cotrip.ui.auth
 
 import android.app.Activity
 import android.content.Intent
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.android.gms.auth.api.signin.GoogleSignIn
@@ -106,9 +105,6 @@ class SignInViewModel @Inject constructor(
                 else -> it.localizedMessage
                     ?: appContext.getString(R.string.sign_in_error_google_failed)
             }
-            if (code != null) {
-                Log.w(TAG, "Google sign-in failed with statusCode=$code resultCode=$resultCode", it)
-            }
             onEvent(
                 SignInEvent.OnGoogleSignInFailed(message)
             )
@@ -132,7 +128,6 @@ class SignInViewModel @Inject constructor(
                 authRepository.signInWithGoogle(idToken)
             }) {
                 is ApiResult.Success -> {
-                    Log.d(TAG, "sign in success")
                     refreshScheduler.scheduleImmediate()
                     runCatching { pushTokenSyncManager.syncCurrentToken() }
                     navigator.navigate(Destination.Trips) {
@@ -142,16 +137,11 @@ class SignInViewModel @Inject constructor(
                 }
 
                 is ApiResult.Failure -> {
-                    Log.e(TAG, "sign in error", result.cause)
                     _effects.tryEmit(SignInEffect.ShowToastRes(uiErrorMapper.messageRes(result)))
                     _uiState.update { it.copy(isLoading = false) }
                 }
             }
         }
-    }
-
-    companion object {
-        private const val TAG = "SignInViewModel"
     }
 
     private fun mapGoogleSignInError(code: Int, fallbackMessage: String): String {

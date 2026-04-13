@@ -21,8 +21,7 @@ class ApiCaller @Inject constructor(
             val apiError = parseError(e)
             AppLogger.w(
                 TAG,
-                "HTTP ${e.code()} in $operation, apiCode=${apiError?.code.orEmpty()}",
-                e
+                "HTTP ${e.code()} in $operation"
             )
             ApiResult.Failure(
                 error = apiError,
@@ -30,12 +29,12 @@ class ApiCaller @Inject constructor(
                 cause = e,
             )
         } catch (e: IOException) {
-            AppLogger.w(TAG, "Network error in $operation", e)
+            AppLogger.w(TAG, "Network error in $operation")
             ApiResult.Failure(cause = e)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            AppLogger.e(TAG, "Unexpected error in $operation", e)
+            AppLogger.e(TAG, "Unexpected error in $operation")
             ApiResult.Failure(cause = e)
         }
     }
