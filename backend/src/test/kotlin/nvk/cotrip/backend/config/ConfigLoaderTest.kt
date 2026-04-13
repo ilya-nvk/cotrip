@@ -159,4 +159,32 @@ class ConfigLoaderTest {
         val loaded = loadConfig(config)
         assertTrue(loaded.jwt.googleAllowedAudiences.isEmpty())
     }
+
+    @Test
+    fun given_legacyGoogleServerClientIdOnly_when_loadConfig_then_usesItAsAllowedAudience() {
+        val config = MapApplicationConfig(
+            "ktor.jwt.issuer" to "i",
+            "ktor.jwt.audience" to "a",
+            "ktor.jwt.realm" to "r",
+            "ktor.jwt.secret" to "s",
+            "ktor.jwt.accessTtlMinutes" to "15",
+            "ktor.jwt.refreshTtlDays" to "30",
+            "ktor.jwt.maxActiveSessions" to "5",
+            "ktor.jwt.googleServerClientId" to "legacy-client-id.apps.googleusercontent.com",
+            "ktor.db.url" to "jdbc:postgresql://localhost/db",
+            "ktor.db.user" to "u",
+            "ktor.db.password" to "p",
+            "ktor.weather.refreshTtlHours" to "8",
+            "ktor.ai.provider" to "mock",
+            "ktor.media.uploadDir" to "d",
+            "ktor.media.maxUploadBytes" to "1048576",
+            "ktor.devAuthEnabled" to "false",
+        )
+
+        val loaded = loadConfig(config)
+        assertEquals(
+            setOf("legacy-client-id.apps.googleusercontent.com"),
+            loaded.jwt.googleAllowedAudiences
+        )
+    }
 }

@@ -22,6 +22,7 @@ Auth-related env vars:
 - `JWT_REFRESH_TTL_DAYS` (optional, default `30`)
 - `AUTH_MAX_ACTIVE_SESSIONS` (optional, default `5`)
 - `GOOGLE_ALLOWED_AUDIENCES` (comma-separated Google OAuth client IDs for `/v1/auth/google`)
+- `GOOGLE_SERVER_CLIENT_ID` (legacy fallback for a single Google OAuth client ID when `GOOGLE_ALLOWED_AUDIENCES` is not set)
 
 Android App Links (for opening invite links in the app) are served from:
 `/.well-known/assetlinks.json`
