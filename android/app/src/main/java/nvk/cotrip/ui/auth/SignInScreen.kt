@@ -142,6 +142,16 @@ fun SignInScreen(
                     else
                         stringResource(R.string.continue_with_google),
                     onClick = {
+                        if (serverClientId.isBlank()) {
+                            AppLogger.e(
+                                TAG,
+                                "Google sign-in unavailable: empty GOOGLE_SERVER_CLIENT_ID"
+                            )
+                            viewModel.onEvent(
+                                SignInEvent.OnGoogleSignInFailed(missingClientIdMessage)
+                            )
+                            return@PrimaryButton
+                        }
                         val client = signInClient
                         if (client == null) {
                             AppLogger.e(
