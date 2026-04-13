@@ -10,10 +10,18 @@ on:
       - 'android/**'
       - 'quality-check.sh'
       - '.github/workflows/ci.yml'
+  workflow_dispatch:
+    inputs:
+      run_release_apk:
+        description: "Build signed Android release APK"
+        required: true
+        default: true
+        type: boolean
 
 jobs:
   backend:
     name: Backend
+    if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -56,6 +64,7 @@ jobs:
 
   android:
     name: Android
+    if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
     env:
       ANDROID_GOOGLE_SERVICES_JSON_B64: ${{ secrets.ANDROID_GOOGLE_SERVICES_JSON_B64 }}
@@ -137,7 +146,9 @@ jobs:
 
   android-release-apk:
     name: Android Release APK
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: |
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && inputs.run_release_apk)
     runs-on: ubuntu-latest
     env:
       ANDROID_GOOGLE_SERVICES_JSON_B64: ${{ secrets.ANDROID_GOOGLE_SERVICES_JSON_B64 }}
