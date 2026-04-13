@@ -1,5 +1,8 @@
 package nvk.cotrip.ui.auth
 
+import android.content.Context
+import android.content.pm.Signature
+import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -37,6 +40,13 @@ import nvk.cotrip.ui.components.PrimaryButton
 import nvk.cotrip.ui.theme.CoTripTokens
 import nvk.cotrip.ui.theme.TextMedium
 import nvk.cotrip.ui.theme.TextSecondary
+import nvk.cotrip.util.AppLogger
+import java.io.ByteArrayInputStream
+import java.security.MessageDigest
+import java.security.cert.CertificateFactory
+import java.security.cert.X509Certificate
+
+private const val TAG = "SignInScreen"
 
 @Composable
 fun SignInScreen(
@@ -61,6 +71,26 @@ fun SignInScreen(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
         viewModel.onEvent(SignInEvent.OnGoogleSignInResult(result.resultCode, result.data))
+    }
+
+    LaunchedEffect(serverClientId) {
+        val defaultWebClientId = runCatching {
+            val id = context.resources.getIdentifier(
+                "default_web_client_id",
+                "string",
+                context.packageName
+            )
+            if (id == 0) "<missing default_web_client_id>" else context.getString(id)
+        }.getOrElse { "<missing default_web_client_id>" }
+        val fingerprints = runCatching { loadSigningFingerprints(context) }
+            .getOrElse { error -> "failed_to_read_fingerprints: ${error.message}" }
+        AppLogger.w(
+            TAG,
+            "Google config debug: buildConfigClientId='$serverClientId', " +
+                "defaultWebClientId='$defaultWebClientId', package='${context.packageName}', " +
+                "buildType='${BuildConfig.BUILD_TYPE}', debug=${BuildConfig.DEBUG}"
+        )
+        AppLogger.w(TAG, "Google config debug: app signing fingerprints -> $fingerprints")
     }
 
     LaunchedEffect(viewModel) {
@@ -114,6 +144,11 @@ fun SignInScreen(
                     onClick = {
                         val client = signInClient
                         if (client == null) {
+                            AppLogger.e(
+                                TAG,
+                                "Google sign-in unavailable: signInClient is null. " +
+                                    "buildConfigClientId='$serverClientId'"
+                            )
                             viewModel.onEvent(
                                 SignInEvent.OnGoogleSignInFailed(missingClientIdMessage)
                             )
@@ -145,4 +180,46 @@ fun SignInScreen(
             }
         }
     }
+}
+
+private fun loadSigningFingerprints(context: Context): String {
+    val signatures = readAppSignatures(context)
+    if (signatures.isEmpty()) return "none"
+    return signatures.joinToString(separator = " | ") { signature ->
+        val certificate = decodeX509Certificate(signature)
+        val encoded = certificate.encoded
+        val sha1 = digestToHexWithColons("SHA-1", encoded)
+        val sha256 = digestToHexWithColons("SHA-256", encoded)
+        "SHA1=$sha1 SHA256=$sha256"
+    }
+}
+
+@Suppress("DEPRECATION")
+private fun readAppSignatures(context: Context): List<Signature> {
+    val packageManager = context.packageManager
+    val packageName = context.packageName
+    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+        val packageInfo = packageManager.getPackageInfo(
+            packageName,
+            android.content.pm.PackageManager.GET_SIGNING_CERTIFICATES
+        )
+        packageInfo.signingInfo?.apkContentsSigners?.toList().orEmpty()
+    } else {
+        val packageInfo = packageManager.getPackageInfo(
+            packageName,
+            android.content.pm.PackageManager.GET_SIGNATURES
+        )
+        packageInfo.signatures?.toList().orEmpty()
+    }
+}
+
+private fun decodeX509Certificate(signature: Signature): X509Certificate {
+    val certificateFactory = CertificateFactory.getInstance("X509")
+    val input = ByteArrayInputStream(signature.toByteArray())
+    return certificateFactory.generateCertificate(input) as X509Certificate
+}
+
+private fun digestToHexWithColons(algorithm: String, bytes: ByteArray): String {
+    val digest = MessageDigest.getInstance(algorithm).digest(bytes)
+    return digest.joinToString(":") { byte -> "%02x".format(byte) }
 }
