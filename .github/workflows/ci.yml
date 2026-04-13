@@ -141,12 +141,30 @@ jobs:
     runs-on: ubuntu-latest
     env:
       ANDROID_GOOGLE_SERVICES_JSON_B64: ${{ secrets.ANDROID_GOOGLE_SERVICES_JSON_B64 }}
+      GOOGLE_SERVER_CLIENT_ID: ${{ secrets.GOOGLE_SERVER_CLIENT_ID || vars.GOOGLE_SERVER_CLIENT_ID }}
+      HAS_GOOGLE_SERVER_CLIENT_ID: ${{ secrets.GOOGLE_SERVER_CLIENT_ID != '' || vars.GOOGLE_SERVER_CLIENT_ID != '' }}
       ANDROID_RELEASE_KEYSTORE_B64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_B64 }}
       ANDROID_RELEASE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEYSTORE_PASSWORD }}
       ANDROID_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}
       ANDROID_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Debug release Google Sign-In config wiring
+        run: |
+          echo "google_client_id_present=$HAS_GOOGLE_SERVER_CLIENT_ID"
+          echo "google_client_id_length=${#GOOGLE_SERVER_CLIENT_ID}"
+
+      - name: Validate release Google Sign-In client id
+        run: |
+          if [ "$HAS_GOOGLE_SERVER_CLIENT_ID" != "true" ]; then
+            echo "GOOGLE_SERVER_CLIENT_ID secret/variable is missing for release APK build."
+            exit 1
+          fi
+          if [[ "$GOOGLE_SERVER_CLIENT_ID" != *.apps.googleusercontent.com ]]; then
+            echo "GOOGLE_SERVER_CLIENT_ID looks invalid: expected a Web OAuth client id ending with .apps.googleusercontent.com"
+            exit 1
+          fi
 
       - name: Restore google-services.json from secret
         if: ${{ env.ANDROID_GOOGLE_SERVICES_JSON_B64 != '' }}
@@ -203,7 +221,9 @@ jobs:
 
       - name: Assemble release APK
         working-directory: android
-        run: ./gradlew :app:assembleRelease
+        env:
+          REQUIRE_GOOGLE_SERVER_CLIENT_ID: "true"
+        run: ./gradlew :app:assembleRelease -PGOOGLE_SERVER_CLIENT_ID="$GOOGLE_SERVER_CLIENT_ID"
 
       - name: Sign release APK
         working-directory: android
