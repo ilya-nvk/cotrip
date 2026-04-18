@@ -80,7 +80,7 @@ class IdeaRepositoryImpl @Inject constructor(
         } catch (e: IOException) {
             syncQueueRepository.enqueueUpsert(SyncEntities.IDEA, ideaId, request)
             applyIdeaUpdateLocally(ideaId, request)
-            return
+            throw OfflineWriteQueuedException(cause = e)
         }
         safeLocalMutation("updateIdea.upsertIdea(ideaId=$ideaId)") {
             ideasCacheStore.upsertIdea(updated.tripId, updated)
@@ -92,10 +92,14 @@ class IdeaRepositoryImpl @Inject constructor(
         val ideaTripId = cachedTripId ?: runCatching { api.getIdea(ideaId).tripId }
             .onFailure { AppLogger.w(TAG, "deleteIdea prefetch failed for ideaId=$ideaId", it) }
             .getOrNull()
+        var offlineQueued = false
+        var offlineCause: IOException? = null
         try {
             api.deleteIdea(ideaId).requireSuccess()
         } catch (e: IOException) {
             syncQueueRepository.enqueueDelete(SyncEntities.IDEA, ideaId)
+            offlineQueued = true
+            offlineCause = e
         } catch (e: HttpException) {
             if (e.code() != 404) throw e
             AppLogger.i(TAG, "deleteIdea got 404 for ideaId=$ideaId, treating as already deleted")
@@ -107,6 +111,9 @@ class IdeaRepositoryImpl @Inject constructor(
         }
         safeLocalMutation("deleteIdea.clearComments(ideaId=$ideaId)") {
             commentsCacheStore.clearIdea(ideaId)
+        }
+        if (offlineQueued) {
+            throw OfflineWriteQueuedException(cause = offlineCause)
         }
     }
 

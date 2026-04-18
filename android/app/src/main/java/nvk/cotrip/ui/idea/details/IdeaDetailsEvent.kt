@@ -4,6 +4,9 @@ import nvk.cotrip.ui.idea.common.IdeaDayOptionUi
 
 sealed interface IdeaDetailsEvent {
     data object OnBackClick : IdeaDetailsEvent
+    /** Lifecycle / silent refresh: no error toast when network fails but cache is shown. */
+    data object OnAutoRefresh : IdeaDetailsEvent
+    /** Explicit user refresh (e.g. pull-to-refresh): may show error toast. */
     data object OnRefresh : IdeaDetailsEvent
     data object OnEditClick : IdeaDetailsEvent
     data object OnAddToItineraryClick : IdeaDetailsEvent

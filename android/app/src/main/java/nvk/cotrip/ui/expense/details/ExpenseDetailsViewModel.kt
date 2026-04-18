@@ -23,6 +23,7 @@ import nvk.cotrip.data.network.dto.ExpenseUpdateRequest
 import nvk.cotrip.data.network.dto.MemberDto
 import nvk.cotrip.data.network.dto.TripDto
 import nvk.cotrip.data.repository.ExpenseRepository
+import nvk.cotrip.data.repository.OfflineWriteQueuedException
 import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.data.repository.UserRepository
 import nvk.cotrip.ui.common.UiErrorMapper
@@ -194,7 +195,15 @@ class ExpenseDetailsViewModel @Inject constructor(
             }) {
                 is ApiResult.Success -> refreshExpense(showErrorToast = false)
                 is ApiResult.Failure -> {
-                    _effects.emit(ExpenseDetailsEffect.ShowToastRes(uiErrorMapper.messageRes(result)))
+                    val res = if (result.cause is OfflineWriteQueuedException) {
+                        R.string.common_error_network
+                    } else {
+                        uiErrorMapper.messageRes(result)
+                    }
+                    _effects.emit(ExpenseDetailsEffect.ShowToastRes(res))
+                    if (result.cause is OfflineWriteQueuedException) {
+                        refreshExpense(showErrorToast = false)
+                    }
                 }
             }
         }

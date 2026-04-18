@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
 import nvk.cotrip.R
 import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
+import nvk.cotrip.data.repository.OfflineWriteQueuedException
 import nvk.cotrip.data.network.dto.ActivityDto
 import nvk.cotrip.data.network.dto.ItineraryDayDto
 import nvk.cotrip.data.network.dto.MoveActivityRequest
@@ -212,7 +213,11 @@ class EditActivityViewModel @Inject constructor(
                 }
 
                 is ApiResult.Failure -> {
-                    emit(ActivityFormEffect.ShowToastRes(uiErrorMapper.messageRes(result)))
+                    if (result.cause is OfflineWriteQueuedException) {
+                        emit(ActivityFormEffect.ShowToastRes(R.string.common_error_network))
+                    } else {
+                        emit(ActivityFormEffect.ShowToastRes(uiErrorMapper.messageRes(result)))
+                    }
                     _state.update { it.copy(isSaving = false) }
                 }
             }
@@ -288,7 +293,11 @@ class EditActivityViewModel @Inject constructor(
                 }
 
                 is ApiResult.Failure -> {
-                    emit(ActivityFormEffect.ShowToastRes(uiErrorMapper.messageRes(result)))
+                    if (result.cause is OfflineWriteQueuedException) {
+                        emit(ActivityFormEffect.ShowToastRes(R.string.common_error_network))
+                    } else {
+                        emit(ActivityFormEffect.ShowToastRes(uiErrorMapper.messageRes(result)))
+                    }
                 }
             }
         }

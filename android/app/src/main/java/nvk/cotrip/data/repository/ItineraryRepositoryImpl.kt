@@ -108,7 +108,7 @@ class ItineraryRepositoryImpl @Inject constructor(
         } catch (e: IOException) {
             syncQueueRepository.enqueueUpsert(SyncEntities.ACTIVITY, activityId, request)
             applyActivityUpdateLocally(activityId = activityId, request = request)
-            return
+            throw OfflineWriteQueuedException(cause = e)
         }
         safeLocalMutation("updateActivity.updateItinerary(activityId=$activityId)") {
             val tripId = findTripIdForDay(updated.dayId) ?: return@safeLocalMutation
@@ -133,7 +133,7 @@ class ItineraryRepositoryImpl @Inject constructor(
         } catch (e: IOException) {
             syncQueueRepository.enqueueUpsert(SyncEntities.ACTIVITY, activityId, request)
             applyActivityMoveLocally(activityId = activityId, request = request)
-            return
+            throw OfflineWriteQueuedException(cause = e)
         }
         safeLocalMutation("moveActivity.updateItinerary(activityId=$activityId)") {
             val tripId = findTripIdForDay(request.dayId) ?: return@safeLocalMutation
@@ -154,10 +154,14 @@ class ItineraryRepositoryImpl @Inject constructor(
         val lookup = runCatching { findTripAndDayForActivity(activityId) }
             .onFailure { AppLogger.w(TAG, "deleteActivity lookup failed for activityId=$activityId", it) }
             .getOrNull()
+        var offlineQueued = false
+        var offlineCause: IOException? = null
         try {
             api.deleteActivity(activityId).requireSuccess()
         } catch (e: IOException) {
             syncQueueRepository.enqueueDelete(SyncEntities.ACTIVITY, activityId)
+            offlineQueued = true
+            offlineCause = e
         } catch (e: HttpException) {
             if (e.code() != 404) throw e
             AppLogger.i(TAG, "deleteActivity got 404 for activityId=$activityId, treating as already deleted")
@@ -174,6 +178,9 @@ class ItineraryRepositoryImpl @Inject constructor(
                     }
                 }
             }
+        }
+        if (offlineQueued) {
+            throw OfflineWriteQueuedException(cause = offlineCause)
         }
     }
 

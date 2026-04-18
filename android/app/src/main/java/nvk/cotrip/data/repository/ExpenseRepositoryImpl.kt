@@ -74,7 +74,7 @@ class ExpenseRepositoryImpl @Inject constructor(
         } catch (e: IOException) {
             syncQueueRepository.enqueueUpsert(SyncEntities.EXPENSE, expenseId, request)
             applyExpenseUpdateLocally(expenseId = expenseId, request = request)
-            return
+            throw OfflineWriteQueuedException(cause = e)
         }
         safeLocalMutation("updateExpense.upsertExpense(expenseId=$expenseId)") {
             expensesCacheStore.upsertExpense(updated.tripId, updated)
@@ -87,10 +87,14 @@ class ExpenseRepositoryImpl @Inject constructor(
         val expenseTripId = cachedTripId ?: runCatching { api.getExpense(expenseId).tripId }
             .onFailure { AppLogger.w(TAG, "deleteExpense prefetch failed for expenseId=$expenseId", it) }
             .getOrNull()
+        var offlineQueued = false
+        var offlineCause: IOException? = null
         try {
             api.deleteExpense(expenseId).requireSuccess()
         } catch (e: IOException) {
             syncQueueRepository.enqueueDelete(SyncEntities.EXPENSE, expenseId)
+            offlineQueued = true
+            offlineCause = e
         } catch (e: HttpException) {
             if (e.code() != 404) throw e
             AppLogger.i(TAG, "deleteExpense got 404 for expenseId=$expenseId, treating as already deleted")
@@ -99,6 +103,9 @@ class ExpenseRepositoryImpl @Inject constructor(
             safeLocalMutation("deleteExpense.removeExpense(expenseId=$expenseId)") {
                 expensesCacheStore.removeExpense(expenseTripId, expenseId)
             }
+        }
+        if (offlineQueued) {
+            throw OfflineWriteQueuedException(cause = offlineCause)
         }
     }
 

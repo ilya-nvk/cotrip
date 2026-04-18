@@ -46,6 +46,7 @@ import nvk.cotrip.data.network.dto.UpdateUserRequest
 import nvk.cotrip.data.network.dto.UserDto
 import nvk.cotrip.data.sync.CoTripDatabase
 import nvk.cotrip.data.sync.SyncEntities
+import nvk.cotrip.data.repository.OfflineWriteQueuedException
 import nvk.cotrip.data.sync.SyncQueueRepository
 import nvk.cotrip.data.sync.SyncScheduler
 import nvk.cotrip.notifications.PushTokenSyncManager
@@ -510,12 +511,15 @@ class OfflineCreateRepositoriesTest {
         )
 
         // WHEN
-        repository.updateExpense(
-            expenseId = "expense-1",
-            request = ExpenseUpdateRequest(title = "After"),
-        )
+        val thrown = runCatching {
+            repository.updateExpense(
+                expenseId = "expense-1",
+                request = ExpenseUpdateRequest(title = "After"),
+            )
+        }.exceptionOrNull()
 
         // THEN
+        assertTrue(thrown is OfflineWriteQueuedException)
         assertEquals("After", expensesStore.findExpenseById("expense-1")?.title)
         val pending = database.syncChangeDao().listPending(10)
         assertEquals(1, pending.size)

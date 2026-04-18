@@ -40,6 +40,7 @@ import nvk.cotrip.data.network.ws.CommentEventsSourceFactory
 import nvk.cotrip.data.network.ws.CommentRejectedPayload
 import nvk.cotrip.data.network.ws.CommentWsEvent
 import nvk.cotrip.data.repository.IdeaRepository
+import nvk.cotrip.data.repository.OfflineWriteQueuedException
 import nvk.cotrip.data.repository.ItineraryRepository
 import nvk.cotrip.data.network.NetworkStateProvider
 import nvk.cotrip.data.repository.NotificationRepository
@@ -150,6 +151,7 @@ class IdeaDetailsViewModel @Inject constructor(
     fun onEvent(event: IdeaDetailsEvent) {
         when (event) {
             IdeaDetailsEvent.OnBackClick -> appNavigator.popBackStack()
+            IdeaDetailsEvent.OnAutoRefresh -> refreshDetails(showErrorToast = false)
             IdeaDetailsEvent.OnRefresh -> refreshDetails(showErrorToast = true)
             IdeaDetailsEvent.OnEditClick -> appNavigator.navigate(
                 Destination.EditIdea(tripId, ideaId)
@@ -637,7 +639,12 @@ class IdeaDetailsViewModel @Inject constructor(
                 }
 
                 is ApiResult.Failure -> {
-                    emit(IdeaDetailsEffect.ShowToastRes(uiErrorMapper.messageRes(result)))
+                    val res = if (result.cause is OfflineWriteQueuedException) {
+                        R.string.common_error_network
+                    } else {
+                        uiErrorMapper.messageRes(result)
+                    }
+                    emit(IdeaDetailsEffect.ShowToastRes(res))
                 }
             }
         }
