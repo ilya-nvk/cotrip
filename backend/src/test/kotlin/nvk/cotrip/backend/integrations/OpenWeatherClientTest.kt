@@ -61,6 +61,24 @@ class OpenWeatherClientTest {
     }
 
     @Test
+    fun given_localNames_when_searchCitiesWithPreferredLang_then_usesLocalizedName() = runBlocking {
+        val json =
+            """[{"name":"Moscow","local_names":{"en":"Moscow","ru":"Москва"},"lat":55.75,"lon":37.62,"country":"RU","state":null}]"""
+        val mockEngine = MockEngine { respond(json, HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json")) }
+        OpenWeatherClient.httpClientForTest = io.ktor.client.HttpClient(mockEngine) {
+            install(ContentNegotiation) {
+                json(Json { ignoreUnknownKeys = true })
+            }
+        }
+
+        val ru = OpenWeatherClient.searchCities(apiKey = "key", query = "Moscow", limit = 5, preferredLang = "ru")
+        val en = OpenWeatherClient.searchCities(apiKey = "key", query = "Moscow", limit = 5, preferredLang = "en")
+
+        assertEquals("Москва", ru.first().name)
+        assertEquals("Moscow", en.first().name)
+    }
+
+    @Test
     fun given_limitOutOfRange_when_searchCities_then_coercesToValidRange() = runBlocking {
         // GIVEN — client coerces limit to 1..20; we just verify no throw
         val mockEngine = MockEngine { respond("[]", HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json")) }

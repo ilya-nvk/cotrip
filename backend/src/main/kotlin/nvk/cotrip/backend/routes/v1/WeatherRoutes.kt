@@ -15,6 +15,7 @@ import nvk.cotrip.backend.config.WeatherConfig
 import nvk.cotrip.backend.db.ItineraryDayRepository
 import nvk.cotrip.backend.db.TripRepository
 import nvk.cotrip.backend.db.WeatherRepository
+import nvk.cotrip.backend.http.preferredOpenWeatherUiLang
 import nvk.cotrip.backend.integrations.OpenWeatherClient
 
 fun Route.weatherRoutes(weatherConfig: WeatherConfig) {
@@ -266,8 +267,7 @@ private suspend fun enrichDisplayCity(
     city: String,
     weatherConfig: WeatherConfig,
 ): String? {
-    val header = acceptLanguage?.trim()?.lowercase() ?: return null
-    if (!header.startsWith("ru")) return null
+    val uiLang = preferredOpenWeatherUiLang(acceptLanguage) ?: return null
     val apiKey = weatherConfig.openWeatherApiKey ?: return null
     val coordinates = ItineraryDayRepository.findCityCoordinates(tripId = tripId, city = city) ?: return null
     return runCatching {
@@ -275,7 +275,7 @@ private suspend fun enrichDisplayCity(
             apiKey = apiKey,
             lat = coordinates.cityLat,
             lon = coordinates.cityLon,
-            preferredLang = "ru",
+            preferredLang = uiLang,
         )
     }.getOrNull()
 }
