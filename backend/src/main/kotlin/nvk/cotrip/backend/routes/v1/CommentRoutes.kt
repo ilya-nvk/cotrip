@@ -10,6 +10,7 @@ import io.ktor.server.routing.Route
 import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
 import kotlinx.serialization.Serializable
+import nvk.cotrip.backend.comments.SystemCommentMetadataResolver
 import nvk.cotrip.backend.db.CommentRepository
 import nvk.cotrip.backend.db.IdeaRepository
 import nvk.cotrip.backend.db.TripRepository
@@ -68,6 +69,7 @@ fun Route.commentRoutes() {
                 .associateWith { authorId -> UserRepository.findById(authorId)?.name }
 
             val comments = commentRows.map {
+                val meta = SystemCommentMetadataResolver.resolve(it.type, it.body)
                 CommentDto(
                     id = it.id,
                     ideaId = it.ideaId,
@@ -76,6 +78,8 @@ fun Route.commentRoutes() {
                     type = it.type,
                     body = it.body,
                     createdAt = it.createdAt.toString(),
+                    systemKey = meta.systemKey,
+                    systemActorName = meta.systemActorName,
                 )
             }
 

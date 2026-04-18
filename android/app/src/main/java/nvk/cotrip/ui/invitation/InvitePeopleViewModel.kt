@@ -45,6 +45,7 @@ class InvitePeopleViewModel @Inject constructor(
     fun onEvent(event: InvitePeopleEvent) {
         when (event) {
             InvitePeopleEvent.OnCloseClick -> appNavigator.popBackStack()
+            InvitePeopleEvent.OnRetryClick -> loadInvite()
 
             InvitePeopleEvent.OnCopyClick -> {
                 val link = (_state.value as? InvitePeopleState.Content)?.inviteLink.orEmpty()
@@ -64,6 +65,7 @@ class InvitePeopleViewModel @Inject constructor(
 
     private fun loadInvite() {
         viewModelScope.launch {
+            _state.value = InvitePeopleState.Loading
             val result = apiCaller.call {
                 inviteRepository.createInvite(tripId)
             }
@@ -86,7 +88,7 @@ class InvitePeopleViewModel @Inject constructor(
                 }
 
                 is ApiResult.Failure -> {
-                    emitToast(uiErrorMapper.messageRes(result))
+                    _state.value = InvitePeopleState.Unavailable
                 }
             }
         }

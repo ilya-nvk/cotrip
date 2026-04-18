@@ -62,6 +62,7 @@ class ActivityDetailsViewModel @Inject constructor(
     fun onEvent(event: ActivityDetailsEvent) {
         when (event) {
             ActivityDetailsEvent.OnBackClick -> appNavigator.popBackStack()
+            ActivityDetailsEvent.OnAutoRefresh -> refreshActivity(showErrorToast = false)
             ActivityDetailsEvent.OnRefresh -> refreshActivity(showErrorToast = true)
             ActivityDetailsEvent.OnEditClick -> {
                 val contentState = _state.value as? ActivityDetailsState.Content ?: return

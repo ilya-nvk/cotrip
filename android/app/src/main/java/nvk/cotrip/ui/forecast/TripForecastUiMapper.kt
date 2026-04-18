@@ -89,15 +89,19 @@ object TripForecastUiMapper {
             else -> context.getString(R.string.common_empty_placeholder)
         }
 
+        val localized = WeatherDescriptionMapper.localize(context, description)
+            ?: description
+        val descriptionText = localized?.replaceFirstChar { char ->
+            if (char.isLowerCase()) char.titlecase(appUiLocale()) else char.toString()
+        } ?: context.getString(R.string.trip_forecast_description_missing)
+
         return ForecastDayUi(
             title = title,
             subtitle = subtitle,
             icon = icon,
             iconTint = tint,
             temp = tempText,
-            description = description?.replaceFirstChar { char ->
-                if (char.isLowerCase()) char.titlecase(appUiLocale()) else char.toString()
-            } ?: context.getString(R.string.trip_forecast_description_missing),
+            description = descriptionText,
         )
     }
 

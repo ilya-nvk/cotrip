@@ -66,6 +66,8 @@ fun Route.weatherRoutes(weatherConfig: WeatherConfig) {
                     end = end,
                     cacheUsed = true,
                     refreshTtlHours = weatherConfig.refreshTtlHours,
+                    acceptLanguage = call.request.headers["Accept-Language"],
+                    weatherConfig = weatherConfig,
                 )
             )
         }
@@ -182,6 +184,8 @@ fun Route.weatherRoutes(weatherConfig: WeatherConfig) {
                     end = end,
                     cacheUsed = cacheUsed,
                     refreshTtlHours = weatherConfig.refreshTtlHours,
+                    acceptLanguage = call.request.headers["Accept-Language"],
+                    weatherConfig = weatherConfig,
                 )
             )
         }
@@ -216,13 +220,15 @@ private fun resolveProviderWindow(start: LocalDate, end: LocalDate): Pair<LocalD
     return if (from.isAfter(to)) null else from to to
 }
 
-private fun buildWeatherResponse(
+private suspend fun buildWeatherResponse(
     tripId: String,
     city: String,
     start: LocalDate,
     end: LocalDate,
     cacheUsed: Boolean,
     refreshTtlHours: Int,
+    acceptLanguage: String?,
+    weatherConfig: WeatherConfig,
 ): WeatherForecastResponseDto {
     val rows = WeatherRepository.list(tripId, city, start, end)
     val items = rows.map { it.toDto() }
@@ -235,6 +241,13 @@ private fun buildWeatherResponse(
         ?.plusHours(refreshTtlHours.toLong())
         ?.toString()
 
+    val displayCity = enrichDisplayCity(
+        acceptLanguage = acceptLanguage,
+        tripId = tripId,
+        city = city,
+        weatherConfig = weatherConfig,
+    )
+
     return WeatherForecastResponseDto(
         items = items,
         nextCursor = null,
@@ -243,7 +256,28 @@ private fun buildWeatherResponse(
         availableTo = providerWindow?.second?.toString(),
         missingDates = missingDates,
         nextRefreshAt = nextRefreshAt,
+        displayCity = displayCity,
     )
+}
+
+private suspend fun enrichDisplayCity(
+    acceptLanguage: String?,
+    tripId: String,
+    city: String,
+    weatherConfig: WeatherConfig,
+): String? {
+    val header = acceptLanguage?.trim()?.lowercase() ?: return null
+    if (!header.startsWith("ru")) return null
+    val apiKey = weatherConfig.openWeatherApiKey ?: return null
+    val coordinates = ItineraryDayRepository.findCityCoordinates(tripId = tripId, city = city) ?: return null
+    return runCatching {
+        OpenWeatherClient.reverseLocalCityLabel(
+            apiKey = apiKey,
+            lat = coordinates.cityLat,
+            lon = coordinates.cityLon,
+            preferredLang = "ru",
+        )
+    }.getOrNull()
 }
 
 private fun datesBetween(start: LocalDate, end: LocalDate): List<LocalDate> {

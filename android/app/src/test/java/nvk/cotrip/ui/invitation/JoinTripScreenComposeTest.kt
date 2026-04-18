@@ -122,6 +122,16 @@ class JoinTripScreenComposeTest {
                     )
                 )
 
+                override suspend fun getInviteForJoin(token: String): InviteInfoDto =
+                    InviteInfoDto(
+                        tripId = "trip",
+                        title = "Trip",
+                        startDate = "2026-01-10",
+                        endDate = "2026-01-12",
+                        locationLine = null,
+                        expiresAt = "2026-12-31T00:00:00Z",
+                    )
+
                 override suspend fun acceptInvite(token: String): String = "trip"
 
                 override suspend fun joinTripById(tripId: String): String = tripId

@@ -30,6 +30,20 @@ class InviteRepositoryImpl @Inject constructor(
         return api.createInvite(tripId)
     }
 
+    override suspend fun getInviteForJoin(token: String): InviteInfoDto? {
+        return if (networkStateProvider.isOnline()) {
+            runCatching { api.getInvite(token) }
+                .onSuccess { invite ->
+                    safeLocalMutation("getInviteForJoin.setInvite(token=$token)") {
+                        inviteCacheStore.setInvite(token, invite)
+                    }
+                }
+                .getOrNull() ?: inviteCacheStore.getInvite(token)
+        } else {
+            inviteCacheStore.getInvite(token)
+        }
+    }
+
     override fun getInvite(token: String): Flow<InviteInfoDto> {
         if (networkStateProvider.isOnline()) {
             ioScope.launch {

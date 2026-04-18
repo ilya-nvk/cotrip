@@ -11,6 +11,7 @@ import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 class AuthInterceptorTest {
@@ -28,8 +29,11 @@ class AuthInterceptorTest {
         interceptor.intercept(chain)
 
         // THEN
-        assertEquals(request, chain.proceededRequest)
         assertNull(chain.proceededRequest?.header("Authorization"))
+        assertEquals(
+            Locale.getDefault().toLanguageTag(),
+            chain.proceededRequest?.header("Accept-Language"),
+        )
     }
 
     @Test
@@ -45,8 +49,11 @@ class AuthInterceptorTest {
         interceptor.intercept(chain)
 
         // THEN
-        assertEquals(request, chain.proceededRequest)
         assertNull(chain.proceededRequest?.header("Authorization"))
+        assertEquals(
+            Locale.getDefault().toLanguageTag(),
+            chain.proceededRequest?.header("Accept-Language"),
+        )
     }
 
     @Test

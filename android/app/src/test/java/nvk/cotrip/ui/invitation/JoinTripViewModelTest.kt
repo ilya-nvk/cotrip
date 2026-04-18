@@ -324,6 +324,13 @@ class JoinTripViewModelTest {
             emit(inviteByToken[token] ?: inviteInfo(tripId = "trip-from-$token"))
         }
 
+        override suspend fun getInviteForJoin(token: String): InviteInfoDto? {
+            return runCatching {
+                if (getInviteError != null) return null
+                inviteByToken[token] ?: inviteInfo(tripId = "trip-from-$token")
+            }.getOrNull()
+        }
+
         override suspend fun acceptInvite(token: String): String {
             acceptCalls += token
             return acceptResult

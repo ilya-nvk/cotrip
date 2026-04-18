@@ -3,6 +3,7 @@ package nvk.cotrip.backend.ws
 import io.ktor.websocket.Frame
 import io.ktor.websocket.send
 import kotlinx.serialization.encodeToString
+import nvk.cotrip.backend.comments.SystemCommentMetadataResolver
 import nvk.cotrip.backend.db.CommentRow
 
 suspend fun publishCommentCreated(
@@ -11,6 +12,7 @@ suspend fun publishCommentCreated(
     authorName: String? = null,
     clientMessageId: String? = null,
 ) {
+    val meta = SystemCommentMetadataResolver.resolve(comment.type, comment.body)
     val payload = CommentCreatedMessage(
         payload = CommentCreatedPayload(
             id = comment.id,
@@ -21,6 +23,8 @@ suspend fun publishCommentCreated(
             body = comment.body,
             createdAt = comment.createdAt.toString(),
             clientMessageId = clientMessageId,
+            systemKey = meta.systemKey,
+            systemActorName = meta.systemActorName,
         )
     )
     val text = WsJson.instance.encodeToString(payload)

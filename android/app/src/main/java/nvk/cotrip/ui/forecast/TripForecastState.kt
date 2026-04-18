@@ -4,7 +4,10 @@ sealed interface TripForecastState {
     data object Loading : TripForecastState
 
     data class Content(
+        /** Label shown in the UI (may be localized via `displayCity` from API). */
         val city: String,
+        /** City string used for weather cache/API requests (itinerary key). */
+        val weatherCityKey: String,
         val cityOptions: List<String> = emptyList(),
         val isCityPickerVisible: Boolean = false,
         val days: List<ForecastDayUi>,

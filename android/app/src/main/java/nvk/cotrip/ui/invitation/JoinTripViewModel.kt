@@ -100,36 +100,28 @@ class JoinTripViewModel @Inject constructor(
 
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, inlineErrorRes = null) }
-            val preflight = apiCaller.call {
-                runCatching { tripRepository.refreshTrips() }
-                val joinedIds = tripRepository.trips.first().mapTo(mutableSetOf()) { it.id }
-                when (target) {
-                    is JoinTarget.InviteToken -> {
-                        val invite = inviteRepository.getInvite(target.token).first()
-                        joinedIds.contains(invite.tripId)
-                    }
-                    is JoinTarget.TripId -> joinedIds.contains(target.tripId)
-                }
-            }
-
-            when (preflight) {
-                is ApiResult.Success -> {
-                    if (preflight.data) {
-                        _state.update {
-                            it.copy(
-                                isLoading = false,
-                                inlineErrorRes = R.string.join_trip_already_joined,
-                            )
-                        }
+            runCatching { tripRepository.refreshTrips() }
+            val joinedIds = tripRepository.trips.first().mapTo(mutableSetOf()) { it.id }
+            val alreadyJoined = when (target) {
+                is JoinTarget.InviteToken -> {
+                    val invite = inviteRepository.getInviteForJoin(target.token)
+                    if (invite == null) {
+                        _state.update { it.copy(isLoading = false) }
+                        emit(JoinTripEffect.ShowToastRes(R.string.common_error_server_unreachable))
                         return@launch
                     }
+                    joinedIds.contains(invite.tripId)
                 }
-
-                is ApiResult.Failure -> {
-                    _state.update { it.copy(isLoading = false) }
-                    emit(JoinTripEffect.ShowToastRes(uiErrorMapper.messageRes(preflight)))
-                    return@launch
+                is JoinTarget.TripId -> joinedIds.contains(target.tripId)
+            }
+            if (alreadyJoined) {
+                _state.update {
+                    it.copy(
+                        isLoading = false,
+                        inlineErrorRes = R.string.join_trip_already_joined,
+                    )
                 }
+                return@launch
             }
 
             val result = apiCaller.call {

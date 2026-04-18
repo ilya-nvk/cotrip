@@ -297,6 +297,9 @@ class IdeaDetailsViewModelTest {
             every { it.getAccessToken() } returns ""
         },
         commentEventsSourceFactory: FakeCommentEventsSourceFactory = FakeCommentEventsSourceFactory(),
+        networkStateProvider: NetworkStateProvider = mockk {
+            every { isOnline() } returns true
+        },
     ): IdeaDetailsViewModel {
         val appContext = ApplicationProvider.getApplicationContext<Application>()
         return IdeaDetailsViewModel(
@@ -314,6 +317,7 @@ class IdeaDetailsViewModelTest {
             json = Json { ignoreUnknownKeys = true },
             apiCaller = apiCaller,
             uiErrorMapper = uiErrorMapper,
+            networkStateProvider = networkStateProvider,
         )
     }
 }

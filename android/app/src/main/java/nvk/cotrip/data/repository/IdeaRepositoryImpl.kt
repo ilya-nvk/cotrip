@@ -8,11 +8,9 @@ import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.launch
 import nvk.cotrip.data.cache.IdeaCommentsCacheStore
 import nvk.cotrip.data.cache.IdeasCacheStore
-import nvk.cotrip.data.cache.ItineraryCacheStore
 import nvk.cotrip.data.cache.UserCacheStore
 import nvk.cotrip.data.network.CoTripApi
 import nvk.cotrip.data.network.NetworkStateProvider
-import nvk.cotrip.data.network.dto.ActivityDto
 import nvk.cotrip.data.network.dto.CommentDto
 import nvk.cotrip.data.network.dto.ConvertIdeaRequest
 import nvk.cotrip.data.network.dto.CreateIdeaRequest
@@ -20,15 +18,12 @@ import nvk.cotrip.data.network.dto.IdeaDto
 import nvk.cotrip.data.network.dto.UpdateIdeaRequest
 import nvk.cotrip.data.network.requireSuccess
 import nvk.cotrip.data.sync.SyncEntities
-import nvk.cotrip.data.sync.SyncIdeaConvertCreatePayload
-import nvk.cotrip.data.sync.SyncIdeaCreatePayload
 import nvk.cotrip.data.sync.SyncIdeaStatusUpsertPayload
 import nvk.cotrip.data.sync.SyncQueueRepository
 import nvk.cotrip.util.AppLogger
 import retrofit2.HttpException
 import java.io.IOException
 import java.time.OffsetDateTime
-import java.util.UUID
 import javax.inject.Inject
 
 class IdeaRepositoryImpl @Inject constructor(
@@ -36,7 +31,6 @@ class IdeaRepositoryImpl @Inject constructor(
     private val syncQueueRepository: SyncQueueRepository,
     private val ideasCacheStore: IdeasCacheStore,
     private val commentsCacheStore: IdeaCommentsCacheStore,
-    private val itineraryCacheStore: ItineraryCacheStore,
     private val userCacheStore: UserCacheStore,
     private val networkStateProvider: NetworkStateProvider,
 ) : IdeaRepository {
@@ -73,45 +67,11 @@ class IdeaRepositoryImpl @Inject constructor(
     }
 
     override suspend fun createIdea(tripId: String, request: CreateIdeaRequest): IdeaDto {
-        return try {
-            val idea = api.createIdea(tripId, request)
-            safeLocalMutation("createIdea.upsertIdea(tripId=$tripId, ideaId=${idea.id})") {
-                ideasCacheStore.upsertIdea(tripId, idea)
-            }
-            idea
-        } catch (e: IOException) {
-            val localIdea = IdeaDto(
-                id = UUID.randomUUID().toString(),
-                tripId = tripId,
-                authorId = userCacheStore.getUser()?.id ?: "",
-                title = request.title,
-                city = request.city,
-                link = request.link,
-                costAmount = request.costAmount,
-                costType = request.costType,
-                notes = request.notes,
-                status = "pending",
-                updatedAt = OffsetDateTime.now().toString(),
-                commentsCount = 0,
-            )
-            safeLocalMutation("createIdea.offlineUpsert(ideaId=${localIdea.id})") {
-                ideasCacheStore.upsertIdea(tripId, localIdea)
-            }
-            syncQueueRepository.enqueueCreate(
-                entity = SyncEntities.IDEA,
-                id = localIdea.id,
-                payload = SyncIdeaCreatePayload(
-                    tripId = tripId,
-                    title = request.title,
-                    city = request.city,
-                    link = request.link,
-                    costAmount = request.costAmount,
-                    costType = request.costType,
-                    notes = request.notes,
-                ),
-            )
-            localIdea
+        val idea = api.createIdea(tripId, request)
+        safeLocalMutation("createIdea.upsertIdea(tripId=$tripId, ideaId=${idea.id})") {
+            ideasCacheStore.upsertIdea(tripId, idea)
         }
+        return idea
     }
 
     override suspend fun updateIdea(ideaId: String, request: UpdateIdeaRequest) {
@@ -155,21 +115,7 @@ class IdeaRepositoryImpl @Inject constructor(
     }
 
     override suspend fun convertIdeaToActivity(ideaId: String, request: ConvertIdeaRequest) {
-        try {
-            api.convertIdeaToActivity(ideaId, request).requireSuccess()
-        } catch (e: IOException) {
-            syncQueueRepository.enqueueCreate(
-                entity = SyncEntities.IDEA_CONVERT,
-                id = ideaId,
-                payload = SyncIdeaConvertCreatePayload(
-                    dayId = request.dayId,
-                    timeText = request.timeText,
-                    orderIndex = request.orderIndex,
-                ),
-            )
-            applyIdeaConvertLocally(ideaId = ideaId, request = request)
-            return
-        }
+        api.convertIdeaToActivity(ideaId, request).requireSuccess()
     }
 
     override suspend fun approveIdea(ideaId: String): IdeaDto {
@@ -268,45 +214,5 @@ class IdeaRepositoryImpl @Inject constructor(
             ideasCacheStore.upsertIdea(updated.tripId, updated)
         }
         return updated
-    }
-
-    private suspend fun applyIdeaConvertLocally(
-        ideaId: String,
-        request: ConvertIdeaRequest,
-    ) {
-        val sourceIdea = runCatching { ideasCacheStore.findIdeaById(ideaId) }.getOrNull() ?: return
-        val itineraryByTrip = runCatching { itineraryCacheStore.getAll() }.getOrDefault(emptyMap())
-        val tripId = itineraryByTrip.entries.firstOrNull { (_, days) ->
-            days.any { it.id == request.dayId }
-        }?.key ?: return
-
-        safeLocalMutation("convertIdea.offlineCreateActivity(ideaId=$ideaId,dayId=${request.dayId})") {
-            itineraryCacheStore.updateItinerary(tripId) { days ->
-                days.map { day ->
-                    if (day.id != request.dayId) {
-                        day
-                    } else {
-                        val orderIndex = request.orderIndex
-                            ?: ((day.activities.maxOfOrNull { it.orderIndex } ?: -1) + 1)
-                        val converted = ActivityDto(
-                            id = UUID.randomUUID().toString(),
-                            dayId = day.id,
-                            sourceIdeaId = sourceIdea.id,
-                            title = sourceIdea.title,
-                            timeText = request.timeText,
-                            locationName = sourceIdea.city,
-                            link = sourceIdea.link,
-                            costAmount = sourceIdea.costAmount,
-                            costType = sourceIdea.costType,
-                            notes = sourceIdea.notes,
-                            orderIndex = orderIndex,
-                        )
-                        day.copy(
-                            activities = (day.activities + converted).sortedBy { it.orderIndex }
-                        )
-                    }
-                }
-            }
-        }
     }
 }

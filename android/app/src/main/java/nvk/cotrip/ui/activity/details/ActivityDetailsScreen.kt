@@ -72,7 +72,7 @@ fun ActivityDetailsScreen(
     DisposableEffect(lifecycleOwner, viewModel) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                viewModel.onEvent(ActivityDetailsEvent.OnRefresh)
+                viewModel.onEvent(ActivityDetailsEvent.OnAutoRefresh)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)

@@ -25,4 +25,5 @@ data class WeatherForecastResponseDto(
     val availableTo: String? = null,
     val missingDates: List<String> = emptyList(),
     val nextRefreshAt: String? = null,
+    val displayCity: String? = null,
 )
