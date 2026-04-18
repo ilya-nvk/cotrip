@@ -20,6 +20,7 @@ import nvk.cotrip.backend.db.DayRepository
 import nvk.cotrip.backend.db.ItineraryDayRepository
 import nvk.cotrip.backend.db.LocalPlacesSearchRepository
 import nvk.cotrip.backend.db.TripRepository
+import nvk.cotrip.backend.http.preferredOpenWeatherUiLang
 import nvk.cotrip.backend.integrations.OpenWeatherClient
 
 @Serializable
@@ -111,11 +112,13 @@ fun Route.itineraryRoutes(weatherConfig: WeatherConfig) {
             }
 
             val limit = call.request.queryParameters["limit"]?.toIntOrNull()?.coerceIn(1, 20) ?: 8
+            val uiLang = preferredOpenWeatherUiLang(call.request.headers["Accept-Language"])
             val suggestions = runCatching {
                 OpenWeatherClient.searchCities(
                     apiKey = apiKey,
                     query = query,
                     limit = limit,
+                    preferredLang = uiLang,
                 )
             }.getOrElse {
                 call.respond(

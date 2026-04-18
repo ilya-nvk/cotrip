@@ -43,6 +43,7 @@ object OpenWeatherClient {
         apiKey: String,
         query: String,
         limit: Int,
+        preferredLang: String? = null,
     ): List<OpenWeatherCityCandidate> {
         val response = httpClient.get("https://api.openweathermap.org/geo/1.0/direct") {
             parameter("q", query)
@@ -52,7 +53,7 @@ object OpenWeatherClient {
 
         return response
             .mapNotNull { item ->
-                val cityName = item.name.trim()
+                val cityName = localizedDirectCityName(item, preferredLang)
                 if (cityName.isBlank()) return@mapNotNull null
                 val parts = listOfNotNull(
                     cityName.takeIf { it.isNotBlank() },
@@ -69,6 +70,12 @@ object OpenWeatherClient {
                 )
             }
             .distinctBy { candidate -> candidate.providerId }
+    }
+
+    private fun localizedDirectCityName(item: DirectGeocodingDto, preferredLang: String?): String {
+        val lang = preferredLang?.lowercase()?.take(2)?.takeIf { it.isNotBlank() }
+        val fromLocal = lang?.let { l -> item.localNames?.get(l) }
+        return (fromLocal ?: item.name).trim()
     }
 
     suspend fun reverseLocalCityLabel(
@@ -125,6 +132,7 @@ private data class DirectGeocodingDto(
     val lon: Double,
     val country: String? = null,
     val state: String? = null,
+    @SerialName("local_names") val localNames: Map<String, String>? = null,
 )
 
 @Serializable
