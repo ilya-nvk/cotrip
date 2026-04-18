@@ -28,6 +28,18 @@ class UiErrorMapperTest {
     }
 
     @Test
+    fun given_newAiApiCodes_when_messageRes_then_returnsDedicatedStrings() {
+        assertEquals(
+            R.string.common_error_ai_policy_violation,
+            mapper.messageRes(ApiResult.Failure(error = ApiError(code = "ai_policy_violation", message = "x"))),
+        )
+        assertEquals(
+            R.string.common_error_ai_no_relevant_results,
+            mapper.messageRes(ApiResult.Failure(error = ApiError(code = "ai_no_relevant_results", message = "x"))),
+        )
+    }
+
+    @Test
     fun given_failureWithAuthPrefix_when_messageRes_then_returnsUnauthorized() {
         // GIVEN
         val failure = ApiResult.Failure(

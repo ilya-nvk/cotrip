@@ -6,6 +6,7 @@ import androidx.test.core.app.ApplicationProvider
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import nvk.cotrip.ui.common.TextInputLimits
 import nvk.cotrip.ui.navigation.Destination
 import nvk.cotrip.ui.trip.details.TripDetailsFakeItineraryRepository
 import nvk.cotrip.ui.trip.details.TripDetailsFakeNavigator
@@ -46,6 +47,7 @@ class BuildRouteViewModelTest {
         assertEquals("trip-1", viewModel.state.value.tripId)
         assertNull(viewModel.state.value.city)
         assertEquals("", viewModel.state.value.description)
+        assertEquals(false, viewModel.state.value.isDescriptionTooLong)
         assertNotNull(viewModel.state.value.typeOptions)
         assertNotNull(viewModel.state.value.timeOfDayOptions)
         assertNotNull(viewModel.state.value.budgetOptions)
@@ -188,6 +190,45 @@ class BuildRouteViewModelTest {
 
         // THEN
         assertEquals("cultural walk", viewModel.state.value.description)
+    }
+
+    @Test
+    fun given_overLimitDescription_when_onDescriptionChange_then_setsErrorStateAndBlocksNavigation() = runTest {
+        val navigator = TripDetailsFakeNavigator()
+        val overLimitDescription = "x".repeat(TextInputLimits.AI_ROUTE_DESCRIPTION + 1)
+        val viewModel = createViewModel(
+            appContext = ApplicationProvider.getApplicationContext(),
+            navigator = navigator,
+            itineraryRepository = TripDetailsFakeItineraryRepository(emptyList()),
+            tripId = "trip-1",
+        )
+        advanceUntilIdle()
+        viewModel.onEvent(BuildRouteEvent.OnCitySelected("Rome"))
+
+        viewModel.onEvent(BuildRouteEvent.OnDescriptionChange(overLimitDescription))
+        viewModel.onEvent(BuildRouteEvent.OnGenerateClick)
+        advanceUntilIdle()
+
+        assertEquals(overLimitDescription, viewModel.state.value.description)
+        assertTrue(viewModel.state.value.isDescriptionTooLong)
+        assertTrue(navigator.destinations.isEmpty())
+    }
+
+    @Test
+    fun given_descriptionReturnsWithinLimit_when_onDescriptionChange_then_clearsErrorState() = runTest {
+        val viewModel = createViewModel(
+            appContext = ApplicationProvider.getApplicationContext(),
+            navigator = TripDetailsFakeNavigator(),
+            itineraryRepository = TripDetailsFakeItineraryRepository(emptyList()),
+            tripId = "trip-1",
+        )
+        advanceUntilIdle()
+
+        viewModel.onEvent(BuildRouteEvent.OnDescriptionChange("x".repeat(TextInputLimits.AI_ROUTE_DESCRIPTION + 1)))
+        viewModel.onEvent(BuildRouteEvent.OnDescriptionChange("museum"))
+
+        assertEquals("museum", viewModel.state.value.description)
+        assertEquals(false, viewModel.state.value.isDescriptionTooLong)
     }
 
     @Test

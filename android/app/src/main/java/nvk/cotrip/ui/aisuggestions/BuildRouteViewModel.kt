@@ -37,6 +37,7 @@ class BuildRouteViewModel @Inject constructor(
             tripId = tripId,
             city = null,
             description = "",
+            isDescriptionTooLong = false,
             typeOptions = createAiOptions(R.array.ai_suggestions_option_types),
             timeOfDayOptions = createAiOptions(R.array.ai_suggestions_option_times),
             budgetOptions = createAiOptions(R.array.ai_suggestions_option_budgets),
@@ -62,13 +63,17 @@ class BuildRouteViewModel @Inject constructor(
             }
 
             is BuildRouteEvent.OnDescriptionChange -> _state.update {
-                it.copy(description = event.value.take(TextInputLimits.AI_ROUTE_DESCRIPTION))
+                it.copy(
+                    description = event.value,
+                    isDescriptionTooLong = event.value.length > TextInputLimits.AI_ROUTE_DESCRIPTION,
+                )
             }
             is BuildRouteEvent.OnTypeToggle -> toggleType(event.label)
             is BuildRouteEvent.OnTimeOfDaySelect -> selectTimeOfDay(event.label)
             is BuildRouteEvent.OnBudgetSelect -> selectBudget(event.label)
             BuildRouteEvent.OnGenerateClick -> {
                 val current = _state.value
+                if (!current.canGenerate) return
                 val selectedCity = current.city?.trim()?.takeIf { it.isNotBlank() }
                 if (selectedCity != null) {
                     appNavigator.navigate(

@@ -47,6 +47,8 @@
     <string name="common_error_weather_refresh">Не удалось обновить прогноз погоды.</string>
     <string name="common_error_ai_unavailable">AI-провайдер не настроен на сервере.</string>
     <string name="common_error_ai_generation">Сейчас не удалось сгенерировать AI-подсказки.</string>
+    <string name="common_error_ai_policy_violation">По такому запросу нельзя сгенерировать travel-подсказки.</string>
+    <string name="common_error_ai_no_relevant_results">По вашему запросу не нашлось безопасных и релевантных подсказок.</string>
     <string name="common_error_limit_reached">Достигнут лимит данных. Удалите старые элементы и повторите попытку.</string>
     <string name="limit_reached_dialog_title">Достигнут лимит</string>
     <string name="limit_reached_dialog_message">Чтобы добавить новый элемент, удалить самый старый: %1$s?</string>
@@ -243,6 +245,7 @@
     <string name="ai_suggestions_description_label">Опишите, что вы ищете (необязательно)</string>
     <string name="ai_suggestions_description_placeholder">Примеры: Что-то спокойное на вечер • Музей</string>
     <string name="ai_suggestions_description_hint">Напишите своими словами, чего хотите, — AI поймет</string>
+    <string name="ai_suggestions_description_too_long">Сократите описание до %1$d символов или меньше, чтобы получить подсказки.</string>
     <string name="ai_suggestions_quick_preferences">Быстрые предпочтения (необязательно)</string>
     <string name="ai_suggestions_type_label">Тип</string>
     <string name="ai_suggestions_time_of_day_label">Время суток</string>

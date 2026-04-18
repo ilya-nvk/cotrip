@@ -47,6 +47,8 @@
     <string name="common_error_weather_refresh">Unable to refresh weather forecast.</string>
     <string name="common_error_ai_unavailable">AI provider is not configured on server.</string>
     <string name="common_error_ai_generation">Unable to generate AI suggestions right now.</string>
+    <string name="common_error_ai_policy_violation">That request cannot be used to generate travel suggestions.</string>
+    <string name="common_error_ai_no_relevant_results">No safe and relevant suggestions matched your request.</string>
     <string name="common_error_limit_reached">Data limit reached. Remove old items and try again.</string>
     <string name="limit_reached_dialog_title">Limit reached</string>
     <string name="limit_reached_dialog_message">To add a new item, delete the oldest: %1$s?</string>
@@ -239,6 +241,7 @@
     <string name="ai_suggestions_description_label">Describe what you are looking for (optional)</string>
     <string name="ai_suggestions_description_placeholder">Examples: Something relaxed for the evening • Museum</string>
     <string name="ai_suggestions_description_hint">Tell the AI what you want in your own words - it will understand</string>
+    <string name="ai_suggestions_description_too_long">Keep the description within %1$d characters to generate suggestions.</string>
     <string name="ai_suggestions_quick_preferences">Quick preferences (optional)</string>
     <string name="ai_suggestions_type_label">Type</string>
     <string name="ai_suggestions_time_of_day_label">Time of day</string>

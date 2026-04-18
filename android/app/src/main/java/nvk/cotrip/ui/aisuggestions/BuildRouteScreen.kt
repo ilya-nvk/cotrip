@@ -41,6 +41,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import nvk.cotrip.R
+import nvk.cotrip.ui.common.TextInputLimits
 import nvk.cotrip.ui.components.CoTripIconButton
 import nvk.cotrip.ui.components.CoTripListItem
 import nvk.cotrip.ui.components.CoTripTextField
@@ -121,7 +122,7 @@ fun BuildRouteScreen(
                 PrimaryButton(
                     text = stringResource(R.string.ai_suggestions_generate),
                     onClick = { viewModel.onEvent(BuildRouteEvent.OnGenerateClick) },
-                    enabled = state.city != null,
+                    enabled = state.canGenerate,
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -155,14 +156,20 @@ fun BuildRouteScreen(
                 CoTripTextField(
                     value = state.description,
                     onValueChange = { viewModel.onEvent(BuildRouteEvent.OnDescriptionChange(it)) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(110.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     placeholder = stringResource(R.string.ai_suggestions_description_placeholder),
+                    helperText = stringResource(R.string.ai_suggestions_description_hint),
+                    errorText = if (state.isDescriptionTooLong) {
+                        stringResource(
+                            R.string.ai_suggestions_description_too_long,
+                            TextInputLimits.AI_ROUTE_DESCRIPTION,
+                        )
+                    } else {
+                        null
+                    },
                     singleLine = false,
                     maxLines = 4
                 )
-                FieldHint(stringResource(R.string.ai_suggestions_description_hint))
             }
 
             item {

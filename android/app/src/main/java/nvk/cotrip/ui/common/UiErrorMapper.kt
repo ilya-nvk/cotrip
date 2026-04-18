@@ -23,6 +23,8 @@ class UiErrorMapper @Inject constructor(
             "weather_refresh_failed" -> R.string.common_error_weather_refresh
             "ai_provider_unavailable" -> R.string.common_error_ai_unavailable
             "ai_generation_failed" -> R.string.common_error_ai_generation
+            "ai_policy_violation" -> R.string.common_error_ai_policy_violation
+            "ai_no_relevant_results" -> R.string.common_error_ai_no_relevant_results
             "limit_reached" -> R.string.common_error_limit_reached
 
             else -> when {

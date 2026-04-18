@@ -6,6 +6,7 @@ import androidx.test.core.app.ApplicationProvider
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
@@ -143,11 +144,38 @@ class RouteSuggestionsViewModelTest {
 
     @Test
     fun given_initFails_when_loadCompletes_then_staysLoadingAndEmitsToast() = runTest {
-        // GIVEN
         every { networkStateProvider.isOnline() } returns true
+        val navigator = TripDetailsFakeNavigator()
         val aiRepository = FakeAiSuggestionsRepository(suggestions = emptyList()).apply {
             generateSuggestionsError = IOException("api down")
         }
+        val viewModel = createViewModel(
+            appContext = ApplicationProvider.getApplicationContext(),
+            navigator = navigator,
+            aiSuggestionsRepository = aiRepository,
+            tripId = "trip-1",
+            city = "Rome",
+        )
+        val effects = mutableListOf<RouteSuggestionsEffect>()
+        val collectJob = launch { viewModel.effects.collect { effects += it } }
+
+        advanceUntilIdle()
+
+        assertTrue(viewModel.state.value is RouteSuggestionsState.Loading)
+        assertEquals(1, navigator.popCalls)
+        assertEquals(
+            RouteSuggestionsEffect.ShowToastRes(nvk.cotrip.R.string.common_error_server_unreachable),
+            effects.single(),
+        )
+        collectJob.cancel()
+    }
+
+    @Test
+    fun given_refreshFailsAfterContentShown_when_refreshCompletes_then_keepsContentAndEmitsToast() = runTest {
+        every { networkStateProvider.isOnline() } returns true
+        val aiRepository = FakeAiSuggestionsRepository(
+            suggestions = listOf(aiSuggestionDto(id = "s1", title = "First")),
+        )
         val viewModel = createViewModel(
             appContext = ApplicationProvider.getApplicationContext(),
             navigator = TripDetailsFakeNavigator(),
@@ -155,12 +183,23 @@ class RouteSuggestionsViewModelTest {
             tripId = "trip-1",
             city = "Rome",
         )
-
-        // WHEN
+        val effects = mutableListOf<RouteSuggestionsEffect>()
+        val collectJob = launch { viewModel.effects.collect { effects += it } }
         advanceUntilIdle()
 
-        // THEN
-        assertTrue(viewModel.state.value is RouteSuggestionsState.Loading)
+        aiRepository.generateSuggestionsError = IOException("api down")
+        viewModel.onEvent(RouteSuggestionsEvent.OnRefreshClick)
+        advanceUntilIdle()
+
+        val content = viewModel.state.value as? RouteSuggestionsState.Content
+        assertNotNull(content)
+        assertEquals(1, content!!.suggestions.size)
+        assertEquals("First", content.suggestions.single().title)
+        assertEquals(
+            RouteSuggestionsEffect.ShowToastRes(nvk.cotrip.R.string.common_error_server_unreachable),
+            effects.single(),
+        )
+        collectJob.cancel()
     }
 
     @Test
