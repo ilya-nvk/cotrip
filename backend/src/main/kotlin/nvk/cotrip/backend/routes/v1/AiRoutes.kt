@@ -10,11 +10,21 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.post
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import nvk.cotrip.backend.ai.AiRequestPolicyEvaluator
+import nvk.cotrip.backend.ai.AiRequestRelevanceClassifier
+import nvk.cotrip.backend.ai.AiRequestRelevanceInput
+import nvk.cotrip.backend.ai.AiSuggestionPostFilter
+import nvk.cotrip.backend.ai.AiSuggestionPostFilterRequest
 import nvk.cotrip.backend.config.AiConfig
 import nvk.cotrip.backend.db.AiRepository
 import nvk.cotrip.backend.db.AiSuggestionInput
 import nvk.cotrip.backend.db.AiSuggestionRow
 import nvk.cotrip.backend.db.IdeaRepository
+import nvk.cotrip.backend.db.ItineraryDayRepository
 import nvk.cotrip.backend.db.TripRepository
 import nvk.cotrip.backend.integrations.YandexAiClient
 import nvk.cotrip.backend.integrations.YandexTripSuggestionPrompt
@@ -50,8 +60,11 @@ fun Route.aiRoutes(aiConfig: AiConfig) {
                 return@post
             }
 
-            val request = call.receive<AiSuggestionRequest>()
+            val request = call.receive<AiSuggestionRequest>().normalized()
             val provider = aiConfig.provider
+            val itineraryCities = ItineraryDayRepository.listByTrip(tripId)
+                .mapNotNull { it.city?.trim()?.takeIf { city -> city.isNotBlank() } }
+                .distinct()
 
             val aiRequest = AiRepository.createRequest(
                 tripId = tripId,
@@ -64,12 +77,67 @@ fun Route.aiRoutes(aiConfig: AiConfig) {
                 createdBy = userId,
             )
 
-            val suggestions = runCatching {
+            val requestPolicyDecision = AiRequestPolicyEvaluator.evaluate(
+                city = request.city,
+                description = request.description,
+                typeOptions = request.typeOptions,
+                timeOfDayOptions = request.timeOfDayOptions,
+                budgetOptions = request.budgetOptions,
+            )
+            if (!requestPolicyDecision.isAllowed) {
+                val category = checkNotNull(requestPolicyDecision.category).wireValue
+                AiRepository.updateRequestStatus(aiRequest.id, "error", "Request blocked by AI policy: $category")
+                call.respond(
+                    HttpStatusCode.UnprocessableEntity,
+                    errorResponse(
+                        code = "ai_policy_violation",
+                        message = "Request violates AI suggestion policy",
+                        details = buildJsonObject {
+                            put("stage", "request")
+                            put("category", category)
+                        }
+                    )
+                )
+                return@post
+            }
+
+            val requestRelevance = runCatching {
+                AiRequestRelevanceClassifier.classify(
+                    provider = provider,
+                    config = aiConfig,
+                    input = AiRequestRelevanceInput(
+                        city = request.city,
+                        description = request.description,
+                        typeOptions = request.typeOptions,
+                        timeOfDayOptions = request.timeOfDayOptions,
+                        budgetOptions = request.budgetOptions,
+                        generationToken = request.generationToken,
+                    ),
+                )
+            }.getOrNull()
+            if (AiRequestRelevanceClassifier.shouldBlockAsOffTopic(requestRelevance)) {
+                AiRepository.updateRequestStatus(aiRequest.id, "error", "Request blocked by relevance classifier: off_topic")
+                call.respond(
+                    HttpStatusCode.UnprocessableEntity,
+                    errorResponse(
+                        code = "ai_policy_violation",
+                        message = "Request violates AI suggestion policy",
+                        details = buildJsonObject {
+                            put("stage", "request")
+                            put("category", "off_topic")
+                        }
+                    )
+                )
+                return@post
+            }
+
+            val rawSuggestions = runCatching {
                 when (provider) {
                     "yandex" -> YandexAiClient.generateSuggestions(
                         config = aiConfig,
                         prompt = YandexTripSuggestionPrompt(
                             city = request.city,
+                            itineraryCities = itineraryCities,
                             description = request.description,
                             typeOptions = request.typeOptions,
                             timeOfDayOptions = request.timeOfDayOptions,
@@ -83,6 +151,7 @@ fun Route.aiRoutes(aiConfig: AiConfig) {
 
                     "mock" -> buildMockSuggestions(
                         request = request,
+                        itineraryCities = itineraryCities,
                         maxSuggestions = aiConfig.maxSuggestions,
                     )
 
@@ -98,30 +167,62 @@ fun Route.aiRoutes(aiConfig: AiConfig) {
                     )
                 call.respond(
                     if (isUnavailable) HttpStatusCode.ServiceUnavailable else HttpStatusCode.BadGateway,
-                    mapOf(
-                        "error" to mapOf(
-                            "code" to if (isUnavailable) "ai_provider_unavailable" else "ai_generation_failed",
-                            "message" to if (isUnavailable) {
-                                "AI provider is not configured"
-                            } else {
-                                "Unable to generate AI suggestions"
-                            },
-                        )
+                    errorResponse(
+                        code = if (isUnavailable) "ai_provider_unavailable" else "ai_generation_failed",
+                        message = if (isUnavailable) {
+                            "AI provider is not configured"
+                        } else {
+                            "Unable to generate AI suggestions"
+                        }
                     )
                 )
                 return@post
             }
 
-            if (suggestions.isEmpty()) {
+            if (rawSuggestions.isEmpty()) {
                 AiRepository.updateRequestStatus(aiRequest.id, "error", "No suggestions returned")
                 call.respond(
                     HttpStatusCode.BadGateway,
-                    mapOf("error" to mapOf("code" to "ai_generation_failed", "message" to "Unable to generate AI suggestions"))
+                    errorResponse(
+                        code = "ai_generation_failed",
+                        message = "Unable to generate AI suggestions",
+                    )
                 )
                 return@post
             }
 
-            val savedSuggestions = AiRepository.insertSuggestions(aiRequest.id, suggestions)
+            val filteredSuggestions = AiSuggestionPostFilter.filter(
+                request = AiSuggestionPostFilterRequest(
+                    city = request.city,
+                    itineraryCities = itineraryCities,
+                    typeOptions = request.typeOptions,
+                    timeOfDayOptions = request.timeOfDayOptions,
+                    budgetOptions = request.budgetOptions,
+                ),
+                suggestions = rawSuggestions,
+            )
+            if (filteredSuggestions.kept.isEmpty()) {
+                AiRepository.updateRequestStatus(aiRequest.id, "error", "No relevant suggestions remained after filtering")
+                call.respond(
+                    HttpStatusCode.UnprocessableEntity,
+                    errorResponse(
+                        code = "ai_no_relevant_results",
+                        message = "No safe and relevant AI suggestions are available",
+                        details = buildJsonObject {
+                            put("stage", "response")
+                            put("generatedCount", filteredSuggestions.generatedCount)
+                            put("keptCount", filteredSuggestions.keptCount)
+                            put(
+                                "topRejectReasons",
+                                JsonArray(filteredSuggestions.topRejectReasons.map(::JsonPrimitive))
+                            )
+                        }
+                    )
+                )
+                return@post
+            }
+
+            val savedSuggestions = AiRepository.insertSuggestions(aiRequest.id, filteredSuggestions.kept)
             AiRepository.updateRequestStatus(aiRequest.id, "done")
 
             call.respond(mapOf("items" to savedSuggestions.map { it.toDto() }))
@@ -181,10 +282,85 @@ fun Route.aiRoutes(aiConfig: AiConfig) {
     }
 }
 
-private fun buildMockSuggestions(request: AiSuggestionRequest, maxSuggestions: Int): List<AiSuggestionInput> {
+private fun buildMockSuggestions(
+    request: AiSuggestionRequest,
+    itineraryCities: List<String>,
+    maxSuggestions: Int,
+): List<AiSuggestionInput> {
+    when (request.generationToken?.trim()) {
+        "test-generation-error" -> error("Mock AI generation failed")
+        "test-mixed-output" -> {
+            val requestedCity = request.city?.trim().orEmpty().ifBlank { "Rome" }
+            val mismatchCity = itineraryCities.firstOrNull { !it.equals(requestedCity, ignoreCase = true) } ?: "Florence"
+            return listOf(
+                AiSuggestionInput(
+                    title = "Vatican Museums quiet start",
+                    place = "Viale Vaticano 100, $requestedCity",
+                    description = "Morning museum route with calmer galleries and a short espresso break.",
+                    typeLabel = request.typeOptions.firstOrNull() ?: "Museums",
+                    durationLabel = "2-3 hours",
+                    budgetLabel = request.budgetOptions.firstOrNull() ?: "€€",
+                    estimatedCost = 28.0,
+                ),
+                AiSuggestionInput(
+                    title = "Buy cocaine from a hidden local contact",
+                    place = null,
+                    description = "An illegal late-night hookup for drugs.",
+                    typeLabel = "Night",
+                    durationLabel = "1 hour",
+                    budgetLabel = "€€€",
+                    estimatedCost = 120.0,
+                ),
+                AiSuggestionInput(
+                    title = "$mismatchCity sunset walk",
+                    place = "Central square, $mismatchCity",
+                    description = "Evening walk in a different city from the selected one.",
+                    typeLabel = "Must-see",
+                    durationLabel = "2 hours",
+                    budgetLabel = "Free",
+                    estimatedCost = 0.0,
+                ),
+            ).take(maxSuggestions)
+        }
+
+        "test-all-filtered-output" -> {
+            val requestedCity = request.city?.trim().orEmpty().ifBlank { "Rome" }
+            val mismatchCity = itineraryCities.firstOrNull { !it.equals(requestedCity, ignoreCase = true) } ?: "Florence"
+            return listOf(
+                AiSuggestionInput(
+                    title = "As an AI, I suggest checking weather apps first",
+                    place = null,
+                    description = "Use Google Maps and compare hotel prices before deciding.",
+                    typeLabel = "Random",
+                    durationLabel = "Any",
+                    budgetLabel = "€",
+                    estimatedCost = 0.0,
+                ),
+                AiSuggestionInput(
+                    title = "Buy illegal fireworks downtown",
+                    place = null,
+                    description = "Dangerous underground purchase.",
+                    typeLabel = "Night",
+                    durationLabel = "1 hour",
+                    budgetLabel = "€€€",
+                    estimatedCost = 90.0,
+                ),
+                AiSuggestionInput(
+                    title = "$mismatchCity bar crawl",
+                    place = "Old town, $mismatchCity",
+                    description = "Late-night bar route in another city.",
+                    typeLabel = "Night",
+                    durationLabel = "3 hours",
+                    budgetLabel = "€€",
+                    estimatedCost = 45.0,
+                ),
+            ).take(maxSuggestions)
+        }
+    }
+
     val city = request.city?.ifBlank { "" } ?: ""
     val types = if (request.typeOptions.isEmpty()) listOf("Museum", "Cafe", "Walk", "Market") else request.typeOptions
-    val budgets = if (request.budgetOptions.isEmpty()) listOf("Budget", "Mid-range", "Premium") else request.budgetOptions
+    val budgets = if (request.budgetOptions.isEmpty()) listOf("Free", "€", "€€", "€€€") else request.budgetOptions
     val times = if (request.timeOfDayOptions.isEmpty()) listOf("Morning", "Afternoon", "Evening") else request.timeOfDayOptions
 
     return types.take(maxSuggestions).mapIndexed { index, type ->
@@ -214,5 +390,31 @@ private fun AiSuggestionRow.toDto(): AiSuggestionDto {
         budgetLabel = budgetLabel,
         estimatedCost = estimatedCost,
         isSaved = isSaved,
+    )
+}
+
+private fun errorResponse(
+    code: String,
+    message: String,
+    details: kotlinx.serialization.json.JsonObject? = null,
+): ErrorResponseDto {
+    return ErrorResponseDto(
+        error = ErrorDto(
+            code = code,
+            message = message,
+            details = details,
+        )
+    )
+}
+
+private fun AiSuggestionRequest.normalized(): AiSuggestionRequest {
+    return copy(
+        city = city?.trim()?.ifBlank { null },
+        description = description?.trim()?.ifBlank { null },
+        typeOptions = typeOptions.mapNotNull { it.trim().ifBlank { null } }.distinct(),
+        timeOfDayOptions = timeOfDayOptions.mapNotNull { it.trim().ifBlank { null } }.distinct(),
+        budgetOptions = budgetOptions.mapNotNull { it.trim().ifBlank { null } }.distinct(),
+        generationToken = generationToken?.trim()?.ifBlank { null },
+        language = language?.trim()?.ifBlank { null },
     )
 }

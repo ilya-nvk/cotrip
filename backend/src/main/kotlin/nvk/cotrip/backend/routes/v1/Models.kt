@@ -2,6 +2,7 @@ package nvk.cotrip.backend.routes.v1
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
 import nvk.cotrip.backend.db.TripRow
 import nvk.cotrip.backend.db.UserRow
 import java.time.format.DateTimeFormatter
@@ -190,6 +191,18 @@ data class AiSuggestionDto(
     val budgetLabel: String? = null,
     val estimatedCost: Double? = null,
     val isSaved: Boolean,
+)
+
+@Serializable
+data class ErrorResponseDto(
+    val error: ErrorDto,
+)
+
+@Serializable
+data class ErrorDto(
+    val code: String,
+    val message: String,
+    val details: JsonObject? = null,
 )
 
 @Serializable

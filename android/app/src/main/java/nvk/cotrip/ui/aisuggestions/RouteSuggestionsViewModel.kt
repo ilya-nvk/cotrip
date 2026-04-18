@@ -7,14 +7,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import nvk.cotrip.R
 import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
+import nvk.cotrip.data.network.dto.AiSuggestionDto
 import nvk.cotrip.data.network.dto.AiSuggestionsRequestDto
 import nvk.cotrip.data.repository.AiSuggestionsRepository
 import nvk.cotrip.ui.common.UiErrorMapper
@@ -49,8 +50,8 @@ class RouteSuggestionsViewModel @Inject constructor(
     private val selectedBudgets: List<String> =
         decodeCsvArg(savedStateHandle[Destination.RouteSuggestions.ARG_BUDGET_OPTIONS])
 
-    private val _effects = MutableSharedFlow<RouteSuggestionsEffect>(extraBufferCapacity = 8)
-    val effects = _effects.asSharedFlow()
+    private val _effects = Channel<RouteSuggestionsEffect>(capacity = Channel.BUFFERED)
+    val effects = _effects.receiveAsFlow()
 
     private val _state = MutableStateFlow<RouteSuggestionsState>(
         RouteSuggestionsState.Loading(
@@ -80,12 +81,12 @@ class RouteSuggestionsViewModel @Inject constructor(
     }
 
     private fun regenerateSuggestions() {
+        val previousContent = _state.value as? RouteSuggestionsState.Content
+        if (previousContent == null) {
+            _state.value = loadingState()
+        }
+
         viewModelScope.launch {
-            _state.value = RouteSuggestionsState.Loading(
-                tripId = tripId,
-                city = selectedCity,
-                subtitle = buildSubtitle(selectedTypes, selectedTimes, selectedBudgets),
-            )
             val result = apiCaller.call {
                 aiSuggestionsRepository.generateSuggestions(
                     tripId = tripId,
@@ -103,30 +104,16 @@ class RouteSuggestionsViewModel @Inject constructor(
 
             when (result) {
                 is ApiResult.Success -> {
-                    _state.value = RouteSuggestionsState.Content(
-                        tripId = tripId,
-                        city = selectedCity,
-                        subtitle = buildSubtitle(selectedTypes, selectedTimes, selectedBudgets),
-                        suggestions = result.data.map { suggestion ->
-                            AiSuggestionItemUi(
-                                id = suggestion.id,
-                                title = suggestion.title,
-                                description = suggestion.description.orEmpty(),
-                                typeLabel = suggestion.typeLabel.orEmpty()
-                                    .ifBlank { appContext.getString(R.string.route_suggestions_type_fallback) },
-                                durationLabel = suggestion.durationLabel.orEmpty()
-                                    .ifBlank { appContext.getString(R.string.route_suggestions_duration_fallback) },
-                                budgetLabel = suggestion.budgetLabel.orEmpty()
-                                    .ifBlank { appContext.getString(R.string.route_suggestions_budget_fallback) },
-                                estimatedCost = formatEstimatedCost(suggestion.estimatedCost),
-                                isSaved = suggestion.isSaved,
-                            )
-                        }
-                    )
+                    _state.value = contentState(result.data)
                 }
 
                 is ApiResult.Failure -> {
                     emit(RouteSuggestionsEffect.ShowToastRes(uiErrorMapper.messageRes(result)))
+                    if (previousContent == null) {
+                        appNavigator.popBackStack()
+                    } else {
+                        _state.value = previousContent
+                    }
                 }
             }
         }
@@ -163,7 +150,40 @@ class RouteSuggestionsViewModel @Inject constructor(
     }
 
     private fun emit(effect: RouteSuggestionsEffect) {
-        viewModelScope.launch { _effects.emit(effect) }
+        if (!_effects.trySend(effect).isSuccess) {
+            viewModelScope.launch { _effects.send(effect) }
+        }
+    }
+
+    private fun loadingState(): RouteSuggestionsState.Loading {
+        return RouteSuggestionsState.Loading(
+            tripId = tripId,
+            city = selectedCity,
+            subtitle = buildSubtitle(selectedTypes, selectedTimes, selectedBudgets),
+        )
+    }
+
+    private fun contentState(data: List<AiSuggestionDto>): RouteSuggestionsState.Content {
+        return RouteSuggestionsState.Content(
+            tripId = tripId,
+            city = selectedCity,
+            subtitle = buildSubtitle(selectedTypes, selectedTimes, selectedBudgets),
+            suggestions = data.map { suggestion ->
+                AiSuggestionItemUi(
+                    id = suggestion.id,
+                    title = suggestion.title,
+                    description = suggestion.description.orEmpty(),
+                    typeLabel = suggestion.typeLabel.orEmpty()
+                        .ifBlank { appContext.getString(R.string.route_suggestions_type_fallback) },
+                    durationLabel = suggestion.durationLabel.orEmpty()
+                        .ifBlank { appContext.getString(R.string.route_suggestions_duration_fallback) },
+                    budgetLabel = suggestion.budgetLabel.orEmpty()
+                        .ifBlank { appContext.getString(R.string.route_suggestions_budget_fallback) },
+                    estimatedCost = formatEstimatedCost(suggestion.estimatedCost),
+                    isSaved = suggestion.isSaved,
+                )
+            }
+        )
     }
 
     private fun decodeArg(raw: String?): String? {
