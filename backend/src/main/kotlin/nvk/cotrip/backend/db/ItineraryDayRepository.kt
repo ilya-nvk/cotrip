@@ -13,6 +13,10 @@ data class ItineraryDayRow(
     val cityProviderId: String?,
     val cityLat: Double?,
     val cityLon: Double?,
+    val cityDisplayName: String?,
+    val cityDisplayLang: String?,
+    val cityDisplayRefLat: Double?,
+    val cityDisplayRefLon: Double?,
     val isOutOfRange: Boolean,
 )
 
@@ -32,7 +36,9 @@ object ItineraryDayRepository {
     fun listByTrip(tripId: String): List<ItineraryDayRow> = dbQuery { conn ->
         conn.prepareStatement(
             """
-            SELECT id, trip_id, date, day_number, city, city_provider_id, city_lat, city_lon, is_out_of_range
+            SELECT id, trip_id, date, day_number, city, city_provider_id, city_lat, city_lon,
+                   city_display_name, city_display_lang, city_display_ref_lat, city_display_ref_lon,
+                   is_out_of_range
             FROM itinerary_days
             WHERE trip_id = ?
             ORDER BY date ASC
@@ -72,7 +78,9 @@ object ItineraryDayRepository {
         }
 
         val sql = """
-            SELECT id, trip_id, date, day_number, city, city_provider_id, city_lat, city_lon, is_out_of_range
+            SELECT id, trip_id, date, day_number, city, city_provider_id, city_lat, city_lon,
+                   city_display_name, city_display_lang, city_display_ref_lat, city_display_ref_lon,
+                   is_out_of_range
             FROM itinerary_days
             WHERE ${conditions.joinToString(" AND ")}
             ORDER BY date ASC, id ASC
@@ -117,9 +125,14 @@ object ItineraryDayRepository {
         conn.prepareStatement(
             """
             UPDATE itinerary_days
-            SET city = ?, city_provider_id = ?, city_lat = ?, city_lon = ?, updated_at = now()
+            SET city = ?, city_provider_id = ?, city_lat = ?, city_lon = ?,
+                city_display_name = NULL, city_display_lang = NULL,
+                city_display_ref_lat = NULL, city_display_ref_lon = NULL,
+                updated_at = now()
             WHERE id = ?
-            RETURNING id, trip_id, date, day_number, city, city_provider_id, city_lat, city_lon, is_out_of_range
+            RETURNING id, trip_id, date, day_number, city, city_provider_id, city_lat, city_lon,
+                      city_display_name, city_display_lang, city_display_ref_lat, city_display_ref_lon,
+                      is_out_of_range
             """.trimIndent()
         ).use { stmt ->
             stmt.setString(1, city)
@@ -208,6 +221,33 @@ object ItineraryDayRepository {
         }
     }
 
+    fun updateCityDisplayCache(
+        dayId: String,
+        displayName: String,
+        displayLang: String,
+        refLat: Double,
+        refLon: Double,
+    ) = dbQuery { conn ->
+        conn.prepareStatement(
+            """
+            UPDATE itinerary_days
+            SET city_display_name = ?,
+                city_display_lang = ?,
+                city_display_ref_lat = ?,
+                city_display_ref_lon = ?,
+                updated_at = now()
+            WHERE id = ?
+            """.trimIndent()
+        ).use { stmt ->
+            stmt.setString(1, displayName)
+            stmt.setString(2, displayLang)
+            stmt.setDouble(3, refLat)
+            stmt.setDouble(4, refLon)
+            stmt.setObject(5, UUID.fromString(dayId))
+            stmt.executeUpdate()
+        }
+    }
+
     private fun mapDay(rs: ResultSet): ItineraryDayRow {
         return ItineraryDayRow(
             id = rs.getObject("id", UUID::class.java).toString(),
@@ -218,6 +258,10 @@ object ItineraryDayRepository {
             cityProviderId = rs.getString("city_provider_id"),
             cityLat = rs.getObject("city_lat", java.lang.Double::class.java)?.toDouble(),
             cityLon = rs.getObject("city_lon", java.lang.Double::class.java)?.toDouble(),
+            cityDisplayName = rs.getString("city_display_name"),
+            cityDisplayLang = rs.getString("city_display_lang"),
+            cityDisplayRefLat = rs.getObject("city_display_ref_lat", java.lang.Double::class.java)?.toDouble(),
+            cityDisplayRefLon = rs.getObject("city_display_ref_lon", java.lang.Double::class.java)?.toDouble(),
             isOutOfRange = rs.getBoolean("is_out_of_range"),
         )
     }

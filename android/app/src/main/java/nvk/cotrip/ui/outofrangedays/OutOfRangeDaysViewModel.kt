@@ -14,6 +14,7 @@ import nvk.cotrip.R
 import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.network.dto.ItineraryDayDto
+import nvk.cotrip.data.network.dto.cityDisplayLabel
 import nvk.cotrip.data.network.dto.TrimOutOfRangeRequest
 import nvk.cotrip.data.repository.ItineraryRepository
 import nvk.cotrip.data.repository.TripRepository
@@ -144,7 +145,7 @@ private fun ItineraryDayDto.toUi(): OutOfRangeDayUi {
         id = id,
         dayNumber = dayNumber,
         dateText = dateText,
-        city = city,
+        city = cityDisplayLabel().takeIf { it.isNotEmpty() },
         activitiesCount = activities.size,
         activitiesPreview = preview,
         hiddenActivitiesCount = hiddenActivitiesCount,

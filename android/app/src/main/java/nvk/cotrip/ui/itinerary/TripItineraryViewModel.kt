@@ -20,6 +20,7 @@ import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.network.dto.ActivityDto
 import nvk.cotrip.data.network.dto.ItineraryDayDto
 import nvk.cotrip.data.network.dto.UpdateDayRequest
+import nvk.cotrip.data.network.dto.cityDisplayLabel
 import nvk.cotrip.data.repository.ItineraryRepository
 import nvk.cotrip.data.repository.PendingTripCreationStore
 import nvk.cotrip.data.repository.TripRepository
@@ -630,12 +631,13 @@ private fun collectTripCities(days: List<ItineraryDayDto>): List<CitySuggestionU
         val cityLat = day.cityLat ?: continue
         val cityLon = day.cityLon ?: continue
         val key = cityName.lowercase(appUiLocale())
+        val label = day.cityDisplayLabel()
         val candidate = CitySuggestionUi(
-            name = cityName,
+            name = label,
             providerId = day.cityProviderId,
             lat = cityLat,
             lon = cityLon,
-            fullText = cityName,
+            fullText = label,
         )
         val current = byName[key]
         byName[key] = if (current == null || (current.providerId == null && candidate.providerId != null)) {
@@ -651,12 +653,13 @@ private fun ItineraryDayDto.toUi(currencySymbol: String): ItineraryDayUi {
     val date = LocalDate.parse(date)
     val dateText = DateTimeFormatter.ofPattern("EEE, MMM d", appUiLocale()).format(date)
     val activities = activities.sortedBy { it.orderIndex }.map { it.toUi(currencySymbol) }
+    val label = cityDisplayLabel()
     return ItineraryDayUi(
         id = id,
         dayNumber = dayNumber,
         dateIso = this.date,
         dateText = dateText,
-        city = city,
+        city = label.takeIf { it.isNotEmpty() },
         activities = activities,
     )
 }

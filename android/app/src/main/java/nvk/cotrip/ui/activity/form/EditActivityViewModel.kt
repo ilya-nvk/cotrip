@@ -19,6 +19,7 @@ import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.repository.OfflineWriteQueuedException
 import nvk.cotrip.data.network.dto.ActivityDto
 import nvk.cotrip.data.network.dto.ItineraryDayDto
+import nvk.cotrip.data.network.dto.cityDisplayLabel
 import nvk.cotrip.data.network.dto.MoveActivityRequest
 import nvk.cotrip.data.network.dto.TripDto
 import nvk.cotrip.data.network.dto.UpdateActivityRequest
@@ -129,7 +130,7 @@ class EditActivityViewModel @Inject constructor(
                     _state.update {
                         it.copy(
                             headerDayNumber = info.day.dayNumber,
-                            headerCity = info.day.city?.takeIf { city -> city.isNotBlank() },
+                            headerCity = info.day.cityDisplayLabel().takeIf { city -> city.isNotBlank() },
                             tripStartDate = LocalDate.parse(info.trip.startDate),
                             tripEndDate = LocalDate.parse(info.trip.endDate),
                             title = info.activity.title,
@@ -176,7 +177,7 @@ class EditActivityViewModel @Inject constructor(
             it.copy(
                 dateText = formatDate(date),
                 headerDayNumber = day.dayNumber,
-                headerCity = day.city?.takeIf { city -> city.isNotBlank() }
+                headerCity = day.cityDisplayLabel().takeIf { city -> city.isNotBlank() }
             )
         }
     }

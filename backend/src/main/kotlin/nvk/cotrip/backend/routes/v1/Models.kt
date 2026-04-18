@@ -111,6 +111,7 @@ data class ItineraryDayDto(
     val date: String,
     val dayNumber: Int,
     val city: String? = null,
+    val cityDisplayName: String? = null,
     val cityProviderId: String? = null,
     val cityLat: Double? = null,
     val cityLon: Double? = null,

@@ -19,7 +19,9 @@ import nvk.cotrip.backend.db.ActivityRow
 import nvk.cotrip.backend.db.DayRepository
 import nvk.cotrip.backend.db.ItineraryDayRepository
 import nvk.cotrip.backend.db.LocalPlacesSearchRepository
+import nvk.cotrip.backend.db.ItineraryDayRow
 import nvk.cotrip.backend.db.TripRepository
+import nvk.cotrip.backend.http.batchReverseGeocodeDisplayCities
 import nvk.cotrip.backend.http.preferredOpenWeatherUiLang
 import nvk.cotrip.backend.integrations.OpenWeatherClient
 
@@ -213,20 +215,12 @@ fun Route.itineraryRoutes(weatherConfig: WeatherConfig) {
                 val days = ItineraryDayRepository.listByTrip(tripId)
                 val activities = ActivityRepository.listByDayIds(days.map { it.id })
                 val activitiesByDay = activities.groupBy { it.dayId }
-                val result = days.map { day ->
-                    ItineraryDayDto(
-                        id = day.id,
-                        tripId = day.tripId,
-                        date = day.date.toString(),
-                        dayNumber = day.dayNumber,
-                        city = day.city,
-                        cityProviderId = day.cityProviderId,
-                        cityLat = day.cityLat,
-                        cityLon = day.cityLon,
-                        isOutOfRange = day.isOutOfRange,
-                        activities = activitiesByDay[day.id].orEmpty().map { it.toDto() },
-                    )
-                }
+                val result = buildItineraryDayDtos(
+                    days = days,
+                    activitiesByDay = activitiesByDay,
+                    acceptLanguage = call.request.headers["Accept-Language"],
+                    apiKey = weatherConfig.openWeatherApiKey,
+                )
                 call.respond(ItineraryListResponse(items = result, nextCursor = null))
             } else {
                 val page = ItineraryDayRepository.listByTripPage(
@@ -236,20 +230,12 @@ fun Route.itineraryRoutes(weatherConfig: WeatherConfig) {
                 )
                 val activities = ActivityRepository.listByDayIds(page.items.map { it.id })
                 val activitiesByDay = activities.groupBy { it.dayId }
-                val result = page.items.map { day ->
-                    ItineraryDayDto(
-                        id = day.id,
-                        tripId = day.tripId,
-                        date = day.date.toString(),
-                        dayNumber = day.dayNumber,
-                        city = day.city,
-                        cityProviderId = day.cityProviderId,
-                        cityLat = day.cityLat,
-                        cityLon = day.cityLon,
-                        isOutOfRange = day.isOutOfRange,
-                        activities = activitiesByDay[day.id].orEmpty().map { it.toDto() },
-                    )
-                }
+                val result = buildItineraryDayDtos(
+                    days = page.items,
+                    activitiesByDay = activitiesByDay,
+                    acceptLanguage = call.request.headers["Accept-Language"],
+                    apiKey = weatherConfig.openWeatherApiKey,
+                )
                 call.respond(
                     ItineraryListResponse(
                         items = result,
@@ -575,6 +561,80 @@ fun Route.itineraryRoutes(weatherConfig: WeatherConfig) {
             call.respond(HttpStatusCode.NoContent)
         }
     }
+}
+
+private suspend fun buildItineraryDayDtos(
+    days: List<ItineraryDayRow>,
+    activitiesByDay: Map<String, List<ActivityRow>>,
+    acceptLanguage: String?,
+    apiKey: String?,
+): List<ItineraryDayDto> {
+    val targetLang = preferredOpenWeatherUiLang(acceptLanguage)
+    val dayIdsToFetch = mutableListOf<String>()
+    val coordByDayId = mutableMapOf<String, Pair<Double, Double>>()
+    if (targetLang != null && !apiKey.isNullOrBlank()) {
+        for (day in days) {
+            if (day.cityLat == null || day.cityLon == null) continue
+            if (cityDisplayCacheHit(day, targetLang)) continue
+            dayIdsToFetch += day.id
+            coordByDayId[day.id] = day.cityLat to day.cityLon
+        }
+    }
+    val uniqueCoords = dayIdsToFetch.mapNotNull { coordByDayId[it] }.distinct()
+    val labelsByCoord =
+        if (uniqueCoords.isNotEmpty() && targetLang != null && !apiKey.isNullOrBlank()) {
+            batchReverseGeocodeDisplayCities(uniqueCoords, apiKey, acceptLanguage)
+        } else {
+            emptyMap()
+        }
+    if (targetLang != null && !apiKey.isNullOrBlank()) {
+        for (dayId in dayIdsToFetch) {
+            val coord = coordByDayId[dayId] ?: continue
+            val label = labelsByCoord[coord]?.trim()?.takeIf { it.isNotEmpty() } ?: continue
+            ItineraryDayRepository.updateCityDisplayCache(
+                dayId = dayId,
+                displayName = label,
+                displayLang = targetLang,
+                refLat = coord.first,
+                refLon = coord.second,
+            )
+        }
+    }
+    val fetchSet = dayIdsToFetch.toSet()
+    return days.map { day ->
+        val displayName = when {
+            targetLang == null -> null
+            day.cityLat == null || day.cityLon == null -> null
+            cityDisplayCacheHit(day, targetLang) -> day.cityDisplayName
+            fetchSet.contains(day.id) -> labelsByCoord[day.cityLat to day.cityLon]
+            else -> null
+        }
+        ItineraryDayDto(
+            id = day.id,
+            tripId = day.tripId,
+            date = day.date.toString(),
+            dayNumber = day.dayNumber,
+            city = day.city,
+            cityDisplayName = displayName,
+            cityProviderId = day.cityProviderId,
+            cityLat = day.cityLat,
+            cityLon = day.cityLon,
+            isOutOfRange = day.isOutOfRange,
+            activities = activitiesByDay[day.id].orEmpty().map { it.toDto() },
+        )
+    }
+}
+
+private fun coordsNearlyEqual(a: Double, b: Double): Boolean = kotlin.math.abs(a - b) < 1e-5
+
+private fun cityDisplayCacheHit(day: ItineraryDayRow, uiLang: String): Boolean {
+    val name = day.cityDisplayName?.trim()?.takeIf { it.isNotEmpty() } ?: return false
+    if (day.cityDisplayLang != uiLang) return false
+    val refLat = day.cityDisplayRefLat ?: return false
+    val refLon = day.cityDisplayRefLon ?: return false
+    val lat = day.cityLat ?: return false
+    val lon = day.cityLon ?: return false
+    return coordsNearlyEqual(refLat, lat) && coordsNearlyEqual(refLon, lon) && name.isNotEmpty()
 }
 
 private fun ActivityRow.toDto(): ActivityDto = ActivityDto(

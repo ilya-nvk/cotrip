@@ -212,6 +212,7 @@ internal fun dayDto(
     date = "2026-06-${10 + dayNumber}",
     dayNumber = dayNumber,
     city = city,
+    cityDisplayName = null,
     cityProviderId = null,
     cityLat = lat,
     cityLon = lon,

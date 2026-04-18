@@ -22,6 +22,7 @@ import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.network.dto.ConvertIdeaRequest
 import nvk.cotrip.data.network.dto.IdeaDto
 import nvk.cotrip.data.network.dto.ItineraryDayDto
+import nvk.cotrip.data.network.dto.cityDisplayLabel
 import nvk.cotrip.data.network.ws.CommentCreatedPayload
 import nvk.cotrip.data.network.ws.CommentDeletedPayload
 import nvk.cotrip.data.network.ws.CommentEventsSource
@@ -321,7 +322,7 @@ private fun ItineraryDayDto.toDayOption(): IdeaDayOptionUi {
         id = id,
         dayNumber = dayNumber,
         dateText = date.format(formatter),
-        city = city.orEmpty(),
+        city = cityDisplayLabel(),
     )
 }
 

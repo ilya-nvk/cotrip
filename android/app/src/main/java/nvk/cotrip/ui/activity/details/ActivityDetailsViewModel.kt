@@ -20,6 +20,7 @@ import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.network.dto.ActivityDto
 import nvk.cotrip.data.network.dto.ItineraryDayDto
+import nvk.cotrip.data.network.dto.cityDisplayLabel
 import nvk.cotrip.data.network.dto.TripDto
 import nvk.cotrip.data.repository.ItineraryRepository
 import nvk.cotrip.data.repository.OfflineWriteQueuedException
@@ -188,7 +189,7 @@ class ActivityDetailsViewModel @Inject constructor(
             activityId = activity.id,
             isPastTrip = isPastTrip,
             dayNumber = day.dayNumber,
-            city = day.city?.takeIf { it.isNotBlank() },
+            city = day.cityDisplayLabel().takeIf { it.isNotBlank() },
             title = activity.title,
             dateText = formatDay(day.date),
             timeText = activity.timeText.orEmpty(),

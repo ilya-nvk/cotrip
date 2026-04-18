@@ -87,6 +87,10 @@ CREATE TABLE IF NOT EXISTS itinerary_days (
   city_provider_id text,
   city_lat double precision,
   city_lon double precision,
+  city_display_name text,
+  city_display_lang text,
+  city_display_ref_lat double precision,
+  city_display_ref_lon double precision,
   is_out_of_range boolean NOT NULL DEFAULT false,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
@@ -243,3 +247,8 @@ CREATE TABLE IF NOT EXISTS auth_refresh_tokens (
 
 CREATE INDEX IF NOT EXISTS idx_auth_refresh_tokens_session_id ON auth_refresh_tokens(session_id);
 CREATE INDEX IF NOT EXISTS idx_auth_refresh_tokens_token_hash ON auth_refresh_tokens(token_hash);
+
+ALTER TABLE itinerary_days ADD COLUMN IF NOT EXISTS city_display_name text;
+ALTER TABLE itinerary_days ADD COLUMN IF NOT EXISTS city_display_lang text;
+ALTER TABLE itinerary_days ADD COLUMN IF NOT EXISTS city_display_ref_lat double precision;
+ALTER TABLE itinerary_days ADD COLUMN IF NOT EXISTS city_display_ref_lon double precision;

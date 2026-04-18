@@ -18,6 +18,7 @@ import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.network.dto.CreateActivityRequest
 import nvk.cotrip.data.network.dto.ItineraryDayDto
+import nvk.cotrip.data.network.dto.cityDisplayLabel
 import nvk.cotrip.data.network.limitReachedDetails
 import nvk.cotrip.data.repository.ItineraryRepository
 import nvk.cotrip.data.repository.TripRepository
@@ -168,7 +169,7 @@ class CreateActivityViewModel @Inject constructor(
             it.copy(
                 dateText = formatDate(date),
                 headerDayNumber = day.dayNumber,
-                headerCity = day.city?.takeIf { city -> city.isNotBlank() }
+                headerCity = day.cityDisplayLabel().takeIf { city -> city.isNotBlank() }
             )
         }
     }

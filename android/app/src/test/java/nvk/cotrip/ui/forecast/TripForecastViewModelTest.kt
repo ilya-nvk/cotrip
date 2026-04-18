@@ -71,7 +71,7 @@ class TripForecastViewModelTest {
         // THEN
         val state = viewModel.state.value as TripForecastState.Content
         assertEquals("Rome", state.city)
-        assertEquals(listOf("Rome"), state.cityOptions)
+        assertEquals(listOf(WeatherCityOption(key = "Rome", label = "Rome")), state.cityOptions)
         assertTrue(state.days.isNotEmpty())
         assertTrue(state.coverageMessage == null)
         assertEquals(1, weatherRepository.refreshRequests.size)

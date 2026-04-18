@@ -1,5 +1,10 @@
 package nvk.cotrip.ui.forecast
 
+data class WeatherCityOption(
+    val key: String,
+    val label: String,
+)
+
 sealed interface TripForecastState {
     data object Loading : TripForecastState
 
@@ -8,7 +13,7 @@ sealed interface TripForecastState {
         val city: String,
         /** City string used for weather cache/API requests (itinerary key). */
         val weatherCityKey: String,
-        val cityOptions: List<String> = emptyList(),
+        val cityOptions: List<WeatherCityOption> = emptyList(),
         val isCityPickerVisible: Boolean = false,
         val days: List<ForecastDayUi>,
         val source: String,
