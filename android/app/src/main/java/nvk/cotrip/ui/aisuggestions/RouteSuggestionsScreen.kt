@@ -5,6 +5,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -257,6 +259,7 @@ private fun SummaryHeader(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SuggestionCard(
     suggestion: AiSuggestionItemUi,
@@ -285,9 +288,10 @@ private fun SuggestionCard(
 
         Spacer(Modifier.height(CoTripTokens.spacing.x1_5))
 
-        Row(
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x1),
-            verticalAlignment = Alignment.CenterVertically
+            verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x1),
         ) {
             MetaChip(icon = CoTripIcons.Info, text = suggestion.typeLabel)
             MetaChip(icon = CoTripIcons.Schedule, text = suggestion.durationLabel)

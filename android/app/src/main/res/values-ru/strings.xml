@@ -196,7 +196,7 @@
     <string name="idea_details_tab_discussion">Обсуждение</string>
     <string name="idea_details_city">Город</string>
     <string name="idea_details_link">Ссылка</string>
-    <string name="idea_details_cost">Оценка стоимости</string>
+    <string name="idea_details_cost">Примерная стоимость</string>
     <string name="idea_details_notes">Заметки</string>
     <string name="idea_details_add_to_itinerary">Добавить в маршрут</string>
     <string name="idea_details_added_to_day">Добавлено в день %1$d</string>
@@ -222,7 +222,7 @@
     <string name="idea_form_city_label">Место</string>
     <string name="idea_form_city_searching">Поиск по местам поездки...</string>
     <string name="idea_form_link_label">Ссылка (необязательно)</string>
-    <string name="idea_form_cost_label">Оценка стоимости</string>
+    <string name="idea_form_cost_label">Примерная стоимость</string>
     <string name="idea_form_notes_label">Заметки</string>
     <string name="idea_form_title_placeholder">Введите название идеи</string>
     <string name="idea_form_city_placeholder">Найдите место в истории поездки или введите текст</string>
@@ -256,7 +256,7 @@
     <string name="ai_suggestions_generate">Сгенерировать</string>
     <string name="ai_suggestions_change">Изменить</string>
     <string name="ai_suggestions_loading">Генерация подсказок...</string>
-    <string name="ai_suggestions_estimated_cost">Оценка стоимости: %1$s</string>
+    <string name="ai_suggestions_estimated_cost">Примерная стоимость: %1$s</string>
     <string name="ai_suggestions_save_to_ideas">Сохранить в идеи</string>
     <string name="ai_suggestions_saved">Сохранено</string>
 
