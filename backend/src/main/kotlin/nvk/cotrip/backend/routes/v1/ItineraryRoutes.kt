@@ -569,15 +569,45 @@ private suspend fun buildItineraryDayDtos(
     acceptLanguage: String?,
     apiKey: String?,
 ): List<ItineraryDayDto> {
-    val coords = days.mapNotNull { day ->
-        val la = day.cityLat ?: return@mapNotNull null
-        val lo = day.cityLon ?: return@mapNotNull null
-        la to lo
+    val targetLang = preferredOpenWeatherUiLang(acceptLanguage)
+    val dayIdsToFetch = mutableListOf<String>()
+    val coordByDayId = mutableMapOf<String, Pair<Double, Double>>()
+    if (targetLang != null && !apiKey.isNullOrBlank()) {
+        for (day in days) {
+            if (day.cityLat == null || day.cityLon == null) continue
+            if (cityDisplayCacheHit(day, targetLang)) continue
+            dayIdsToFetch += day.id
+            coordByDayId[day.id] = day.cityLat to day.cityLon
+        }
     }
-    val labelsByCoord = batchReverseGeocodeDisplayCities(coords, apiKey, acceptLanguage)
+    val uniqueCoords = dayIdsToFetch.mapNotNull { coordByDayId[it] }.distinct()
+    val labelsByCoord =
+        if (uniqueCoords.isNotEmpty() && targetLang != null && !apiKey.isNullOrBlank()) {
+            batchReverseGeocodeDisplayCities(uniqueCoords, apiKey, acceptLanguage)
+        } else {
+            emptyMap()
+        }
+    if (targetLang != null && !apiKey.isNullOrBlank()) {
+        for (dayId in dayIdsToFetch) {
+            val coord = coordByDayId[dayId] ?: continue
+            val label = labelsByCoord[coord]?.trim()?.takeIf { it.isNotEmpty() } ?: continue
+            ItineraryDayRepository.updateCityDisplayCache(
+                dayId = dayId,
+                displayName = label,
+                displayLang = targetLang,
+                refLat = coord.first,
+                refLon = coord.second,
+            )
+        }
+    }
+    val fetchSet = dayIdsToFetch.toSet()
     return days.map { day ->
-        val displayName = day.cityLat?.let { lat ->
-            day.cityLon?.let { lon -> labelsByCoord[lat to lon] }
+        val displayName = when {
+            targetLang == null -> null
+            day.cityLat == null || day.cityLon == null -> null
+            cityDisplayCacheHit(day, targetLang) -> day.cityDisplayName
+            fetchSet.contains(day.id) -> labelsByCoord[day.cityLat to day.cityLon]
+            else -> null
         }
         ItineraryDayDto(
             id = day.id,
@@ -593,6 +623,18 @@ private suspend fun buildItineraryDayDtos(
             activities = activitiesByDay[day.id].orEmpty().map { it.toDto() },
         )
     }
+}
+
+private fun coordsNearlyEqual(a: Double, b: Double): Boolean = kotlin.math.abs(a - b) < 1e-5
+
+private fun cityDisplayCacheHit(day: ItineraryDayRow, uiLang: String): Boolean {
+    val name = day.cityDisplayName?.trim()?.takeIf { it.isNotEmpty() } ?: return false
+    if (day.cityDisplayLang != uiLang) return false
+    val refLat = day.cityDisplayRefLat ?: return false
+    val refLon = day.cityDisplayRefLon ?: return false
+    val lat = day.cityLat ?: return false
+    val lon = day.cityLon ?: return false
+    return coordsNearlyEqual(refLat, lat) && coordsNearlyEqual(refLon, lon) && name.isNotEmpty()
 }
 
 private fun ActivityRow.toDto(): ActivityDto = ActivityDto(
