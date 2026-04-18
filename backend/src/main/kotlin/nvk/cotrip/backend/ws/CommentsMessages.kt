@@ -54,6 +54,8 @@ data class CommentCreatedPayload(
     val body: String,
     val createdAt: String,
     val clientMessageId: String? = null,
+    val systemKey: String? = null,
+    val systemActorName: String? = null,
 )
 
 @Serializable

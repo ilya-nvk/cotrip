@@ -1,6 +1,5 @@
 package nvk.cotrip.ui.forecast
 
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -49,6 +48,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import kotlinx.coroutines.flow.collectLatest
 import nvk.cotrip.R
+import nvk.cotrip.ui.common.showCoTripToast
 import nvk.cotrip.ui.components.CoTripCard
 import nvk.cotrip.ui.components.CoTripIconButton
 import nvk.cotrip.ui.components.CoTripListItem
@@ -85,8 +85,7 @@ fun TripForecastScreen(
         viewModel.effects.collectLatest { effect ->
             when (effect) {
                 is TripForecastEffect.ShowToastRes ->
-                    Toast.makeText(context, context.getString(effect.resId), Toast.LENGTH_SHORT)
-                        .show()
+                    context.showCoTripToast(effect.resId)
             }
         }
     }

@@ -22,6 +22,7 @@ import nvk.cotrip.data.repository.WeatherRepository
 import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
+import java.io.IOException
 import javax.inject.Inject
 
 @HiltViewModel
@@ -46,7 +47,10 @@ class TripForecastViewModel @Inject constructor(
     val effects = _effects.asSharedFlow()
 
     init {
-        refreshForecast(isUserRefresh = false, forceRefresh = true, showErrorToast = false)
+        viewModelScope.launch {
+            bootstrapFromCache()
+            refreshForecast(isUserRefresh = false, forceRefresh = true, showErrorToast = false)
+        }
     }
 
     fun onEvent(event: TripForecastEvent) {
@@ -76,6 +80,7 @@ class TripForecastViewModel @Inject constructor(
                 val current = _state.value as? TripForecastState.Content ?: return
                 _state.value = current.copy(
                     city = event.city,
+                    weatherCityKey = event.city,
                     isCityPickerVisible = false,
                 )
                 refreshForecast(
@@ -85,6 +90,49 @@ class TripForecastViewModel @Inject constructor(
                 )
             }
         }
+    }
+
+    private suspend fun bootstrapFromCache() {
+        val trip = tripRepository.getTrip(tripId).first()
+        val itinerary = itineraryRepository.getItinerary(tripId).first()
+        val cityOptions = collectCityOptions(itinerary)
+        val selectedCity = selectCity(itinerary, preferredWeatherCityKey = null)
+        if (selectedCity == null) {
+            _state.value = TripForecastState.Content(
+                city = "",
+                weatherCityKey = "",
+                cityOptions = cityOptions,
+                isCityPickerVisible = false,
+                days = emptyList(),
+                source = TripForecastUiMapper.source(appContext, WeatherForecastResponseDto()),
+                lastUpdated = "",
+                coverageMessage = TripForecastUiMapper.coverageMessage(
+                    context = appContext,
+                    hasSelectedCity = false,
+                    response = WeatherForecastResponseDto(),
+                ),
+                isRefreshing = false,
+            )
+            return
+        }
+
+        val cached = weatherRepository.getCachedWeather(
+            tripId = tripId,
+            city = selectedCity.city,
+            start = trip.startDate,
+            end = trip.endDate,
+        ) ?: WeatherForecastResponseDto(items = emptyList())
+        val cityLabel = cached.displayCity?.takeIf { it.isNotBlank() } ?: selectedCity.city
+        applyLoaded(
+            WeatherLoadResult(
+                weatherCityKey = selectedCity.city,
+                cityLabel = cityLabel,
+                cityOptions = cityOptions,
+                response = cached,
+                hasSelectedCity = true,
+            ),
+            isRefreshing = false,
+        )
     }
 
     private fun refreshForecast(
@@ -102,13 +150,15 @@ class TripForecastViewModel @Inject constructor(
 
             val result = apiCaller.call {
                 val trip = tripRepository.getTrip(tripId).first()
-                itineraryRepository.refreshItinerary(tripId).getOrThrow()
+                runCatching { itineraryRepository.refreshItinerary(tripId) }
                 val itinerary = itineraryRepository.getItinerary(tripId).first()
                 val cityOptions = collectCityOptions(itinerary)
-                val selectedCity = selectCity(itinerary, current?.city)
+                val preferredKey = current?.weatherCityKey?.trim()?.takeIf { it.isNotEmpty() }
+                val selectedCity = selectCity(itinerary, preferredKey)
                 if (selectedCity == null) {
                     WeatherLoadResult(
-                        city = "",
+                        weatherCityKey = "",
+                        cityLabel = "",
                         cityOptions = cityOptions,
                         response = WeatherForecastResponseDto(items = emptyList()),
                         hasSelectedCity = false,
@@ -119,23 +169,35 @@ class TripForecastViewModel @Inject constructor(
                             isUserRefresh ||
                             current == null ||
                             current.days.isEmpty() ||
-                            !current.city.equals(selectedCity.city, ignoreCase = true)
+                            current.weatherCityKey.isBlank() ||
+                            !current.weatherCityKey.equals(selectedCity.city, ignoreCase = true)
                     if (shouldRefresh) {
-                        weatherRepository.refreshWeather(
+                        val refreshResult = weatherRepository.refreshWeather(
                             tripId = tripId,
                             city = selectedCity.city,
                             start = trip.startDate,
                             end = trip.endDate,
-                        ).getOrThrow()
+                        )
+                        if (refreshResult.isFailure && isUserRefresh) {
+                            throw refreshResult.exceptionOrNull()
+                                ?: IOException("Weather refresh failed")
+                        }
                     }
-                    val response = weatherRepository.getWeather(
+                    val response = weatherRepository.getCachedWeather(
+                        tripId = tripId,
+                        city = selectedCity.city,
+                        start = trip.startDate,
+                        end = trip.endDate,
+                    ) ?: weatherRepository.getWeather(
                         tripId = tripId,
                         city = selectedCity.city,
                         start = trip.startDate,
                         end = trip.endDate,
                     ).first()
+                    val cityLabel = response.displayCity?.takeIf { it.isNotBlank() } ?: selectedCity.city
                     WeatherLoadResult(
-                        city = selectedCity.city,
+                        weatherCityKey = selectedCity.city,
+                        cityLabel = cityLabel,
                         cityOptions = cityOptions,
                         response = response,
                         hasSelectedCity = true,
@@ -145,25 +207,7 @@ class TripForecastViewModel @Inject constructor(
 
             when (result) {
                 is ApiResult.Success -> {
-                    val loaded = result.data
-                    val mappedDays = TripForecastUiMapper.mapDays(appContext, loaded.response)
-                    val source = TripForecastUiMapper.source(appContext, loaded.response)
-                    val lastUpdated = TripForecastUiMapper.lastUpdated(loaded.response)
-
-                    _state.value = TripForecastState.Content(
-                        city = loaded.city,
-                        cityOptions = loaded.cityOptions,
-                        isCityPickerVisible = false,
-                        days = mappedDays,
-                        source = source,
-                        lastUpdated = lastUpdated,
-                        coverageMessage = TripForecastUiMapper.coverageMessage(
-                            context = appContext,
-                            hasSelectedCity = loaded.hasSelectedCity,
-                            response = loaded.response,
-                        ),
-                        isRefreshing = false,
-                    )
+                    applyLoaded(result.data, isRefreshing = false)
                 }
 
                 is ApiResult.Failure -> {
@@ -179,6 +223,28 @@ class TripForecastViewModel @Inject constructor(
         }
     }
 
+    private fun applyLoaded(loaded: WeatherLoadResult, isRefreshing: Boolean) {
+        val mappedDays = TripForecastUiMapper.mapDays(appContext, loaded.response)
+        val source = TripForecastUiMapper.source(appContext, loaded.response)
+        val lastUpdated = TripForecastUiMapper.lastUpdated(loaded.response)
+
+        _state.value = TripForecastState.Content(
+            city = loaded.cityLabel,
+            weatherCityKey = loaded.weatherCityKey,
+            cityOptions = loaded.cityOptions,
+            isCityPickerVisible = false,
+            days = mappedDays,
+            source = source,
+            lastUpdated = lastUpdated,
+            coverageMessage = TripForecastUiMapper.coverageMessage(
+                context = appContext,
+                hasSelectedCity = loaded.hasSelectedCity,
+                response = loaded.response,
+            ),
+            isRefreshing = isRefreshing,
+        )
+    }
+
     private fun selectCity(days: List<ItineraryDayDto>): SelectedCity? {
         return days
             .sortedBy { it.dayNumber }
@@ -190,9 +256,9 @@ class TripForecastViewModel @Inject constructor(
 
     private fun selectCity(
         days: List<ItineraryDayDto>,
-        preferredCity: String?,
+        preferredWeatherCityKey: String?,
     ): SelectedCity? {
-        val normalizedPreferred = preferredCity?.trim()?.takeIf { it.isNotEmpty() }
+        val normalizedPreferred = preferredWeatherCityKey?.trim()?.takeIf { it.isNotEmpty() }
         val sorted = days.sortedBy { it.dayNumber }
         if (normalizedPreferred != null) {
             val preferredDay = sorted.firstOrNull { day ->
@@ -227,7 +293,8 @@ class TripForecastViewModel @Inject constructor(
     )
 
     private data class WeatherLoadResult(
-        val city: String,
+        val weatherCityKey: String,
+        val cityLabel: String,
         val cityOptions: List<String>,
         val response: WeatherForecastResponseDto,
         val hasSelectedCity: Boolean,

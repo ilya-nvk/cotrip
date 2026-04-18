@@ -35,6 +35,7 @@ class TripForecastScreenComposeTest {
         val context: Context = ApplicationProvider.getApplicationContext()
         val weatherTitle = context.getString(R.string.weather_forecast_title)
         val pickerTitle = context.getString(R.string.itinerary_choose_city_title)
+        val clearSkyLabel = context.getString(R.string.weather_desc_clear)
         val viewModel = createViewModel(
             itineraryRepository = FakeItineraryRepository(
                 initial = listOf(
@@ -57,7 +58,7 @@ class TripForecastScreenComposeTest {
         // THEN
         composeRule.onNodeWithText(weatherTitle, substring = true).assertIsDisplayed()
         composeRule.onNodeWithText("Rome", substring = true).assertIsDisplayed()
-        composeRule.onNodeWithText("Clear sky", substring = true).assertIsDisplayed()
+        composeRule.onNodeWithText(clearSkyLabel, substring = true).assertIsDisplayed()
 
         // WHEN
         composeRule.onNodeWithText("Rome", substring = true).performClick()

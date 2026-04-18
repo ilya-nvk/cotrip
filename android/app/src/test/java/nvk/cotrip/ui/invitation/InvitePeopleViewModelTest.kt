@@ -174,7 +174,7 @@ class InvitePeopleViewModelTest {
     }
 
     @Test
-    fun given_initFailure_when_loadCompletes_then_staysLoading() = runTest {
+    fun given_initFailure_when_loadCompletes_then_showsUnavailable() = runTest {
         // GIVEN
         every { networkStateProvider.isOnline() } returns true
         val inviteRepository = FakeInviteRepository().apply {
@@ -189,7 +189,7 @@ class InvitePeopleViewModelTest {
         advanceUntilIdle()
 
         // THEN
-        assertEquals(InvitePeopleState.Loading, viewModel.state.value)
+        assertEquals(InvitePeopleState.Unavailable, viewModel.state.value)
     }
 
     private fun createViewModel(
@@ -245,6 +245,16 @@ class InvitePeopleViewModelTest {
                 expiresAt = "2026-12-31T00:00:00Z",
             )
         )
+
+        override suspend fun getInviteForJoin(token: String): InviteInfoDto =
+            InviteInfoDto(
+                tripId = "trip",
+                title = "Trip",
+                startDate = "2026-01-10",
+                endDate = "2026-01-12",
+                locationLine = null,
+                expiresAt = "2026-12-31T00:00:00Z",
+            )
 
         override suspend fun acceptInvite(token: String): String = "trip"
 

@@ -15,13 +15,11 @@ import nvk.cotrip.data.network.dto.ExpenseParticipantDto
 import nvk.cotrip.data.network.dto.ExpenseUpdateRequest
 import nvk.cotrip.data.network.requireSuccess
 import nvk.cotrip.data.sync.SyncEntities
-import nvk.cotrip.data.sync.SyncExpenseCreatePayload
 import nvk.cotrip.data.sync.SyncQueueRepository
 import nvk.cotrip.util.AppLogger
 import retrofit2.HttpException
 import java.io.IOException
 import java.time.OffsetDateTime
-import java.util.UUID
 import javax.inject.Inject
 
 class ExpenseRepositoryImpl @Inject constructor(
@@ -63,55 +61,11 @@ class ExpenseRepositoryImpl @Inject constructor(
     }
 
     override suspend fun createExpense(tripId: String, request: ExpenseCreateRequest): ExpenseDto {
-        return try {
-            val expense = api.createExpense(tripId, request)
-            safeLocalMutation("createExpense.upsertExpense(tripId=$tripId, expenseId=${expense.id})") {
-                expensesCacheStore.upsertExpense(tripId, expense)
-            }
-            expense
-        } catch (e: IOException) {
-            val localExpense = ExpenseDto(
-                id = UUID.randomUUID().toString(),
-                tripId = tripId,
-                title = request.title,
-                amount = request.amount,
-                currencyCode = request.currencyCode ?: "EUR",
-                status = request.status,
-                paidById = request.paidById,
-                date = request.date,
-                splitType = request.splitType,
-                note = request.note,
-                participants = request.participants.map { participant ->
-                    ExpenseParticipantDto(
-                        userId = participant.userId,
-                        shareAmount = participant.shareAmount,
-                        isIncluded = participant.isIncluded,
-                        isPaid = participant.isPaid,
-                        name = null,
-                    )
-                },
-            )
-            safeLocalMutation("createExpense.offlineUpsert(expenseId=${localExpense.id})") {
-                expensesCacheStore.upsertExpense(tripId, localExpense)
-            }
-            syncQueueRepository.enqueueCreate(
-                entity = SyncEntities.EXPENSE,
-                id = localExpense.id,
-                payload = SyncExpenseCreatePayload(
-                    tripId = tripId,
-                    title = request.title,
-                    amount = request.amount,
-                    currencyCode = request.currencyCode,
-                    status = request.status,
-                    paidById = request.paidById,
-                    date = request.date,
-                    splitType = request.splitType,
-                    note = request.note,
-                    participants = request.participants,
-                ),
-            )
-            localExpense
+        val expense = api.createExpense(tripId, request)
+        safeLocalMutation("createExpense.upsertExpense(tripId=$tripId, expenseId=${expense.id})") {
+            expensesCacheStore.upsertExpense(tripId, expense)
         }
+        return expense
     }
 
     override suspend fun updateExpense(expenseId: String, request: ExpenseUpdateRequest) {
@@ -120,7 +74,7 @@ class ExpenseRepositoryImpl @Inject constructor(
         } catch (e: IOException) {
             syncQueueRepository.enqueueUpsert(SyncEntities.EXPENSE, expenseId, request)
             applyExpenseUpdateLocally(expenseId = expenseId, request = request)
-            return
+            throw OfflineWriteQueuedException(cause = e)
         }
         safeLocalMutation("updateExpense.upsertExpense(expenseId=$expenseId)") {
             expensesCacheStore.upsertExpense(updated.tripId, updated)
@@ -133,10 +87,14 @@ class ExpenseRepositoryImpl @Inject constructor(
         val expenseTripId = cachedTripId ?: runCatching { api.getExpense(expenseId).tripId }
             .onFailure { AppLogger.w(TAG, "deleteExpense prefetch failed for expenseId=$expenseId", it) }
             .getOrNull()
+        var offlineQueued = false
+        var offlineCause: IOException? = null
         try {
             api.deleteExpense(expenseId).requireSuccess()
         } catch (e: IOException) {
             syncQueueRepository.enqueueDelete(SyncEntities.EXPENSE, expenseId)
+            offlineQueued = true
+            offlineCause = e
         } catch (e: HttpException) {
             if (e.code() != 404) throw e
             AppLogger.i(TAG, "deleteExpense got 404 for expenseId=$expenseId, treating as already deleted")
@@ -145,6 +103,9 @@ class ExpenseRepositoryImpl @Inject constructor(
             safeLocalMutation("deleteExpense.removeExpense(expenseId=$expenseId)") {
                 expensesCacheStore.removeExpense(expenseTripId, expenseId)
             }
+        }
+        if (offlineQueued) {
+            throw OfflineWriteQueuedException(cause = offlineCause)
         }
     }
 

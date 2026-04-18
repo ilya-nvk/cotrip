@@ -11,4 +11,6 @@ data class CommentDto(
     val type: String = "user",
     val body: String,
     val createdAt: String,
+    val systemKey: String? = null,
+    val systemActorName: String? = null,
 )

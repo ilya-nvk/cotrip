@@ -85,8 +85,12 @@ fun Route.ideaRoutes() {
             if (limit == null && cursor.isNullOrBlank()) {
                 val ideas = IdeaRepository.list(tripId, search, status, authorId, city)
                 val commentCounts = CommentRepository.countByIdeaIds(ideas.map { it.id })
+                val historyIds = CommentRepository.ideaIdsWithUserCommentHistory(ideas.map { it.id })
                 val items = ideas.map { idea ->
-                    idea.toDto(commentCounts[idea.id] ?: 0)
+                    idea.toDto(
+                        commentsCount = commentCounts[idea.id] ?: 0,
+                        hasHumanCommentHistory = historyIds.contains(idea.id),
+                    )
                 }
                 call.respond(IdeaListResponse(items = items, nextCursor = null))
             } else {
@@ -100,8 +104,12 @@ fun Route.ideaRoutes() {
                     cursor = cursor,
                 )
                 val commentCounts = CommentRepository.countByIdeaIds(page.items.map { it.id })
+                val historyIds = CommentRepository.ideaIdsWithUserCommentHistory(page.items.map { it.id })
                 val items = page.items.map { idea ->
-                    idea.toDto(commentCounts[idea.id] ?: 0)
+                    idea.toDto(
+                        commentsCount = commentCounts[idea.id] ?: 0,
+                        hasHumanCommentHistory = historyIds.contains(idea.id),
+                    )
                 }
                 call.respond(
                     IdeaListResponse(
@@ -150,7 +158,7 @@ fun Route.ideaRoutes() {
                 ideaTitle = idea.title
             )
 
-            call.respond(idea.toDto(0))
+            call.respond(idea.toDto(commentsCount = 0, hasHumanCommentHistory = false))
         }
 
         get("/v1/ideas/{ideaId}") {
@@ -177,7 +185,9 @@ fun Route.ideaRoutes() {
             }
 
             val commentCount = CommentRepository.countByIdeaIds(listOf(idea.id))[idea.id] ?: 0
-            call.respond(idea.toDto(commentCount))
+            val hasHumanCommentHistory =
+                CommentRepository.ideaIdsWithUserCommentHistory(listOf(idea.id)).contains(idea.id)
+            call.respond(idea.toDto(commentCount, hasHumanCommentHistory = hasHumanCommentHistory))
         }
 
         patch("/v1/ideas/{ideaId}") {
@@ -238,7 +248,9 @@ fun Route.ideaRoutes() {
             }
 
             val commentCount = CommentRepository.countByIdeaIds(listOf(updated.id))[updated.id] ?: 0
-            call.respond(updated.toDto(commentCount))
+            val hasHumanCommentHistory =
+                CommentRepository.ideaIdsWithUserCommentHistory(listOf(updated.id)).contains(updated.id)
+            call.respond(updated.toDto(commentCount, hasHumanCommentHistory = hasHumanCommentHistory))
         }
 
         delete("/v1/ideas/{ideaId}") {
@@ -304,7 +316,9 @@ fun Route.ideaRoutes() {
             }
 
             val commentCount = CommentRepository.countByIdeaIds(listOf(updated.id))[updated.id] ?: 0
-            call.respond(updated.toDto(commentCount))
+            val hasHumanCommentHistory =
+                CommentRepository.ideaIdsWithUserCommentHistory(listOf(updated.id)).contains(updated.id)
+            call.respond(updated.toDto(commentCount, hasHumanCommentHistory = hasHumanCommentHistory))
         }
 
         post("/v1/ideas/{ideaId}/reject") {
@@ -337,7 +351,9 @@ fun Route.ideaRoutes() {
             }
 
             val commentCount = CommentRepository.countByIdeaIds(listOf(updated.id))[updated.id] ?: 0
-            call.respond(updated.toDto(commentCount))
+            val hasHumanCommentHistory =
+                CommentRepository.ideaIdsWithUserCommentHistory(listOf(updated.id)).contains(updated.id)
+            call.respond(updated.toDto(commentCount, hasHumanCommentHistory = hasHumanCommentHistory))
         }
 
         post("/v1/ideas/{ideaId}/convert-to-activity") {
@@ -413,7 +429,10 @@ private fun ideaChanged(before: IdeaRow, after: IdeaRow): Boolean {
         before.status != after.status
 }
 
-private fun IdeaRow.toDto(commentsCount: Int = 0): IdeaDto = IdeaDto(
+private fun IdeaRow.toDto(
+    commentsCount: Int = 0,
+    hasHumanCommentHistory: Boolean? = null,
+): IdeaDto = IdeaDto(
     id = id,
     tripId = tripId,
     authorId = authorId,
@@ -426,4 +445,5 @@ private fun IdeaRow.toDto(commentsCount: Int = 0): IdeaDto = IdeaDto(
     status = status,
     updatedAt = updatedAt.toString(),
     commentsCount = commentsCount,
+    hasHumanCommentHistory = hasHumanCommentHistory,
 )

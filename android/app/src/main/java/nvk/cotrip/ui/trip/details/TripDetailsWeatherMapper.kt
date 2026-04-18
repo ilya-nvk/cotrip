@@ -50,6 +50,7 @@ object TripDetailsWeatherMapper {
         response: WeatherForecastResponseDto,
         isCitySelectable: Boolean = false,
     ): WeatherCardUi {
+        val cityLabel = response.displayCity?.takeIf { it.isNotBlank() } ?: city
         val days = response.items
             .sortedBy { it.date }
             .take(5)
@@ -82,7 +83,7 @@ object TripDetailsWeatherMapper {
         }
 
         return WeatherCardUi(
-            city = city,
+            city = cityLabel,
             days = days,
             notice = notice,
             isCitySelectable = isCitySelectable,

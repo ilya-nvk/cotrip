@@ -51,8 +51,6 @@ class TripExpensesViewModel @Inject constructor(
     private val _effects = MutableSharedFlow<TripExpensesEffect>(extraBufferCapacity = 8)
     val effects = _effects.asSharedFlow()
 
-    private val membersState = MutableStateFlow<List<MemberDto>>(emptyList())
-    private val meIdState = MutableStateFlow<String?>(null)
     private val isRefreshing = MutableStateFlow(false)
 
     init {
@@ -83,23 +81,23 @@ class TripExpensesViewModel @Inject constructor(
             combine(
                 expenseRepository.observeExpenses(tripId),
                 tripRepository.getTrip(tripId),
-                membersState,
-                meIdState,
+                tripRepository.tripMembers(tripId),
+                userRepository.me,
                 isRefreshing,
-            ) { expenses, trip, members, meId, refreshing ->
-                if (meId == null) {
-                    null
-                } else {
-                    ExpensesPayload(
-                        trip = trip,
-                        expenses = expenses,
-                        members = members,
-                        meId = meId,
-                        refreshing = refreshing,
-                    )
-                }
+            ) { expenses, trip, members, me, refreshing ->
+                ExpensesPayload(
+                    trip = trip,
+                    expenses = expenses,
+                    members = members,
+                    meId = me?.id,
+                    refreshing = refreshing,
+                )
             }.collect { payload ->
-                if (payload == null) return@collect
+                val meId = payload.meId
+                if (meId == null) {
+                    _state.value = TripExpensesState.Loading
+                    return@collect
+                }
                 val currencySymbol = currencySymbolFor(payload.trip.currencyCode)
                 val memberById = payload.members.associateBy { it.userId }
                 var totalSpent = 0.0
@@ -111,11 +109,11 @@ class TripExpensesViewModel @Inject constructor(
 
                 payload.expenses.forEach { expense ->
                     val shares = computeShares(expense)
-                    val myShare = shares[payload.meId] ?: 0.0
+                    val myShare = shares[meId] ?: 0.0
 
                     if (expense.status == "paid") {
                         totalSpent += expense.amount
-                        if (expense.paidById == payload.meId) {
+                        if (expense.paidById == meId) {
                             netBalance += (expense.amount - myShare)
                         } else {
                             netBalance -= myShare
@@ -127,7 +125,7 @@ class TripExpensesViewModel @Inject constructor(
                     val listItem = expense.toListItem(
                         currencySymbol = currencySymbol,
                         memberById = memberById,
-                        meId = payload.meId,
+                        meId = meId,
                         shares = shares,
                         context = appContext,
                     )
@@ -172,10 +170,6 @@ class TripExpensesViewModel @Inject constructor(
             when (val result = apiCaller.call {
                 tripRepository.getTrip(tripId).first()
                 expenseRepository.refreshExpenses(tripId).getOrThrow()
-                val members = tripRepository.tripMembers(tripId).first()
-                val me = checkNotNull(userRepository.me.first())
-                membersState.value = members
-                meIdState.value = me.id
             }) {
                 is ApiResult.Success -> Unit
                 is ApiResult.Failure -> {
@@ -192,7 +186,7 @@ class TripExpensesViewModel @Inject constructor(
         val trip: TripDto,
         val expenses: List<ExpenseDto>,
         val members: List<MemberDto>,
-        val meId: String,
+        val meId: String?,
         val refreshing: Boolean,
     )
 }

@@ -22,6 +22,7 @@ import nvk.cotrip.data.network.dto.ActivityDto
 import nvk.cotrip.data.network.dto.ItineraryDayDto
 import nvk.cotrip.data.network.dto.TripDto
 import nvk.cotrip.data.repository.ItineraryRepository
+import nvk.cotrip.data.repository.OfflineWriteQueuedException
 import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.ui.common.UiErrorMapper
 import nvk.cotrip.ui.common.appUiLocale
@@ -62,6 +63,7 @@ class ActivityDetailsViewModel @Inject constructor(
     fun onEvent(event: ActivityDetailsEvent) {
         when (event) {
             ActivityDetailsEvent.OnBackClick -> appNavigator.popBackStack()
+            ActivityDetailsEvent.OnAutoRefresh -> refreshActivity(showErrorToast = false)
             ActivityDetailsEvent.OnRefresh -> refreshActivity(showErrorToast = true)
             ActivityDetailsEvent.OnEditClick -> {
                 val contentState = _state.value as? ActivityDetailsState.Content ?: return
@@ -133,7 +135,14 @@ class ActivityDetailsViewModel @Inject constructor(
                     appNavigator.popBackStack()
                 }
 
-                is ApiResult.Failure -> emitToast(uiErrorMapper.messageRes(result))
+                is ApiResult.Failure -> {
+                    val res = if (result.cause is OfflineWriteQueuedException) {
+                        R.string.common_error_network
+                    } else {
+                        uiErrorMapper.messageRes(result)
+                    }
+                    emitToast(res)
+                }
             }
         }
     }

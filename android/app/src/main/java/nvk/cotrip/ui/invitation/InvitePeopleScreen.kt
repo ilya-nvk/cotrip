@@ -120,6 +120,29 @@ fun InvitePeopleScreen(
                 }
             }
 
+            InvitePeopleState.Unavailable -> {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .padding(horizontal = CoTripTokens.spacing.x2),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        text = stringResource(R.string.invite_people_load_failed),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = TextMedium
+                    )
+                    Spacer(modifier = Modifier.height(CoTripTokens.spacing.x2))
+                    PrimaryButton(
+                        text = stringResource(R.string.invite_people_retry),
+                        onClick = { viewModel.onEvent(InvitePeopleEvent.OnRetryClick) },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+
             is InvitePeopleState.Content -> {
                 Column(
                     modifier = Modifier

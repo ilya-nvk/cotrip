@@ -1,11 +1,12 @@
 package nvk.cotrip.ui.aisuggestions
 
-import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -39,11 +41,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.flow.collectLatest
 import nvk.cotrip.R
+import nvk.cotrip.ui.common.showCoTripToast
 import nvk.cotrip.ui.components.CoTripCard
 import nvk.cotrip.ui.components.CoTripIconButton
 import nvk.cotrip.ui.components.PrimaryButton
@@ -56,7 +60,12 @@ import nvk.cotrip.ui.theme.TextPrimary
 import nvk.cotrip.ui.theme.TextSecondary
 
 private const val KEY_HEADER = "header"
+private const val KEY_DISCLAIMER = "disclaimer"
 private const val KEY_BOTTOM_SPACER = "bottom_spacer"
+
+private val DisclaimerPurple = Color(0xFFEEDCF7)
+private val DisclaimerPurpleBorder = Color(0xFFD5B8E6)
+private val DisclaimerPurpleText = Color(0xFF6A1B9A)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -70,7 +79,7 @@ fun RouteSuggestionsScreen(
         viewModel.effects.collectLatest { effect ->
             when (effect) {
                 is RouteSuggestionsEffect.ShowToastRes ->
-                    Toast.makeText(context, context.getString(effect.resId), Toast.LENGTH_SHORT).show()
+                    context.showCoTripToast(effect.resId)
             }
         }
     }
@@ -133,6 +142,10 @@ fun RouteSuggestionsScreen(
                         )
                     }
 
+                    item(key = KEY_DISCLAIMER) {
+                        AiDisclaimerCard()
+                    }
+
                     items(uiState.suggestions, key = { it.id }) { suggestion ->
                         SuggestionCard(
                             suggestion = suggestion,
@@ -173,10 +186,35 @@ private fun LoadingState(modifier: Modifier = Modifier) {
                 style = MaterialTheme.typography.headlineSmall,
                 color = TextSecondary
             )
+        }
+    }
+}
+
+@Composable
+private fun AiDisclaimerCard() {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = CoTripTokens.spacing.x2),
+        shape = RoundedCornerShape(18.dp),
+        border = BorderStroke(1.dp, DisclaimerPurpleBorder),
+        color = DisclaimerPurple
+    ) {
+        Row(
+            modifier = Modifier.padding(CoTripTokens.spacing.x2),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x1)
+        ) {
+            Text(
+                text = stringResource(R.string.ai_suggestions_hint_symbol),
+                style = MaterialTheme.typography.headlineSmall,
+                color = DisclaimerPurpleText
+            )
             Text(
                 text = stringResource(R.string.ai_suggestions_disclaimer),
                 style = MaterialTheme.typography.bodyMedium,
-                color = TextSecondary
+                color = DisclaimerPurpleText,
+                fontWeight = FontWeight.Medium
             )
         }
     }
@@ -221,6 +259,7 @@ private fun SummaryHeader(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SuggestionCard(
     suggestion: AiSuggestionItemUi,
@@ -249,9 +288,10 @@ private fun SuggestionCard(
 
         Spacer(Modifier.height(CoTripTokens.spacing.x1_5))
 
-        Row(
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x1),
-            verticalAlignment = Alignment.CenterVertically
+            verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x1),
         ) {
             MetaChip(icon = CoTripIcons.Info, text = suggestion.typeLabel)
             MetaChip(icon = CoTripIcons.Schedule, text = suggestion.durationLabel)

@@ -185,6 +185,9 @@
     <string name="ideas_pick_day_title">Выберите день</string>
     <string name="ideas_pick_day_label">День %1$d · %2$s</string>
     <string name="ideas_empty_placeholder">Добавьте идеи для поездки или попросите AI предложить варианты.</string>
+    <string name="invite_people_load_failed">Не удалось загрузить ссылку-приглашение.</string>
+    <string name="invite_people_retry">Повторить</string>
+
     <string name="ideas_get_ai_suggestions">Получить AI-подсказки</string>
 
     <!--Idea Details-->
@@ -193,7 +196,7 @@
     <string name="idea_details_tab_discussion">Обсуждение</string>
     <string name="idea_details_city">Город</string>
     <string name="idea_details_link">Ссылка</string>
-    <string name="idea_details_cost">Оценка стоимости</string>
+    <string name="idea_details_cost">Примерная стоимость</string>
     <string name="idea_details_notes">Заметки</string>
     <string name="idea_details_add_to_itinerary">Добавить в маршрут</string>
     <string name="idea_details_added_to_day">Добавлено в день %1$d</string>
@@ -219,7 +222,7 @@
     <string name="idea_form_city_label">Место</string>
     <string name="idea_form_city_searching">Поиск по местам поездки...</string>
     <string name="idea_form_link_label">Ссылка (необязательно)</string>
-    <string name="idea_form_cost_label">Оценка стоимости</string>
+    <string name="idea_form_cost_label">Примерная стоимость</string>
     <string name="idea_form_notes_label">Заметки</string>
     <string name="idea_form_title_placeholder">Введите название идеи</string>
     <string name="idea_form_city_placeholder">Найдите место в истории поездки или введите текст</string>
@@ -253,7 +256,7 @@
     <string name="ai_suggestions_generate">Сгенерировать</string>
     <string name="ai_suggestions_change">Изменить</string>
     <string name="ai_suggestions_loading">Генерация подсказок...</string>
-    <string name="ai_suggestions_estimated_cost">Оценка стоимости: %1$s</string>
+    <string name="ai_suggestions_estimated_cost">Примерная стоимость: %1$s</string>
     <string name="ai_suggestions_save_to_ideas">Сохранить в идеи</string>
     <string name="ai_suggestions_saved">Сохранено</string>
 
@@ -426,6 +429,30 @@
     <string name="trip_details_day_number">День %1$d</string>
 
     <!--Weather Forecast Extras-->
+    <string name="weather_desc_clear">Ясно</string>
+    <string name="weather_desc_few_clouds">Небольшая облачность</string>
+    <string name="weather_desc_scattered_clouds">Переменная облачность</string>
+    <string name="weather_desc_broken_clouds">Облачно</string>
+    <string name="weather_desc_mist">Туман</string>
+    <string name="weather_desc_haze">Дымка</string>
+    <string name="weather_desc_dust">Пыль</string>
+    <string name="weather_desc_volcanic_ash">Вулканический пепел</string>
+    <string name="weather_desc_squalls">Шквалы</string>
+    <string name="weather_desc_tornado">Торнадо</string>
+    <string name="weather_desc_light_rain">Небольшой дождь</string>
+    <string name="weather_desc_moderate_rain">Дождь</string>
+    <string name="weather_desc_heavy_rain">Сильный дождь</string>
+    <string name="weather_desc_freezing_rain">Ледяной дождь</string>
+    <string name="weather_desc_light_snow">Снег</string>
+    <string name="weather_desc_heavy_snow">Сильный снег</string>
+    <string name="weather_desc_sleet">Мокрый снег</string>
+    <string name="weather_desc_thunderstorm">Гроза</string>
+    <string name="weather_desc_shower_rain">Ливень</string>
+    <string name="weather_desc_shower_snow">Снегопад</string>
+
+    <string name="system_comment_idea_edited">%1$s отредактировал(а) идею</string>
+    <string name="system_comment_idea_added_to_itinerary">%1$s добавил(а) эту идею в маршрут</string>
+
     <string name="trip_forecast_source_default">OpenWeather</string>
     <string name="trip_forecast_coverage_city_missing">Сначала выберите город в маршруте, чтобы получить прогноз.</string>
     <string name="trip_forecast_coverage_unavailable">Прогноз на эти даты пока недоступен. OpenWeather предоставляет данные максимум на 8 ближайших дней.</string>

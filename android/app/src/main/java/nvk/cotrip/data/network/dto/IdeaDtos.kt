@@ -43,4 +43,5 @@ data class IdeaDto(
     val status: String,
     val updatedAt: String,
     val commentsCount: Int = 0,
+    val hasHumanCommentHistory: Boolean? = null,
 )

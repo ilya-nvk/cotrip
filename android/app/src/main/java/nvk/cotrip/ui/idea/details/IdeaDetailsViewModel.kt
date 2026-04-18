@@ -40,7 +40,9 @@ import nvk.cotrip.data.network.ws.CommentEventsSourceFactory
 import nvk.cotrip.data.network.ws.CommentRejectedPayload
 import nvk.cotrip.data.network.ws.CommentWsEvent
 import nvk.cotrip.data.repository.IdeaRepository
+import nvk.cotrip.data.repository.OfflineWriteQueuedException
 import nvk.cotrip.data.repository.ItineraryRepository
+import nvk.cotrip.data.network.NetworkStateProvider
 import nvk.cotrip.data.repository.NotificationRepository
 import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.data.repository.UserRepository
@@ -79,6 +81,7 @@ class IdeaDetailsViewModel @Inject constructor(
     private val json: Json,
     private val apiCaller: ApiCaller,
     private val uiErrorMapper: UiErrorMapper,
+    private val networkStateProvider: NetworkStateProvider,
 ) : ViewModel() {
 
     private val tripId: String =
@@ -148,6 +151,7 @@ class IdeaDetailsViewModel @Inject constructor(
     fun onEvent(event: IdeaDetailsEvent) {
         when (event) {
             IdeaDetailsEvent.OnBackClick -> appNavigator.popBackStack()
+            IdeaDetailsEvent.OnAutoRefresh -> refreshDetails(showErrorToast = false)
             IdeaDetailsEvent.OnRefresh -> refreshDetails(showErrorToast = true)
             IdeaDetailsEvent.OnEditClick -> appNavigator.navigate(
                 Destination.EditIdea(tripId, ideaId)
@@ -226,7 +230,7 @@ class IdeaDetailsViewModel @Inject constructor(
                 dayOptions = payload.itinerary.filter { !it.isOutOfRange }.map { it.toDayOption() }
                 val serverDiscussion = payload.comments
                     .sortedByDescending { parseTimestamp(it.createdAt)?.toEpochMilli() ?: 0L }
-                    .map { it.toDiscussion(meId, membersById, unknownMemberName) }
+                    .map { it.toDiscussion(appContext, meId, membersById, unknownMemberName) }
                 val discussion = mergeDiscussionWithPending(
                     serverDiscussion = serverDiscussion,
                     pending = pendingComments.values.toList(),
@@ -234,8 +238,11 @@ class IdeaDetailsViewModel @Inject constructor(
                     membersById = membersById,
                     youFallback = youName,
                 )
-                val isDiscussionAvailable = payload.comments.isNotEmpty() ||
-                    payload.membersById.isNotEmpty()
+                val memberCount = payload.membersById.size
+                val historyFromServer = payload.idea.hasHumanCommentHistory
+                val hasHumanComments = historyFromServer
+                    ?: payload.comments.any { it.type.equals("user", ignoreCase = true) }
+                val isDiscussionAvailable = memberCount > 1 || hasHumanComments
                 _state.update { current ->
                     current.copy(
                         title = payload.idea.title,
@@ -346,7 +353,7 @@ class IdeaDetailsViewModel @Inject constructor(
         _state.update { current ->
             val exists = current.discussion.any { item -> item.id == payload.id }
             if (exists) return@update current
-            val message = payload.toDiscussionItem(meId, membersById, unknownMemberName)
+            val message = payload.toDiscussionItem(appContext, meId, membersById, unknownMemberName)
             val increment = if (message is IdeaDiscussionItemUi.Message) 1 else 0
             val withoutLocal = if (resolvedLocalId != null) {
                 current.discussion.filterNot { item ->
@@ -402,6 +409,10 @@ class IdeaDetailsViewModel @Inject constructor(
 
     private fun selectDay(day: IdeaDayOptionUi) {
         _state.update { it.copy(dayPicker = null) }
+        if (!networkStateProvider.isOnline()) {
+            emit(IdeaDetailsEffect.ShowToastRes(R.string.common_error_server_unreachable))
+            return
+        }
         viewModelScope.launch {
             when (val result = apiCaller.call {
                 ideaRepository.convertIdeaToActivity(ideaId, ConvertIdeaRequest(dayId = day.id))
@@ -422,6 +433,10 @@ class IdeaDetailsViewModel @Inject constructor(
         if (!_state.value.isDiscussionAvailable) return
         val input = _state.value.commentInput.trim()
         if (input.isBlank()) return
+        if (!networkStateProvider.isOnline()) {
+            emit(IdeaDetailsEffect.ShowToastRes(R.string.common_error_server_unreachable))
+            return
+        }
         val token = sessionStore.getAccessToken()
         if (token.isNullOrBlank()) {
             emit(IdeaDetailsEffect.ShowToastRes(R.string.common_error_message))
@@ -624,7 +639,12 @@ class IdeaDetailsViewModel @Inject constructor(
                 }
 
                 is ApiResult.Failure -> {
-                    emit(IdeaDetailsEffect.ShowToastRes(uiErrorMapper.messageRes(result)))
+                    val res = if (result.cause is OfflineWriteQueuedException) {
+                        R.string.common_error_network
+                    } else {
+                        uiErrorMapper.messageRes(result)
+                    }
+                    emit(IdeaDetailsEffect.ShowToastRes(res))
                 }
             }
         }
@@ -689,6 +709,7 @@ class IdeaDetailsViewModel @Inject constructor(
 }
 
 private fun CommentDto.toDiscussion(
+    context: Context,
     meId: String?,
     membersById: Map<String, MemberDto>,
     unknownNameFallback: String,
@@ -696,7 +717,7 @@ private fun CommentDto.toDiscussion(
     if (type.equals("system", ignoreCase = true)) {
         return IdeaDiscussionItemUi.System(
             id = id,
-            text = body,
+            text = localizedSystemText(context),
             time = formatTimestamp(createdAt),
         )
     }
@@ -718,6 +739,7 @@ private fun CommentDto.toDiscussion(
 }
 
 private fun CommentCreatedPayload.toDiscussion(
+    @Suppress("UNUSED_PARAMETER") context: Context,
     meId: String?,
     membersById: Map<String, MemberDto>,
     unknownNameFallback: String,
@@ -741,6 +763,7 @@ private fun CommentCreatedPayload.toDiscussion(
 }
 
 private fun CommentCreatedPayload.toDiscussionItem(
+    context: Context,
     meId: String?,
     membersById: Map<String, MemberDto>,
     unknownNameFallback: String,
@@ -748,11 +771,11 @@ private fun CommentCreatedPayload.toDiscussionItem(
     return if (type.equals("system", ignoreCase = true)) {
         IdeaDiscussionItemUi.System(
             id = id,
-            text = body,
+            text = this@toDiscussionItem.localizedSystemText(context),
             time = formatTimestamp(createdAt),
         )
     } else {
-        toDiscussion(meId, membersById, unknownNameFallback)
+        toDiscussion(context, meId, membersById, unknownNameFallback)
     }
 }
 

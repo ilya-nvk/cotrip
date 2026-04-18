@@ -6,6 +6,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -211,6 +213,7 @@ fun BuildRouteScreen(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun HintCard() {
     Surface(
@@ -238,13 +241,6 @@ private fun HintCard() {
                     color = HintPurpleText
                 )
             }
-
-            Text(
-                text = stringResource(R.string.ai_suggestions_disclaimer),
-                style = MaterialTheme.typography.bodyMedium,
-                color = HintPurpleText,
-                fontWeight = FontWeight.Medium
-            )
         }
     }
 }
@@ -317,6 +313,7 @@ private fun CitySelector(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun OptionSection(
     title: String,
@@ -330,18 +327,17 @@ private fun OptionSection(
             color = TextSecondary
         )
 
-        options.chunked(4).forEach { rowOptions ->
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x1),
-                modifier = Modifier.padding(bottom = CoTripTokens.spacing.x1)
-            ) {
-                rowOptions.forEach { option ->
-                    PreferenceChip(
-                        text = option.label,
-                        selected = option.selected,
-                        onClick = { onClick(option.label) }
-                    )
-                }
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x1),
+            verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x1),
+        ) {
+            options.forEach { option ->
+                PreferenceChip(
+                    text = option.label,
+                    selected = option.selected,
+                    onClick = { onClick(option.label) }
+                )
             }
         }
     }

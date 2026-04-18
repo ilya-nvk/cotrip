@@ -96,7 +96,7 @@ fun IdeaDetailsScreen(
     DisposableEffect(lifecycleOwner, viewModel) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                viewModel.onEvent(IdeaDetailsEvent.OnRefresh)
+                viewModel.onEvent(IdeaDetailsEvent.OnAutoRefresh)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)

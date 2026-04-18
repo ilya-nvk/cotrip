@@ -71,6 +71,25 @@ object OpenWeatherClient {
             .distinctBy { candidate -> candidate.providerId }
     }
 
+    suspend fun reverseLocalCityLabel(
+        apiKey: String,
+        lat: Double,
+        lon: Double,
+        preferredLang: String,
+    ): String? {
+        val lang = preferredLang.lowercase().take(2).ifBlank { return null }
+        val response = httpClient.get("https://api.openweathermap.org/geo/1.0/reverse") {
+            parameter("lat", lat)
+            parameter("lon", lon)
+            parameter("limit", 1)
+            parameter("appid", apiKey)
+        }.body<List<ReverseGeocodingDto>>()
+        val item = response.firstOrNull() ?: return null
+        val fromLocal = item.localNames?.get(lang)
+            ?: item.localNames?.entries?.firstOrNull()?.value
+        return (fromLocal ?: item.name).trim().takeIf { it.isNotEmpty() }
+    }
+
     suspend fun fetchDailyForecast(
         apiKey: String,
         lat: Double,
@@ -106,6 +125,12 @@ private data class DirectGeocodingDto(
     val lon: Double,
     val country: String? = null,
     val state: String? = null,
+)
+
+@Serializable
+private data class ReverseGeocodingDto(
+    val name: String,
+    @SerialName("local_names") val localNames: Map<String, String>? = null,
 )
 
 @Serializable

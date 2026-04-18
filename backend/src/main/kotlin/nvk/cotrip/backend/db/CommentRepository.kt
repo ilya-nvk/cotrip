@@ -22,6 +22,28 @@ data class CommentPage(
 )
 
 object CommentRepository {
+    fun ideaIdsWithUserCommentHistory(ideaIds: List<String>): Set<String> = dbQuery { conn ->
+        if (ideaIds.isEmpty()) return@dbQuery emptySet()
+        val placeholders = ideaIds.joinToString(",") { "?" }
+        val sql = """
+            SELECT DISTINCT idea_id::text AS idea_id
+            FROM idea_comments
+            WHERE idea_id IN ($placeholders) AND type = 'user'
+        """.trimIndent()
+        conn.prepareStatement(sql).use { stmt ->
+            ideaIds.forEachIndexed { idx, id ->
+                stmt.setObject(idx + 1, UUID.fromString(id))
+            }
+            stmt.executeQuery().use { rs ->
+                val result = mutableSetOf<String>()
+                while (rs.next()) {
+                    result += rs.getString("idea_id")
+                }
+                result
+            }
+        }
+    }
+
     fun countByIdeaIds(ideaIds: List<String>): Map<String, Int> = dbQuery { conn ->
         if (ideaIds.isEmpty()) return@dbQuery emptyMap<String, Int>()
         val placeholders = ideaIds.joinToString(",") { "?" }

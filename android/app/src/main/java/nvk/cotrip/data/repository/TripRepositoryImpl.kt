@@ -13,7 +13,6 @@ import nvk.cotrip.data.cache.UserCacheStore
 import nvk.cotrip.data.network.CoTripApi
 import nvk.cotrip.data.network.NetworkStateProvider
 import nvk.cotrip.data.network.dto.CreateTripRequest
-import nvk.cotrip.data.network.dto.ItineraryDayDto
 import nvk.cotrip.data.network.dto.MemberDto
 import nvk.cotrip.data.network.dto.TripDto
 import nvk.cotrip.data.network.dto.UpdateTripRequest
@@ -21,14 +20,10 @@ import nvk.cotrip.data.network.requireSuccess
 import nvk.cotrip.data.sync.SyncEntities
 import nvk.cotrip.data.sync.SyncQueueRepository
 import nvk.cotrip.data.sync.SyncTripMemberDeletePayload
-import nvk.cotrip.data.sync.SyncTripCreateDayPayload
-import nvk.cotrip.data.sync.SyncTripCreatePayload
 import nvk.cotrip.util.AppLogger
 import retrofit2.HttpException
 import java.io.IOException
-import java.time.LocalDate
 import java.time.OffsetDateTime
-import java.util.UUID
 import javax.inject.Inject
 
 class TripRepositoryImpl @Inject constructor(
@@ -86,49 +81,11 @@ class TripRepositoryImpl @Inject constructor(
     }
 
     override suspend fun createTrip(request: CreateTripRequest): String {
-        return try {
-            val trip = api.createTrip(request)
-            safeLocalMutation("createTrip.upsertTrip(tripId=${trip.id})") {
-                tripsCacheStore.upsertTrip(trip)
-            }
-            trip.id
-        } catch (e: IOException) {
-            val tripId = UUID.randomUUID().toString()
-            val ownerId = userCacheStore.getUser()?.id ?: ""
-            val localTrip = TripDto(
-                id = tripId,
-                ownerId = ownerId,
-                title = request.title,
-                description = request.description,
-                startDate = request.startDate,
-                endDate = request.endDate,
-                locationLine = request.locationLine,
-                coverUrl = request.coverUrl,
-                currencyCode = request.currencyCode,
-                status = "active",
-                updatedAt = OffsetDateTime.now().toString(),
-            )
-            val days = buildLocalDays(request.startDate, request.endDate)
-            safeLocalMutation("createTrip.offlineCache(tripId=$tripId)") {
-                tripsCacheStore.upsertTrip(localTrip)
-                itineraryCacheStore.setItinerary(tripId, days.map { it.toDayDto(tripId) })
-            }
-            syncQueueRepository.enqueueCreate(
-                entity = SyncEntities.TRIP,
-                id = tripId,
-                payload = SyncTripCreatePayload(
-                    title = request.title,
-                    description = request.description,
-                    startDate = request.startDate,
-                    endDate = request.endDate,
-                    locationLine = request.locationLine,
-                    coverUrl = request.coverUrl,
-                    currencyCode = request.currencyCode,
-                    days = days,
-                )
-            )
-            tripId
+        val trip = api.createTrip(request)
+        safeLocalMutation("createTrip.upsertTrip(tripId=${trip.id})") {
+            tripsCacheStore.upsertTrip(trip)
         }
+        return trip.id
     }
 
     override suspend fun updateTrip(tripId: String, request: UpdateTripRequest): Result<Unit> {
@@ -234,40 +191,4 @@ class TripRepositoryImpl @Inject constructor(
             tripMembersCacheStore.removeMember(tripId, memberId)
         }
     }
-}
-
-private fun buildLocalDays(
-    startDateRaw: String,
-    endDateRaw: String,
-): List<SyncTripCreateDayPayload> {
-    val startDate = LocalDate.parse(startDateRaw)
-    val endDate = LocalDate.parse(endDateRaw)
-    val result = mutableListOf<SyncTripCreateDayPayload>()
-    var current = startDate
-    var dayNumber = 1
-    while (!current.isAfter(endDate)) {
-        result += SyncTripCreateDayPayload(
-            id = UUID.randomUUID().toString(),
-            date = current.toString(),
-            dayNumber = dayNumber,
-        )
-        current = current.plusDays(1)
-        dayNumber += 1
-    }
-    return result
-}
-
-private fun SyncTripCreateDayPayload.toDayDto(tripId: String): ItineraryDayDto {
-    return ItineraryDayDto(
-        id = id,
-        tripId = tripId,
-        date = date,
-        dayNumber = dayNumber,
-        city = null,
-        cityProviderId = null,
-        cityLat = null,
-        cityLon = null,
-        isOutOfRange = false,
-        activities = emptyList(),
-    )
 }

@@ -181,6 +181,9 @@
     <string name="ideas_pick_day_title">Select day</string>
     <string name="ideas_pick_day_label">Day %1$d · %2$s</string>
     <string name="ideas_empty_placeholder">Start adding ideas for your trip or ask AI for suggestions.</string>
+    <string name="invite_people_load_failed">Could not load invite link.</string>
+    <string name="invite_people_retry">Try again</string>
+
     <string name="ideas_get_ai_suggestions">Get AI suggestions</string>
 
     <!--Idea Details-->
@@ -419,6 +422,30 @@
     <string name="trip_details_day_number">Day %1$d</string>
 
     <!--Weather Forecast Extras-->
+    <string name="weather_desc_clear">Clear</string>
+    <string name="weather_desc_few_clouds">Few clouds</string>
+    <string name="weather_desc_scattered_clouds">Scattered clouds</string>
+    <string name="weather_desc_broken_clouds">Cloudy</string>
+    <string name="weather_desc_mist">Mist</string>
+    <string name="weather_desc_haze">Haze</string>
+    <string name="weather_desc_dust">Dust</string>
+    <string name="weather_desc_volcanic_ash">Volcanic ash</string>
+    <string name="weather_desc_squalls">Squalls</string>
+    <string name="weather_desc_tornado">Tornado</string>
+    <string name="weather_desc_light_rain">Light rain</string>
+    <string name="weather_desc_moderate_rain">Rain</string>
+    <string name="weather_desc_heavy_rain">Heavy rain</string>
+    <string name="weather_desc_freezing_rain">Freezing rain</string>
+    <string name="weather_desc_light_snow">Snow</string>
+    <string name="weather_desc_heavy_snow">Heavy snow</string>
+    <string name="weather_desc_sleet">Sleet</string>
+    <string name="weather_desc_thunderstorm">Thunderstorm</string>
+    <string name="weather_desc_shower_rain">Rain showers</string>
+    <string name="weather_desc_shower_snow">Snow showers</string>
+
+    <string name="system_comment_idea_edited">%1$s edited the idea</string>
+    <string name="system_comment_idea_added_to_itinerary">%1$s added this idea to the itinerary</string>
+
     <string name="trip_forecast_source_default">OpenWeather</string>
     <string name="trip_forecast_coverage_city_missing">Select a city in itinerary first to get weather.</string>
     <string name="trip_forecast_coverage_unavailable">Forecast is not available for these dates yet. OpenWeather provides up to 8 upcoming days.</string>

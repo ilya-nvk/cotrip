@@ -58,6 +58,8 @@ data class CommentDto(
     val type: String,
     val body: String,
     val createdAt: String,
+    val systemKey: String? = null,
+    val systemActorName: String? = null,
 )
 
 @Serializable
@@ -84,6 +86,7 @@ data class IdeaDto(
     val status: String,
     val updatedAt: String,
     val commentsCount: Int = 0,
+    val hasHumanCommentHistory: Boolean? = null,
 )
 
 @Serializable
@@ -178,6 +181,7 @@ data class WeatherForecastResponseDto(
     val availableTo: String? = null,
     val missingDates: List<String> = emptyList(),
     val nextRefreshAt: String? = null,
+    val displayCity: String? = null,
 )
 
 @Serializable
