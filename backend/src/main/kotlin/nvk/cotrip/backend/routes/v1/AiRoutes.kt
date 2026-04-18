@@ -10,6 +10,10 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.post
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import nvk.cotrip.backend.ai.AiRequestPolicyEvaluator
 import nvk.cotrip.backend.ai.AiRequestRelevanceClassifier
 import nvk.cotrip.backend.ai.AiRequestRelevanceInput
@@ -85,15 +89,13 @@ fun Route.aiRoutes(aiConfig: AiConfig) {
                 AiRepository.updateRequestStatus(aiRequest.id, "error", "Request blocked by AI policy: $category")
                 call.respond(
                     HttpStatusCode.UnprocessableEntity,
-                    mapOf(
-                        "error" to mapOf(
-                            "code" to "ai_policy_violation",
-                            "message" to "Request violates AI suggestion policy",
-                            "details" to mapOf(
-                                "stage" to "request",
-                                "category" to category,
-                            ),
-                        )
+                    errorResponse(
+                        code = "ai_policy_violation",
+                        message = "Request violates AI suggestion policy",
+                        details = buildJsonObject {
+                            put("stage", "request")
+                            put("category", category)
+                        }
                     )
                 )
                 return@post
@@ -117,15 +119,13 @@ fun Route.aiRoutes(aiConfig: AiConfig) {
                 AiRepository.updateRequestStatus(aiRequest.id, "error", "Request blocked by relevance classifier: off_topic")
                 call.respond(
                     HttpStatusCode.UnprocessableEntity,
-                    mapOf(
-                        "error" to mapOf(
-                            "code" to "ai_policy_violation",
-                            "message" to "Request violates AI suggestion policy",
-                            "details" to mapOf(
-                                "stage" to "request",
-                                "category" to "off_topic",
-                            ),
-                        )
+                    errorResponse(
+                        code = "ai_policy_violation",
+                        message = "Request violates AI suggestion policy",
+                        details = buildJsonObject {
+                            put("stage", "request")
+                            put("category", "off_topic")
+                        }
                     )
                 )
                 return@post
@@ -167,15 +167,13 @@ fun Route.aiRoutes(aiConfig: AiConfig) {
                     )
                 call.respond(
                     if (isUnavailable) HttpStatusCode.ServiceUnavailable else HttpStatusCode.BadGateway,
-                    mapOf(
-                        "error" to mapOf(
-                            "code" to if (isUnavailable) "ai_provider_unavailable" else "ai_generation_failed",
-                            "message" to if (isUnavailable) {
-                                "AI provider is not configured"
-                            } else {
-                                "Unable to generate AI suggestions"
-                            },
-                        )
+                    errorResponse(
+                        code = if (isUnavailable) "ai_provider_unavailable" else "ai_generation_failed",
+                        message = if (isUnavailable) {
+                            "AI provider is not configured"
+                        } else {
+                            "Unable to generate AI suggestions"
+                        }
                     )
                 )
                 return@post
@@ -185,7 +183,10 @@ fun Route.aiRoutes(aiConfig: AiConfig) {
                 AiRepository.updateRequestStatus(aiRequest.id, "error", "No suggestions returned")
                 call.respond(
                     HttpStatusCode.BadGateway,
-                    mapOf("error" to mapOf("code" to "ai_generation_failed", "message" to "Unable to generate AI suggestions"))
+                    errorResponse(
+                        code = "ai_generation_failed",
+                        message = "Unable to generate AI suggestions",
+                    )
                 )
                 return@post
             }
@@ -204,17 +205,18 @@ fun Route.aiRoutes(aiConfig: AiConfig) {
                 AiRepository.updateRequestStatus(aiRequest.id, "error", "No relevant suggestions remained after filtering")
                 call.respond(
                     HttpStatusCode.UnprocessableEntity,
-                    mapOf(
-                        "error" to mapOf(
-                            "code" to "ai_no_relevant_results",
-                            "message" to "No safe and relevant AI suggestions are available",
-                            "details" to mapOf(
-                                "stage" to "response",
-                                "generatedCount" to filteredSuggestions.generatedCount,
-                                "keptCount" to filteredSuggestions.keptCount,
-                                "topRejectReasons" to filteredSuggestions.topRejectReasons,
-                            ),
-                        )
+                    errorResponse(
+                        code = "ai_no_relevant_results",
+                        message = "No safe and relevant AI suggestions are available",
+                        details = buildJsonObject {
+                            put("stage", "response")
+                            put("generatedCount", filteredSuggestions.generatedCount)
+                            put("keptCount", filteredSuggestions.keptCount)
+                            put(
+                                "topRejectReasons",
+                                JsonArray(filteredSuggestions.topRejectReasons.map(::JsonPrimitive))
+                            )
+                        }
                     )
                 )
                 return@post
@@ -388,6 +390,20 @@ private fun AiSuggestionRow.toDto(): AiSuggestionDto {
         budgetLabel = budgetLabel,
         estimatedCost = estimatedCost,
         isSaved = isSaved,
+    )
+}
+
+private fun errorResponse(
+    code: String,
+    message: String,
+    details: kotlinx.serialization.json.JsonObject? = null,
+): ErrorResponseDto {
+    return ErrorResponseDto(
+        error = ErrorDto(
+            code = code,
+            message = message,
+            details = details,
+        )
     )
 }
 
