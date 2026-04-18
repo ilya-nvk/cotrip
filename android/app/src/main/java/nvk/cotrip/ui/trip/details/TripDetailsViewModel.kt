@@ -24,6 +24,7 @@ import nvk.cotrip.data.network.dto.ActivityDto
 import nvk.cotrip.data.network.dto.ExpenseDto
 import nvk.cotrip.data.network.dto.IdeaDto
 import nvk.cotrip.data.network.dto.ItineraryDayDto
+import nvk.cotrip.data.network.dto.cityDisplayLabel
 import nvk.cotrip.data.network.dto.MemberDto
 import nvk.cotrip.data.network.dto.TripDto
 import nvk.cotrip.data.repository.ExpenseRepository
@@ -582,9 +583,8 @@ private fun buildNextInTrip(
         days.first()
     }
 
-    val subtitle = targetDay.city
-        ?.toCityLabel()
-        ?.takeIf { it.isNotBlank() }
+    val subtitle = targetDay.cityDisplayLabel()
+        .takeIf { it.isNotBlank() }
         .orEmpty()
 
     val lines = targetDay.activities
@@ -610,12 +610,6 @@ private fun ActivityDto.toNextInTripLine(): NextInTripLineUi {
 private fun parseLocalDateOrNull(value: String?): LocalDate? {
     if (value.isNullOrBlank()) return null
     return runCatching { LocalDate.parse(value) }.getOrNull()
-}
-
-private fun String.toCityLabel(): String {
-    val trimmed = trim()
-    if (trimmed.isEmpty()) return ""
-    return trimmed.substringBefore(',').trim().ifBlank { trimmed }
 }
 
 private fun String.toCurrency(): TripCurrency {

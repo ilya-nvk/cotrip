@@ -99,7 +99,7 @@ fun TripForecastScreen(
         ) {
             CityPickerSheet(
                 cities = contentState.cityOptions,
-                onSelect = { viewModel.onEvent(TripForecastEvent.OnCitySelected(it)) }
+                onSelectKey = { viewModel.onEvent(TripForecastEvent.OnCitySelected(it)) }
             )
         }
     }
@@ -336,8 +336,8 @@ private fun ForecastRow(
 
 @Composable
 private fun CityPickerSheet(
-    cities: List<String>,
-    onSelect: (String) -> Unit,
+    cities: List<WeatherCityOption>,
+    onSelectKey: (String) -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -359,11 +359,11 @@ private fun CityPickerSheet(
             contentPadding = PaddingValues(vertical = CoTripTokens.spacing.x1),
             verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x0_5),
         ) {
-            items(cities.size, key = { index -> cities[index] }) { index ->
-                val city = cities[index]
+            items(cities.size, key = { index -> cities[index].key }) { index ->
+                val option = cities[index]
                 CoTripListItem(
-                    title = city,
-                    onClick = { onSelect(city) },
+                    title = option.label,
+                    onClick = { onSelectKey(option.key) },
                 )
             }
         }

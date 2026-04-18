@@ -326,7 +326,7 @@ private fun FilledDaySection(
 
                 if (day.city != null) {
                     Text(
-                        text = day.city.toCityLabel(),
+                        text = day.city,
                         style = MaterialTheme.typography.labelLarge,
                         color = if (canEdit) PrimaryBlue else TextPrimary,
                         modifier = Modifier
@@ -599,9 +599,3 @@ private fun CityPickerSheet(
 @Composable
 private fun BorderStrokeCompat() =
     androidx.compose.foundation.BorderStroke(1.dp, Border)
-
-private fun String.toCityLabel(): String {
-    val trimmed = trim()
-    if (trimmed.isEmpty()) return ""
-    return trimmed.substringBefore(',').trim().ifBlank { trimmed }
-}

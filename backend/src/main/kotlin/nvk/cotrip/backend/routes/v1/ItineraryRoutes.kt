@@ -19,7 +19,9 @@ import nvk.cotrip.backend.db.ActivityRow
 import nvk.cotrip.backend.db.DayRepository
 import nvk.cotrip.backend.db.ItineraryDayRepository
 import nvk.cotrip.backend.db.LocalPlacesSearchRepository
+import nvk.cotrip.backend.db.ItineraryDayRow
 import nvk.cotrip.backend.db.TripRepository
+import nvk.cotrip.backend.http.batchReverseGeocodeDisplayCities
 import nvk.cotrip.backend.http.preferredOpenWeatherUiLang
 import nvk.cotrip.backend.integrations.OpenWeatherClient
 
@@ -213,20 +215,12 @@ fun Route.itineraryRoutes(weatherConfig: WeatherConfig) {
                 val days = ItineraryDayRepository.listByTrip(tripId)
                 val activities = ActivityRepository.listByDayIds(days.map { it.id })
                 val activitiesByDay = activities.groupBy { it.dayId }
-                val result = days.map { day ->
-                    ItineraryDayDto(
-                        id = day.id,
-                        tripId = day.tripId,
-                        date = day.date.toString(),
-                        dayNumber = day.dayNumber,
-                        city = day.city,
-                        cityProviderId = day.cityProviderId,
-                        cityLat = day.cityLat,
-                        cityLon = day.cityLon,
-                        isOutOfRange = day.isOutOfRange,
-                        activities = activitiesByDay[day.id].orEmpty().map { it.toDto() },
-                    )
-                }
+                val result = buildItineraryDayDtos(
+                    days = days,
+                    activitiesByDay = activitiesByDay,
+                    acceptLanguage = call.request.headers["Accept-Language"],
+                    apiKey = weatherConfig.openWeatherApiKey,
+                )
                 call.respond(ItineraryListResponse(items = result, nextCursor = null))
             } else {
                 val page = ItineraryDayRepository.listByTripPage(
@@ -236,20 +230,12 @@ fun Route.itineraryRoutes(weatherConfig: WeatherConfig) {
                 )
                 val activities = ActivityRepository.listByDayIds(page.items.map { it.id })
                 val activitiesByDay = activities.groupBy { it.dayId }
-                val result = page.items.map { day ->
-                    ItineraryDayDto(
-                        id = day.id,
-                        tripId = day.tripId,
-                        date = day.date.toString(),
-                        dayNumber = day.dayNumber,
-                        city = day.city,
-                        cityProviderId = day.cityProviderId,
-                        cityLat = day.cityLat,
-                        cityLon = day.cityLon,
-                        isOutOfRange = day.isOutOfRange,
-                        activities = activitiesByDay[day.id].orEmpty().map { it.toDto() },
-                    )
-                }
+                val result = buildItineraryDayDtos(
+                    days = page.items,
+                    activitiesByDay = activitiesByDay,
+                    acceptLanguage = call.request.headers["Accept-Language"],
+                    apiKey = weatherConfig.openWeatherApiKey,
+                )
                 call.respond(
                     ItineraryListResponse(
                         items = result,
@@ -574,6 +560,38 @@ fun Route.itineraryRoutes(weatherConfig: WeatherConfig) {
 
             call.respond(HttpStatusCode.NoContent)
         }
+    }
+}
+
+private suspend fun buildItineraryDayDtos(
+    days: List<ItineraryDayRow>,
+    activitiesByDay: Map<String, List<ActivityRow>>,
+    acceptLanguage: String?,
+    apiKey: String?,
+): List<ItineraryDayDto> {
+    val coords = days.mapNotNull { day ->
+        val la = day.cityLat ?: return@mapNotNull null
+        val lo = day.cityLon ?: return@mapNotNull null
+        la to lo
+    }
+    val labelsByCoord = batchReverseGeocodeDisplayCities(coords, apiKey, acceptLanguage)
+    return days.map { day ->
+        val displayName = day.cityLat?.let { lat ->
+            day.cityLon?.let { lon -> labelsByCoord[lat to lon] }
+        }
+        ItineraryDayDto(
+            id = day.id,
+            tripId = day.tripId,
+            date = day.date.toString(),
+            dayNumber = day.dayNumber,
+            city = day.city,
+            cityDisplayName = displayName,
+            cityProviderId = day.cityProviderId,
+            cityLat = day.cityLat,
+            cityLon = day.cityLon,
+            isOutOfRange = day.isOutOfRange,
+            activities = activitiesByDay[day.id].orEmpty().map { it.toDto() },
+        )
     }
 }
 

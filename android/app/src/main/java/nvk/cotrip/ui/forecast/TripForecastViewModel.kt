@@ -16,6 +16,7 @@ import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.network.dto.ItineraryDayDto
 import nvk.cotrip.data.network.dto.WeatherForecastResponseDto
+import nvk.cotrip.data.network.dto.cityDisplayLabel
 import nvk.cotrip.data.repository.ItineraryRepository
 import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.data.repository.WeatherRepository
@@ -78,8 +79,10 @@ class TripForecastViewModel @Inject constructor(
             }
             is TripForecastEvent.OnCitySelected -> {
                 val current = _state.value as? TripForecastState.Content ?: return
+                val label = current.cityOptions.firstOrNull { it.key == event.city }?.label
+                    ?: event.city
                 _state.value = current.copy(
-                    city = event.city,
+                    city = label,
                     weatherCityKey = event.city,
                     isCityPickerVisible = false,
                 )
@@ -118,14 +121,14 @@ class TripForecastViewModel @Inject constructor(
 
         val cached = weatherRepository.getCachedWeather(
             tripId = tripId,
-            city = selectedCity.city,
+            city = selectedCity.key,
             start = trip.startDate,
             end = trip.endDate,
         ) ?: WeatherForecastResponseDto(items = emptyList())
-        val cityLabel = cached.displayCity?.takeIf { it.isNotBlank() } ?: selectedCity.city
+        val cityLabel = cached.displayCity?.takeIf { it.isNotBlank() } ?: selectedCity.displayLabel
         applyLoaded(
             WeatherLoadResult(
-                weatherCityKey = selectedCity.city,
+                weatherCityKey = selectedCity.key,
                 cityLabel = cityLabel,
                 cityOptions = cityOptions,
                 response = cached,
@@ -170,11 +173,11 @@ class TripForecastViewModel @Inject constructor(
                             current == null ||
                             current.days.isEmpty() ||
                             current.weatherCityKey.isBlank() ||
-                            !current.weatherCityKey.equals(selectedCity.city, ignoreCase = true)
+                            !current.weatherCityKey.equals(selectedCity.key, ignoreCase = true)
                     if (shouldRefresh) {
                         val refreshResult = weatherRepository.refreshWeather(
                             tripId = tripId,
-                            city = selectedCity.city,
+                            city = selectedCity.key,
                             start = trip.startDate,
                             end = trip.endDate,
                         )
@@ -185,18 +188,18 @@ class TripForecastViewModel @Inject constructor(
                     }
                     val response = weatherRepository.getCachedWeather(
                         tripId = tripId,
-                        city = selectedCity.city,
+                        city = selectedCity.key,
                         start = trip.startDate,
                         end = trip.endDate,
                     ) ?: weatherRepository.getWeather(
                         tripId = tripId,
-                        city = selectedCity.city,
+                        city = selectedCity.key,
                         start = trip.startDate,
                         end = trip.endDate,
                     ).first()
-                    val cityLabel = response.displayCity?.takeIf { it.isNotBlank() } ?: selectedCity.city
+                    val cityLabel = response.displayCity?.takeIf { it.isNotBlank() } ?: selectedCity.displayLabel
                     WeatherLoadResult(
-                        weatherCityKey = selectedCity.city,
+                        weatherCityKey = selectedCity.key,
                         cityLabel = cityLabel,
                         cityOptions = cityOptions,
                         response = response,
@@ -251,7 +254,12 @@ class TripForecastViewModel @Inject constructor(
             .firstOrNull { day ->
                 !day.city.isNullOrBlank() && day.cityLat != null && day.cityLon != null
             }
-            ?.let { day -> SelectedCity(city = day.city.orEmpty()) }
+            ?.let { day ->
+                SelectedCity(
+                    key = day.city.orEmpty(),
+                    displayLabel = day.cityDisplayLabel(),
+                )
+            }
     }
 
     private fun selectCity(
@@ -268,20 +276,26 @@ class TripForecastViewModel @Inject constructor(
                     day.city.equals(normalizedPreferred, ignoreCase = true)
             }
             if (preferredDay != null) {
-                return SelectedCity(city = preferredDay.city.orEmpty())
+                return SelectedCity(
+                    key = preferredDay.city.orEmpty(),
+                    displayLabel = preferredDay.cityDisplayLabel(),
+                )
             }
         }
         return selectCity(sorted)
     }
 
-    private fun collectCityOptions(days: List<ItineraryDayDto>): List<String> {
+    private fun collectCityOptions(days: List<ItineraryDayDto>): List<WeatherCityOption> {
         val seen = linkedSetOf<String>()
+        val result = mutableListOf<WeatherCityOption>()
         days.sortedBy { it.dayNumber }.forEach { day ->
-            val city = day.city?.trim()?.takeIf { it.isNotEmpty() } ?: return@forEach
+            val key = day.city?.trim()?.takeIf { it.isNotEmpty() } ?: return@forEach
             if (day.cityLat == null || day.cityLon == null) return@forEach
-            seen.add(city)
+            if (key in seen) return@forEach
+            seen.add(key)
+            result += WeatherCityOption(key = key, label = day.cityDisplayLabel())
         }
-        return seen.toList()
+        return result
     }
 
     private fun emitToast(resId: Int) {
@@ -289,13 +303,14 @@ class TripForecastViewModel @Inject constructor(
     }
 
     private data class SelectedCity(
-        val city: String,
+        val key: String,
+        val displayLabel: String,
     )
 
     private data class WeatherLoadResult(
         val weatherCityKey: String,
         val cityLabel: String,
-        val cityOptions: List<String>,
+        val cityOptions: List<WeatherCityOption>,
         val response: WeatherForecastResponseDto,
         val hasSelectedCity: Boolean,
     )

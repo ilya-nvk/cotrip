@@ -182,7 +182,7 @@ class TripItineraryViewModelTest {
 
         val updated = viewModel.state.value
         assertEquals(0, updated.pendingCitySelectionCount)
-        assertEquals("Rome, Italy", updated.days.first().city)
+        assertEquals("Rome", updated.days.first().city)
 
         // WHEN
         viewModel.onEvent(TripItineraryEvent.OnCompleteRequiredCitySelection)
