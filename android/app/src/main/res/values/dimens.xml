@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <dimen name="font_size_base">16sp</dimen>
-    <dimen name="radius_sm">6dp</dimen>
-    <dimen name="radius_md">8dp</dimen>
-    <dimen name="radius_lg">10dp</dimen>
-    <dimen name="radius_xl">14dp</dimen>
-</resources>
