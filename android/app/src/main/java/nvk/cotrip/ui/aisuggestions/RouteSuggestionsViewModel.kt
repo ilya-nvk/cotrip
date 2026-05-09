@@ -82,9 +82,7 @@ class RouteSuggestionsViewModel @Inject constructor(
 
     private fun regenerateSuggestions() {
         val previousContent = _state.value as? RouteSuggestionsState.Content
-        if (previousContent == null) {
-            _state.value = loadingState()
-        }
+        _state.value = loadingState()
 
         viewModelScope.launch {
             val result = apiCaller.call {

@@ -16,6 +16,8 @@ import nvk.cotrip.data.cache.TripMembersCacheStore
 import nvk.cotrip.data.cache.TripsCacheStore
 import nvk.cotrip.data.cache.UserCacheStore
 import nvk.cotrip.data.cache.WeatherCacheStore
+import nvk.cotrip.data.repository.PendingTripCreationStore
+import nvk.cotrip.data.sync.SyncQueueRepository
 import nvk.cotrip.data.sync.SyncStateStore
 import org.junit.Test
 
@@ -37,6 +39,8 @@ class SessionCleanerTest {
         val weatherCacheStore = mockk<WeatherCacheStore>(relaxed = true)
         val notificationsCacheStore = mockk<NotificationsCacheStore>(relaxed = true)
         val syncStateStore = mockk<SyncStateStore>(relaxed = true)
+        val syncQueueRepository = mockk<SyncQueueRepository>(relaxed = true)
+        val pendingTripCreationStore = mockk<PendingTripCreationStore>(relaxed = true)
         coEvery { userCacheStore.clear() } returns Unit
         coEvery { tripsCacheStore.clear() } returns Unit
         coEvery { ideasCacheStore.clearAll() } returns Unit
@@ -48,6 +52,8 @@ class SessionCleanerTest {
         coEvery { weatherCacheStore.clear() } returns Unit
         coEvery { notificationsCacheStore.clear() } returns Unit
         coEvery { syncStateStore.clear() } returns Unit
+        coEvery { syncQueueRepository.clearAllPendingChanges() } returns Unit
+        coEvery { pendingTripCreationStore.clearPendingTripId(null) } returns Unit
         val cleaner = SessionCleaner(
             sessionStore = sessionStore,
             userCacheStore = userCacheStore,
@@ -61,6 +67,8 @@ class SessionCleanerTest {
             weatherCacheStore = weatherCacheStore,
             notificationsCacheStore = notificationsCacheStore,
             syncStateStore = syncStateStore,
+            syncQueueRepository = syncQueueRepository,
+            pendingTripCreationStore = pendingTripCreationStore,
         )
 
         // WHEN
@@ -79,6 +87,8 @@ class SessionCleanerTest {
         coVerify(exactly = 1) { weatherCacheStore.clear() }
         coVerify(exactly = 1) { notificationsCacheStore.clear() }
         coVerify(exactly = 1) { syncStateStore.clear() }
+        coVerify(exactly = 1) { syncQueueRepository.clearAllPendingChanges() }
+        coVerify(exactly = 1) { pendingTripCreationStore.clearPendingTripId(null) }
     }
 
     @Test
@@ -96,6 +106,8 @@ class SessionCleanerTest {
         val weatherCacheStore = mockk<WeatherCacheStore>(relaxed = true)
         val notificationsCacheStore = mockk<NotificationsCacheStore>(relaxed = true)
         val syncStateStore = mockk<SyncStateStore>(relaxed = true)
+        val syncQueueRepository = mockk<SyncQueueRepository>(relaxed = true)
+        val pendingTripCreationStore = mockk<PendingTripCreationStore>(relaxed = true)
         coEvery { userCacheStore.clear() } returns Unit
         coEvery { tripsCacheStore.clear() } returns Unit
         coEvery { ideasCacheStore.clearAll() } returns Unit
@@ -107,6 +119,8 @@ class SessionCleanerTest {
         coEvery { weatherCacheStore.clear() } returns Unit
         coEvery { notificationsCacheStore.clear() } returns Unit
         coEvery { syncStateStore.clear() } returns Unit
+        coEvery { syncQueueRepository.clearAllPendingChanges() } returns Unit
+        coEvery { pendingTripCreationStore.clearPendingTripId(null) } returns Unit
         val cleaner = SessionCleaner(
             sessionStore = sessionStore,
             userCacheStore = userCacheStore,
@@ -120,6 +134,8 @@ class SessionCleanerTest {
             weatherCacheStore = weatherCacheStore,
             notificationsCacheStore = notificationsCacheStore,
             syncStateStore = syncStateStore,
+            syncQueueRepository = syncQueueRepository,
+            pendingTripCreationStore = pendingTripCreationStore,
         )
 
         // WHEN

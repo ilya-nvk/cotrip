@@ -6,6 +6,9 @@ import androidx.room.Query
 
 @Dao
 interface SyncChangeDao {
+    @Query("DELETE FROM sync_changes")
+    suspend fun deleteAll()
+
     @Insert
     suspend fun insert(change: SyncChangeEntity): Long
 

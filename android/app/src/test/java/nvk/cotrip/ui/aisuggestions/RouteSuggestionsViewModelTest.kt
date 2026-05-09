@@ -113,6 +113,7 @@ class RouteSuggestionsViewModelTest {
 
         // THEN
         assertEquals(2, aiRepository.generateSuggestionsCalls.size)
+        assertTrue(viewModel.state.value is RouteSuggestionsState.Content)
     }
 
     @Test
