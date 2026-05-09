@@ -86,6 +86,34 @@ class ItineraryRepositoryImpl @Inject constructor(
         applyDayUpdateLocally(dayId = dayId, request = request)
     }
 
+    override suspend fun updateDaysCity(tripId: String, dayIds: List<String>, request: UpdateDayRequest) {
+        if (dayIds.isEmpty()) return
+        val appliedDayIds = mutableListOf<String>()
+        var firstHttpFailure: HttpException? = null
+        for (dayId in dayIds) {
+            try {
+                api.updateDay(dayId, request).requireSuccess()
+                appliedDayIds.add(dayId)
+            } catch (e: IOException) {
+                syncQueueRepository.enqueueUpsert(SyncEntities.DAY, dayId, request)
+                appliedDayIds.add(dayId)
+            } catch (e: HttpException) {
+                if (firstHttpFailure == null) {
+                    firstHttpFailure = e
+                }
+                AppLogger.w(
+                    TAG,
+                    "updateDaysCity HTTP failed tripId=$tripId dayId=$dayId code=${e.code()}",
+                    e,
+                )
+            }
+        }
+        if (appliedDayIds.isEmpty()) {
+            throw firstHttpFailure ?: IllegalStateException("updateDaysCity failed for all days")
+        }
+        applyBulkDayUpdateLocally(tripId = tripId, dayIds = appliedDayIds, request = request)
+    }
+
     override suspend fun createActivity(dayId: String, request: CreateActivityRequest): ActivityDto {
         val activity = api.createActivity(dayId, request)
 
@@ -272,6 +300,32 @@ class ItineraryRepositoryImpl @Inject constructor(
                             cityProviderId = request.cityProviderId,
                             cityLat = request.cityLat,
                             cityLon = request.cityLon,
+                            cityDisplayName = null,
+                        )
+                    } else {
+                        day
+                    }
+                }
+            }
+        }
+    }
+
+    private suspend fun applyBulkDayUpdateLocally(
+        tripId: String,
+        dayIds: List<String>,
+        request: UpdateDayRequest,
+    ) {
+        val idSet = dayIds.toSet()
+        safeLocalMutation("updateDaysCity.updateItinerary(tripId=$tripId,count=${dayIds.size})") {
+            itineraryCacheStore.updateItinerary(tripId) { days ->
+                days.map { day ->
+                    if (day.id in idSet) {
+                        day.copy(
+                            city = request.city,
+                            cityProviderId = request.cityProviderId,
+                            cityLat = request.cityLat,
+                            cityLon = request.cityLon,
+                            cityDisplayName = null,
                         )
                     } else {
                         day

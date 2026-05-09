@@ -507,34 +507,17 @@ class TripItineraryViewModel @Inject constructor(
                 return@launch
             }
 
-            var successCount = 0
-            var firstFailure: ApiResult.Failure? = null
-            latestDays.forEach { day ->
-                when (val result = updateDayOnServer(dayId = day.id, request = request)) {
-                    is ApiResult.Success -> successCount += 1
-                    is ApiResult.Failure -> {
-                        if (firstFailure == null) {
-                            firstFailure = result
-                        }
-                        AppLogger.w(
-                            TAG,
-                            "selectCityForFollowingDays failed dayId=${day.id} code=${result.httpCode} apiCode=${result.error?.code.orEmpty()}",
-                            result.cause
-                        )
-                    }
+            val dayIds = latestDays.map { it.id }
+            when (val result = apiCaller.call {
+                itineraryRepository.updateDaysCity(tripId = tripId, dayIds = dayIds, request = request)
+            }) {
+                is ApiResult.Success -> {
+                    runCatching { itineraryRepository.refreshItinerary(tripId).getOrThrow() }
                 }
-            }
 
-            if (successCount > 0) {
-                applySelectedCityForFollowingDaysLocally(
-                    fromDayNumber = picker.dayNumber,
-                    cityName = selectedCityName,
-                )
-                runCatching { itineraryRepository.refreshItinerary(tripId).getOrThrow() }
-            } else if (firstFailure != null) {
-                emitToast(uiErrorMapper.messageRes(checkNotNull(firstFailure)))
-            } else {
-                emitToast(R.string.common_error_message)
+                is ApiResult.Failure -> {
+                    emitToast(uiErrorMapper.messageRes(result))
+                }
             }
         }
     }
@@ -548,16 +531,23 @@ class TripItineraryViewModel @Inject constructor(
         }
     }
 
+    private fun cityRowLabelFromSelection(selectedCityName: String): String {
+        val trimmed = selectedCityName.trim()
+        val primary = trimmed.substringBefore(',').trim()
+        return primary.ifBlank { trimmed }
+    }
+
     private suspend fun applySelectedCityLocally(
         targetDayId: String,
         dayDate: String,
         dayNumber: Int,
         cityName: String,
     ) {
+        val cityLabel = cityRowLabelFromSelection(cityName)
         _state.update { st ->
             val days = st.days.map { d ->
                 if (d.id == targetDayId || d.dateIso == dayDate || d.dayNumber == dayNumber) {
-                    d.copy(city = cityName)
+                    d.copy(city = cityLabel)
                 } else {
                     d
                 }
@@ -572,29 +562,6 @@ class TripItineraryViewModel @Inject constructor(
             )
         }
         runCatching { itineraryRepository.refreshItinerary(tripId).getOrThrow() }
-    }
-
-    private fun applySelectedCityForFollowingDaysLocally(
-        fromDayNumber: Int,
-        cityName: String,
-    ) {
-        _state.update { st ->
-            val days = st.days.map { d ->
-                if (d.dayNumber >= fromDayNumber) {
-                    d.copy(city = cityName)
-                } else {
-                    d
-                }
-            }
-            st.copy(
-                days = days,
-                pendingCitySelectionCount = if (st.isCitySelectionRequired) {
-                    days.count { it.city.isNullOrBlank() }
-                } else {
-                    st.pendingCitySelectionCount
-                }
-            )
-        }
     }
 
     private fun completeRequiredCitySelection() {

@@ -120,6 +120,25 @@ internal class TripItineraryFakeRepository(
                     cityProviderId = request.cityProviderId,
                     cityLat = request.cityLat,
                     cityLon = request.cityLon,
+                    cityDisplayName = null,
+                )
+            } else {
+                day
+            }
+        }
+    }
+
+    override suspend fun updateDaysCity(tripId: String, dayIds: List<String>, request: UpdateDayRequest) {
+        dayIds.forEach { dayId -> updateCalls += dayId to request }
+        val idSet = dayIds.toSet()
+        daysFlow.value = daysFlow.value.map { day ->
+            if (day.id in idSet) {
+                day.copy(
+                    city = request.city,
+                    cityProviderId = request.cityProviderId,
+                    cityLat = request.cityLat,
+                    cityLon = request.cityLon,
+                    cityDisplayName = null,
                 )
             } else {
                 day
