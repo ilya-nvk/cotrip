@@ -85,7 +85,6 @@ fun IdeaDetailsScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val lifecycleOwner = LocalLifecycleOwner.current
     val selectedTab = if (state.isDiscussionAvailable) {
         state.selectedTab
@@ -132,6 +131,7 @@ fun IdeaDetailsScreen(
     }
 
     if (dayPicker != null) {
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         ModalBottomSheet(
             onDismissRequest = { viewModel.onEvent(IdeaDetailsEvent.OnDismissDayPicker) },
             sheetState = sheetState,

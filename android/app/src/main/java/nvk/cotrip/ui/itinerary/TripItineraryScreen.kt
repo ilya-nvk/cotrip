@@ -81,7 +81,6 @@ fun TripItineraryScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val lifecycleOwner = LocalLifecycleOwner.current
     BackHandler { viewModel.onEvent(TripItineraryEvent.OnBackClick) }
 
@@ -107,6 +106,7 @@ fun TripItineraryScreen(
 
     val currentState = state.cityPicker
     if (currentState != null) {
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         ModalBottomSheet(
             onDismissRequest = { viewModel.onEvent(TripItineraryEvent.OnDismissCityPicker) },
             sheetState = sheetState,

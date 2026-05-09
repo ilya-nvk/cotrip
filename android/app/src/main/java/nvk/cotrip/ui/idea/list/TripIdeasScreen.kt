@@ -75,7 +75,6 @@ fun TripIdeasScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val lifecycleOwner = LocalLifecycleOwner.current
 
     DisposableEffect(lifecycleOwner, viewModel) {
@@ -100,6 +99,7 @@ fun TripIdeasScreen(
 
     val dayPicker = (state as? TripIdeasState.Content)?.dayPicker
     if (dayPicker != null) {
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         ModalBottomSheet(
             onDismissRequest = { viewModel.onEvent(TripIdeasEvent.OnDismissDayPicker) },
             sheetState = sheetState,

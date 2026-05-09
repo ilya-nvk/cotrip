@@ -66,10 +66,10 @@ fun BuildRouteScreen(
     viewModel: BuildRouteViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val cityPicker = state.cityPicker
     if (cityPicker != null) {
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         ModalBottomSheet(
             onDismissRequest = { viewModel.onEvent(BuildRouteEvent.OnDismissCityPicker) },
             sheetState = sheetState,
