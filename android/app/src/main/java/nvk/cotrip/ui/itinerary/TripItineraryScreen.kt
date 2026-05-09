@@ -565,7 +565,14 @@ private fun CityPickerSheet(
             contentPadding = PaddingValues(vertical = CoTripTokens.spacing.x1),
             verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x0_5)
         ) {
-            items(cities, key = { it.providerId ?: "${it.name}:${it.lat}:${it.lon}" }) { city ->
+            items(
+                count = cities.size,
+                key = { index ->
+                    val city = cities[index]
+                    "$index:${city.providerId ?: "${city.name}:${city.lat}:${city.lon}"}"
+                },
+            ) { index ->
+                val city = cities[index]
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()

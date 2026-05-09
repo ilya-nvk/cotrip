@@ -359,7 +359,7 @@ private fun CityPickerSheet(
             contentPadding = PaddingValues(vertical = CoTripTokens.spacing.x1),
             verticalArrangement = Arrangement.spacedBy(CoTripTokens.spacing.x0_5),
         ) {
-            items(cities.size, key = { index -> cities[index].key }) { index ->
+            items(cities.size, key = { index -> "$index:${cities[index].key}" }) { index ->
                 val option = cities[index]
                 CoTripListItem(
                     title = option.label,
