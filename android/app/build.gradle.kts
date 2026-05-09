@@ -12,6 +12,7 @@ plugins {
 
 if (file("google-services.json").exists()) {
     apply(plugin = "com.google.gms.google-services")
+    apply(plugin = "com.google.firebase.crashlytics")
 }
 
 val localProps = Properties().apply {
@@ -129,6 +130,7 @@ dependencies {
     implementation(libs.play.services.auth)
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.messaging.ktx)
+    implementation(libs.firebase.crashlytics.ktx)
     implementation(libs.kotlinx.coroutines.play.services)
 
     testImplementation(libs.junit)
