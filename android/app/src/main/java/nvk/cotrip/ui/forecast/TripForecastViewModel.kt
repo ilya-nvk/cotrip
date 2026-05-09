@@ -18,6 +18,7 @@ import nvk.cotrip.data.network.dto.ItineraryDayDto
 import nvk.cotrip.data.network.dto.WeatherForecastResponseDto
 import nvk.cotrip.data.network.dto.cityDisplayLabel
 import nvk.cotrip.data.repository.ItineraryRepository
+import nvk.cotrip.ui.common.appUiLocale
 import nvk.cotrip.data.repository.TripRepository
 import nvk.cotrip.data.repository.WeatherRepository
 import nvk.cotrip.ui.common.UiErrorMapper
@@ -286,14 +287,16 @@ class TripForecastViewModel @Inject constructor(
     }
 
     private fun collectCityOptions(days: List<ItineraryDayDto>): List<WeatherCityOption> {
-        val seen = linkedSetOf<String>()
+        val seenDisplayKeys = linkedSetOf<String>()
         val result = mutableListOf<WeatherCityOption>()
         days.sortedBy { it.dayNumber }.forEach { day ->
             val key = day.city?.trim()?.takeIf { it.isNotEmpty() } ?: return@forEach
             if (day.cityLat == null || day.cityLon == null) return@forEach
-            if (key in seen) return@forEach
-            seen.add(key)
-            result += WeatherCityOption(key = key, label = day.cityDisplayLabel())
+            val label = day.cityDisplayLabel()
+            val displayKey = label.trim().lowercase(appUiLocale())
+            if (displayKey in seenDisplayKeys) return@forEach
+            seenDisplayKeys.add(displayKey)
+            result += WeatherCityOption(key = key, label = label)
         }
         return result
     }

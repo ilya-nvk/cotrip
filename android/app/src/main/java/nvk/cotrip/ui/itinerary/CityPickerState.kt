@@ -1,5 +1,7 @@
 package nvk.cotrip.ui.itinerary
 
+import nvk.cotrip.ui.common.appUiLocale
+
 data class CitySuggestionUi(
     val name: String,
     val providerId: String? = null,
@@ -17,3 +19,8 @@ data class CityPickerState(
     val suggestions: List<CitySuggestionUi>,
     val isSearching: Boolean,
 )
+
+internal fun CitySuggestionUi.visibleCityPickerDedupeKey(): String {
+    val visible = fullText?.trim()?.takeIf { it.isNotEmpty() } ?: name.trim()
+    return visible.lowercase(appUiLocale())
+}
