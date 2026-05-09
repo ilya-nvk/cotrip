@@ -69,7 +69,6 @@ fun TripForecastScreen(
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    val citySheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     DisposableEffect(lifecycleOwner, viewModel) {
         val observer = LifecycleEventObserver { _, event ->
@@ -92,6 +91,7 @@ fun TripForecastScreen(
 
     val contentState = state as? TripForecastState.Content
     if (contentState?.isCityPickerVisible == true) {
+        val citySheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         ModalBottomSheet(
             onDismissRequest = { viewModel.onEvent(TripForecastEvent.OnDismissCityPicker) },
             sheetState = citySheetState,

@@ -96,7 +96,6 @@ private fun ExpenseFormScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val dateFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy", appUiLocale())
 
     fun showDatePicker() {
@@ -127,6 +126,7 @@ private fun ExpenseFormScreen(
     }
 
     if (state.paidByPickerVisible) {
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         ModalBottomSheet(
             onDismissRequest = { viewModel.onEvent(ExpenseFormEvent.OnDismissPaidByPicker) },
             sheetState = sheetState,
