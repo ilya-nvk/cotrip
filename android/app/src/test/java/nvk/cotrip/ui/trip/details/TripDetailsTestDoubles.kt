@@ -224,6 +224,8 @@ internal class TripDetailsFakeItineraryRepository(
 
     override suspend fun updateDay(dayId: String, request: UpdateDayRequest) = Unit
 
+    override suspend fun updateDaysCity(tripId: String, dayIds: List<String>, request: UpdateDayRequest) = Unit
+
     override suspend fun createActivity(dayId: String, request: CreateActivityRequest): ActivityDto =
         tripDetailsActivityDto(id = "activity-created", dayId = dayId, title = request.title)
 

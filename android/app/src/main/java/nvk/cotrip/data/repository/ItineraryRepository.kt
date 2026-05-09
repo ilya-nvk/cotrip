@@ -18,6 +18,7 @@ interface ItineraryRepository {
     suspend fun searchCities(tripId: String, query: String, limit: Int = 8): List<CitySuggestionDto>
     suspend fun searchPlaces(tripId: String, query: String, limit: Int = 8): List<PlaceSuggestionDto>
     suspend fun updateDay(dayId: String, request: UpdateDayRequest)
+    suspend fun updateDaysCity(tripId: String, dayIds: List<String>, request: UpdateDayRequest)
     suspend fun createActivity(dayId: String, request: CreateActivityRequest): ActivityDto
     suspend fun updateActivity(activityId: String, request: UpdateActivityRequest)
     suspend fun moveActivity(activityId: String, request: MoveActivityRequest)

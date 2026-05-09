@@ -161,6 +161,7 @@ class OutOfRangeDaysScreenComposeTest {
                 override suspend fun searchCities(tripId: String, query: String, limit: Int): List<CitySuggestionDto> = emptyList()
                 override suspend fun searchPlaces(tripId: String, query: String, limit: Int): List<PlaceSuggestionDto> = emptyList()
                 override suspend fun updateDay(dayId: String, request: UpdateDayRequest) = Unit
+                override suspend fun updateDaysCity(tripId: String, dayIds: List<String>, request: UpdateDayRequest) = Unit
                 override suspend fun createActivity(dayId: String, request: CreateActivityRequest): ActivityDto =
                     ActivityDto(
                         id = "activity-1",
