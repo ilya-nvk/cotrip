@@ -146,10 +146,7 @@ class SettingsViewModel @Inject constructor(
                 viewModelScope.launch {
                     runCatching { authRepository.logout() }
                     authRepository.clearSession()
-                    appNavigator.navigate(Destination.SignIn) {
-                        popUpTo(Destination.Trips.route) { inclusive = true }
-                        launchSingleTop = true
-                    }
+                    appNavigator.navigateToSignInClearingFullBackStack()
                 }
             }
 
@@ -293,10 +290,7 @@ class SettingsViewModel @Inject constructor(
             when (result) {
                 is ApiResult.Success -> {
                     userRepository.clearSession()
-                    appNavigator.navigate(Destination.SignIn) {
-                        popUpTo(Destination.Trips.route) { inclusive = true }
-                        launchSingleTop = true
-                    }
+                    appNavigator.navigateToSignInClearingFullBackStack()
                 }
                 is ApiResult.Failure -> {
                     _state.update { it.copy(isSaving = false) }

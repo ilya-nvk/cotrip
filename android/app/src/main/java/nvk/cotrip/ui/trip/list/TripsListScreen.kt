@@ -461,7 +461,8 @@ private fun UpcomingEmptyCard(
             Text(
                 text = stringResource(R.string.no_upcoming_trips_desc),
                 style = MaterialTheme.typography.bodyMedium,
-                color = TextSecondary
+                color = TextSecondary,
+                textAlign = TextAlign.Center
             )
         }
     }

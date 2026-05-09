@@ -69,6 +69,10 @@ class SyncQueueRepository @Inject constructor(
         enqueue(entity = entity, id = id, type = "upsert", payload = jsonPayload)
     }
 
+    suspend fun clearAllPendingChanges() {
+        dao.deleteAll()
+    }
+
     suspend fun enqueue(
         entity: String,
         id: String,

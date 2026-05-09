@@ -103,10 +103,7 @@ class MainActivity : ComponentActivity() {
                     if (!isAuthenticated) {
                         val currentRoute = navController.currentBackStackEntry?.destination?.route
                         if (currentRoute != Destination.SignIn.route) {
-                            navController.navigate(Destination.SignIn.route) {
-                                popUpTo(Destination.Trips.route) { inclusive = true }
-                                launchSingleTop = true
-                            }
+                            appNavigatorImpl.navigateToSignInClearingFullBackStack()
                         }
                     }
                 }

@@ -23,6 +23,14 @@ class AppNavigatorImpl @Inject constructor() : AppNavigator {
         controller.safeNavigate(destination.route, navOptions ?: {})
     }
 
+    override fun navigateToSignInClearingFullBackStack() {
+        val controller = controllerRef.get() ?: return
+        controller.navigate(Destination.SignIn.route) {
+            popUpTo(controller.graph.id) { inclusive = true }
+            launchSingleTop = true
+        }
+    }
+
     override fun popBackStack(): Boolean {
         val controller = controllerRef.get() ?: return false
         val currentRoute = controller.currentBackStackEntry?.destination?.route

@@ -11,6 +11,8 @@ import nvk.cotrip.data.cache.TripMembersCacheStore
 import nvk.cotrip.data.cache.TripsCacheStore
 import nvk.cotrip.data.cache.UserCacheStore
 import nvk.cotrip.data.cache.WeatherCacheStore
+import nvk.cotrip.data.repository.PendingTripCreationStore
+import nvk.cotrip.data.sync.SyncQueueRepository
 import nvk.cotrip.data.sync.SyncStateStore
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -29,6 +31,8 @@ class SessionCleaner @Inject constructor(
     private val weatherCacheStore: WeatherCacheStore,
     private val notificationsCacheStore: NotificationsCacheStore,
     private val syncStateStore: SyncStateStore,
+    private val syncQueueRepository: SyncQueueRepository,
+    private val pendingTripCreationStore: PendingTripCreationStore,
 ) {
     suspend fun clearSession() {
         sessionStore.clear()
@@ -53,5 +57,7 @@ class SessionCleaner @Inject constructor(
         weatherCacheStore.clear()
         notificationsCacheStore.clear()
         syncStateStore.clear()
+        syncQueueRepository.clearAllPendingChanges()
+        pendingTripCreationStore.clearPendingTripId(null)
     }
 }
