@@ -13,8 +13,10 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import nvk.cotrip.R
+import nvk.cotrip.data.network.dto.cityDisplayLabel
 import nvk.cotrip.data.repository.ItineraryRepository
 import nvk.cotrip.ui.common.TextInputLimits
+import nvk.cotrip.ui.common.appUiLocale
 import nvk.cotrip.ui.navigation.AppNavigator
 import nvk.cotrip.ui.navigation.Destination
 import javax.inject.Inject
@@ -139,8 +141,9 @@ class BuildRouteViewModel @Inject constructor(
         viewModelScope.launch {
             val cities = runCatching {
                 itineraryRepository.getItinerary(tripId).first()
-                    .mapNotNull { it.city?.trim()?.takeIf { city -> city.isNotBlank() } }
-                    .distinct()
+                    .map { it.cityDisplayLabel() }
+                    .filter { it.isNotBlank() }
+                    .distinctBy { it.lowercase(appUiLocale()) }
             }.getOrNull().orEmpty()
 
             if (cities.isNotEmpty()) {

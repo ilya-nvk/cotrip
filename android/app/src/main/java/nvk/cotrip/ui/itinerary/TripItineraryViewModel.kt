@@ -334,6 +334,7 @@ class TripItineraryViewModel @Inject constructor(
                                 fullText = it.fullText,
                             )
                         }
+                        .distinctBy { it.visibleCityPickerDedupeKey() }
                     _state.update { st ->
                         val current = st.cityPicker ?: return@update st
                         if (current.query != query) {
@@ -356,7 +357,7 @@ class TripItineraryViewModel @Inject constructor(
                         }
                         val fallback = current.localSuggestions.filter {
                             it.name.contains(query, ignoreCase = true)
-                        }
+                        }.distinctBy { it.visibleCityPickerDedupeKey() }
                         st.copy(
                             cityPicker = current.copy(
                                 suggestions = fallback,
@@ -616,17 +617,12 @@ private fun collectTripCities(days: List<ItineraryDayDto>): List<CitySuggestionU
             current
         }
     }
-    return byName.values.toList().distinctBy { it.tripCityDedupeKey() }
+    return byName.values.toList().distinctBy { it.visibleCityPickerDedupeKey() }
 }
 
 private fun CitySuggestionDto.citySearchDedupeKey(): String {
     val trimmedProvider = providerId?.trim()?.takeIf { it.isNotEmpty() }
     return trimmedProvider ?: "$lat:$lon:${name.trim()}"
-}
-
-private fun CitySuggestionUi.tripCityDedupeKey(): String {
-    val trimmedProvider = providerId?.trim()?.takeIf { it.isNotEmpty() }
-    return trimmedProvider ?: "$lat:$lon:${name.trim().lowercase(appUiLocale())}"
 }
 
 private fun ItineraryDayDto.toUi(currencySymbol: String): ItineraryDayUi {
