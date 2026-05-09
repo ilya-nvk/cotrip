@@ -18,6 +18,7 @@ import nvk.cotrip.R
 import nvk.cotrip.data.network.ApiCaller
 import nvk.cotrip.data.network.ApiResult
 import nvk.cotrip.data.network.dto.ActivityDto
+import nvk.cotrip.data.network.dto.CitySuggestionDto
 import nvk.cotrip.data.network.dto.ItineraryDayDto
 import nvk.cotrip.data.network.dto.UpdateDayRequest
 import nvk.cotrip.data.network.dto.cityDisplayLabel
@@ -322,15 +323,17 @@ class TripItineraryViewModel @Inject constructor(
                 itineraryRepository.searchCities(tripId = tripId, query = query, limit = 8)
             }) {
                 is ApiResult.Success -> {
-                    val suggestions = result.data.map {
-                        CitySuggestionUi(
-                            name = it.name,
-                            providerId = it.providerId,
-                            lat = it.lat,
-                            lon = it.lon,
-                            fullText = it.fullText,
-                        )
-                    }
+                    val suggestions = result.data
+                        .distinctBy { it.citySearchDedupeKey() }
+                        .map {
+                            CitySuggestionUi(
+                                name = it.name,
+                                providerId = it.providerId,
+                                lat = it.lat,
+                                lon = it.lon,
+                                fullText = it.fullText,
+                            )
+                        }
                     _state.update { st ->
                         val current = st.cityPicker ?: return@update st
                         if (current.query != query) {
@@ -646,7 +649,17 @@ private fun collectTripCities(days: List<ItineraryDayDto>): List<CitySuggestionU
             current
         }
     }
-    return byName.values.toList()
+    return byName.values.toList().distinctBy { it.tripCityDedupeKey() }
+}
+
+private fun CitySuggestionDto.citySearchDedupeKey(): String {
+    val trimmedProvider = providerId?.trim()?.takeIf { it.isNotEmpty() }
+    return trimmedProvider ?: "$lat:$lon:${name.trim()}"
+}
+
+private fun CitySuggestionUi.tripCityDedupeKey(): String {
+    val trimmedProvider = providerId?.trim()?.takeIf { it.isNotEmpty() }
+    return trimmedProvider ?: "$lat:$lon:${name.trim().lowercase(appUiLocale())}"
 }
 
 private fun ItineraryDayDto.toUi(currencySymbol: String): ItineraryDayUi {
